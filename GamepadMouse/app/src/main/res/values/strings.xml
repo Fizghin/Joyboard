@@ -1,4 +1,0 @@
-<resources>
-    <string name="app_name">Gamepad Mouse</string>
-    <string name="accessibility_service_description">Provides cursor navigation and on-screen keyboard for broken touch devices using a gamepad.</string>
-</resources>
