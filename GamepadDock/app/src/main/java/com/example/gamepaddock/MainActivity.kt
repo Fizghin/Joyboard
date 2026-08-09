@@ -19,8 +19,8 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.lifecycle.lifecycleScope
@@ -34,11 +34,14 @@ class MainActivity : ComponentActivity(), InputManager.InputDeviceListener {
     private val controllerName = mutableStateOf("Disconnected")
     private val isServiceEnabled = mutableStateOf(false)
 
+    // Used to intercept key events in the Activity before they reach Compose
+    var remapActionId: String? = null
+    var onRemapComplete: ((Int) -> Unit)? = null
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
         inputManager = getSystemService(Context.INPUT_SERVICE) as InputManager
-
         val settingsRepo = SettingsRepository(this)
 
         setContent {
@@ -47,20 +50,49 @@ class MainActivity : ComponentActivity(), InputManager.InputDeviceListener {
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background
                 ) {
-                    AppContent(
-                        settingsRepo = settingsRepo,
-                        isServiceEnabled = isServiceEnabled.value,
-                        isControllerConnected = isControllerConnected.value,
-                        controllerName = controllerName.value,
-                        onOpenSettings = {
-                            startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
-                        }
-                    )
+                    val onboardingCompleted by settingsRepo.onboardingCompletedFlow.collectAsState(initial = false)
+
+                    if (!onboardingCompleted) {
+                        OnboardingScreen(
+                            onComplete = {
+                                lifecycleScope.launch { settingsRepo.completeOnboarding() }
+                            }
+                        )
+                    } else {
+                        AppContent(
+                            settingsRepo = settingsRepo,
+                            isServiceEnabled = isServiceEnabled.value,
+                            isControllerConnected = isControllerConnected.value,
+                            controllerName = controllerName.value,
+                            onOpenSettings = {
+                                startActivity(Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                            },
+                            onStartRemap = { actionId, callback ->
+                                remapActionId = actionId
+                                onRemapComplete = callback
+                            },
+                            onCancelRemap = {
+                                remapActionId = null
+                                onRemapComplete = null
+                            },
+                            currentRemapActionId = remapActionId
+                        )
+                    }
                 }
             }
         }
 
         checkStatuses()
+    }
+
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (remapActionId != null && event.action == KeyEvent.ACTION_DOWN) {
+            onRemapComplete?.invoke(event.keyCode)
+            remapActionId = null
+            onRemapComplete = null
+            return true
+        }
+        return super.dispatchKeyEvent(event)
     }
 
     override fun onResume() {
@@ -115,20 +147,57 @@ class MainActivity : ComponentActivity(), InputManager.InputDeviceListener {
 }
 
 @Composable
+fun OnboardingScreen(onComplete: () -> Unit) {
+    var step by remember { mutableStateOf(1) }
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (step == 1) {
+            Text("Welcome to GamepadDock", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("This app allows you to control your entire tablet using only a physical gamepad.", textAlign = TextAlign.Center)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("It provides a mouse cursor, click actions, scrolling, and a custom on-screen keyboard.", textAlign = TextAlign.Center)
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(onClick = { step = 2 }, modifier = Modifier.fillMaxWidth()) {
+                Text("Next")
+            }
+        } else if (step == 2) {
+            Text("Default Controls", style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+            Spacer(modifier = Modifier.height(16.dp))
+            Text("Left Stick / D-Pad = Move Cursor\nButton A = Click\nButton B = Long Press\nStart/Menu = Toggle Keyboard\nRight Thumb = Hold to Drag\nLeft Trigger = Hold to Scroll", textAlign = TextAlign.Center)
+            Spacer(modifier = Modifier.height(32.dp))
+            Text("You can remap these in Settings later.", style = MaterialTheme.typography.bodySmall, color = Color.Gray)
+            Spacer(modifier = Modifier.height(32.dp))
+            Button(onClick = { onComplete() }, modifier = Modifier.fillMaxWidth()) {
+                Text("Get Started")
+            }
+        }
+    }
+}
+
+@Composable
 fun AppContent(
     settingsRepo: SettingsRepository,
     isServiceEnabled: Boolean,
     isControllerConnected: Boolean,
     controllerName: String,
-    onOpenSettings: () -> Unit
+    onOpenSettings: () -> Unit,
+    onStartRemap: (String, (Int) -> Unit) -> Unit,
+    onCancelRemap: () -> Unit,
+    currentRemapActionId: String?
 ) {
     val coroutineScope = rememberCoroutineScope()
     val sensitivity by settingsRepo.sensitivityFlow.collectAsState(initial = 1.0f)
     val acceleration by settingsRepo.accelerationEnabledFlow.collectAsState(initial = true)
+    val longPressDuration by settingsRepo.longPressDurationFlow.collectAsState(initial = 600L)
 
     val mappings by settingsRepo.buttonMappingsFlow.collectAsState(initial = mapOf())
-
-    var showRemapDialog by remember { mutableStateOf<String?>(null) }
 
     Column(
         modifier = Modifier
@@ -173,11 +242,19 @@ fun AppContent(
                 Text("Cursor Settings", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
                 Spacer(modifier = Modifier.height(16.dp))
-                Text("Sensitivity")
+                Text("Sensitivity: ${"%.1f".format(sensitivity)}x")
                 Slider(
                     value = sensitivity,
                     onValueChange = { coroutineScope.launch { settingsRepo.updateSensitivity(it) } },
                     valueRange = 0.1f..3.0f
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("Long Press Duration: ${longPressDuration}ms")
+                Slider(
+                    value = longPressDuration.toFloat(),
+                    onValueChange = { coroutineScope.launch { settingsRepo.updateLongPressDuration(it.toLong()) } },
+                    valueRange = 300f..1500f
                 )
 
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
@@ -205,13 +282,16 @@ fun AppContent(
                     "BACK" to "Go Back",
                     "HOME" to "Home Screen",
                     "RECENTS" to "Recent Apps",
+                    "NOTIFICATIONS" to "Notifications",
+                    "QUICK_SETTINGS" to "Quick Settings",
                     "TOGGLE_KEYBOARD" to "Show Keyboard",
-                    "DRAG" to "Hold to Drag"
+                    "DRAG" to "Hold to Drag",
+                    "SCROLL_MODIFIER" to "Hold to Scroll"
                 )
 
                 actionLabels.forEach { (actionId, label) ->
                     val currentKey = mappings.entries.find { it.value == actionId }?.key ?: -1
-                    val keyName = KeyEvent.keyCodeToString(currentKey).replace("KEYCODE_", "")
+                    val keyName = if (currentKey == -1) "Unbound" else KeyEvent.keyCodeToString(currentKey).replace("KEYCODE_", "")
 
                     Row(
                         modifier = Modifier
@@ -220,7 +300,11 @@ fun AppContent(
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(label, modifier = Modifier.weight(1f))
-                        Button(onClick = { showRemapDialog = actionId }) {
+                        Button(onClick = {
+                            onStartRemap(actionId) { newKey ->
+                                coroutineScope.launch { settingsRepo.updateButtonMapping(actionId, newKey) }
+                            }
+                        }) {
                             Text(keyName)
                         }
                     }
@@ -235,7 +319,8 @@ fun AppContent(
             Column(modifier = Modifier.padding(16.dp)) {
                 Text("Test Zone", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(value = "", onValueChange = {}, label = { Text("Type here...") }, modifier = Modifier.fillMaxWidth())
+                var textValue by remember { mutableStateOf("") }
+                OutlinedTextField(value = textValue, onValueChange = { textValue = it }, label = { Text("Type here...") }, modifier = Modifier.fillMaxWidth())
                 Spacer(modifier = Modifier.height(8.dp))
                 var checked by remember { mutableStateOf(false) }
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -254,17 +339,17 @@ fun AppContent(
     }
 
     // Remapping Dialog
-    if (showRemapDialog != null) {
-        Dialog(onDismissRequest = { showRemapDialog = null }) {
+    if (currentRemapActionId != null) {
+        Dialog(onDismissRequest = { onCancelRemap() }) {
             Surface(
                 shape = MaterialTheme.shapes.medium,
                 color = MaterialTheme.colorScheme.surface
             ) {
                 Column(modifier = Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text("Press any gamepad button", style = MaterialTheme.typography.titleLarge)
-                    Text("To bind to: ${showRemapDialog}", style = MaterialTheme.typography.bodyMedium)
+                    Text("To bind to: ${currentRemapActionId}", style = MaterialTheme.typography.bodyMedium)
                     Spacer(modifier = Modifier.height(24.dp))
-                    Button(onClick = { showRemapDialog = null }) {
+                    Button(onClick = { onCancelRemap() }) {
                         Text("Cancel")
                     }
                 }

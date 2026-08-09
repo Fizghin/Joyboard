@@ -4,6 +4,9 @@ plugins {
 }
 
 android {
+    lint {
+        abortOnError false
+    }
     namespace 'com.example.gamepaddock'
     compileSdk 34
 

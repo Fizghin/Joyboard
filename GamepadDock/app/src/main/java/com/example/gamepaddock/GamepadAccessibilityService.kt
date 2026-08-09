@@ -37,6 +37,7 @@ class GamepadAccessibilityService : AccessibilityService() {
     private var buttonMappings = mapOf<Int, String>()
     private var sensitivity = 1.0f
     private var accelerationEnabled = true
+    private var longPressDuration = 600L
 
     // Joystick polling
     private val handler = Handler(Looper.getMainLooper())
@@ -46,7 +47,18 @@ class GamepadAccessibilityService : AccessibilityService() {
     private var dpadY = 0f
     private val BASE_SPEED = 15f
     private var currentSpeedMultiplier = 1f
+
+    // Gestures state
     private var isDragging = false
+    private var dragStartX = 0f
+    private var dragStartY = 0f
+
+    private var isScrolling = false
+    private var scrollStartX = 0f
+    private var scrollStartY = 0f
+
+    // Track the last focused editable node since the transparent overlay steals actual window focus
+    private var lastFocusedEditableNode: AccessibilityNodeInfo? = null
 
     private val inputRunnable = object : Runnable {
         override fun run() {
@@ -66,12 +78,13 @@ class GamepadAccessibilityService : AccessibilityService() {
 
                     cursorOverlay?.let {
                         it.updatePosition(it.x + moveX, it.y + moveY)
+                        val isHovering = keyboardOverlay?.getHoveredKey(it.x, it.y) != null
+                        it.setHoverState(isHovering)
                     }
 
-                    if (isDragging) {
-                        // In a real implementation, we would dispatch a continued gesture stroke here.
-                        // For simplicity in this demo, we simulate swipe/scroll by dispatching a standard swipe
-                        // when the drag button is released based on delta.
+                    // If scroll modifier is held, dispatch scroll gestures periodically based on distance
+                    if (isScrolling) {
+                        handleContinuousScroll(dx, dy)
                     }
                 } else {
                     currentSpeedMultiplier = 1f
@@ -102,6 +115,7 @@ class GamepadAccessibilityService : AccessibilityService() {
             buttonMappings = settingsRepo.buttonMappingsFlow.first()
             sensitivity = settingsRepo.sensitivityFlow.first()
             accelerationEnabled = settingsRepo.accelerationEnabledFlow.first()
+            longPressDuration = settingsRepo.longPressDurationFlow.first()
 
             val size = settingsRepo.cursorSizeFlow.first()
             cursorOverlay?.setSizeMultiplier(size)
@@ -109,7 +123,6 @@ class GamepadAccessibilityService : AccessibilityService() {
     }
 
     private fun setupJoystickCaptureOverlay() {
-        // We use a transparent focusable overlay to capture generic motion events from the joystick.
         joystickCaptureView = View(this).apply {
             isFocusable = true
             isFocusableInTouchMode = true
@@ -137,11 +150,21 @@ class GamepadAccessibilityService : AccessibilityService() {
         joystickCaptureView?.requestFocus()
     }
 
+    private fun regainFocus() {
+        joystickCaptureView?.requestFocus()
+    }
+
     override fun onKeyEvent(event: KeyEvent): Boolean {
         if (event.action == KeyEvent.ACTION_UP) {
             val action = buttonMappings[event.keyCode]
             if (action == "DRAG") {
-                isDragging = false
+                if (isDragging) {
+                    isDragging = false
+                    performDragRelease()
+                }
+                return true
+            } else if (action == "SCROLL_MODIFIER") {
+                isScrolling = false
                 return true
             }
 
@@ -189,6 +212,14 @@ class GamepadAccessibilityService : AccessibilityService() {
                 performGlobalAction(GLOBAL_ACTION_RECENTS)
                 handled = true
             }
+            "NOTIFICATIONS" -> {
+                performGlobalAction(GLOBAL_ACTION_NOTIFICATIONS)
+                handled = true
+            }
+            "QUICK_SETTINGS" -> {
+                performGlobalAction(GLOBAL_ACTION_QUICK_SETTINGS)
+                handled = true
+            }
             "TOGGLE_KEYBOARD" -> {
                 if (keyboardOverlay?.isShowing() == true) {
                     keyboardOverlay?.hide()
@@ -198,7 +229,19 @@ class GamepadAccessibilityService : AccessibilityService() {
                 handled = true
             }
             "DRAG" -> {
-                isDragging = true
+                if (!isDragging) {
+                    isDragging = true
+                    dragStartX = cursorOverlay?.x ?: 0f
+                    dragStartY = cursorOverlay?.y ?: 0f
+                }
+                handled = true
+            }
+            "SCROLL_MODIFIER" -> {
+                if (!isScrolling) {
+                    isScrolling = true
+                    scrollStartX = cursorOverlay?.x ?: 0f
+                    scrollStartY = cursorOverlay?.y ?: 0f
+                }
                 handled = true
             }
         }
@@ -206,21 +249,71 @@ class GamepadAccessibilityService : AccessibilityService() {
         return handled
     }
 
+    private fun handleContinuousScroll(dx: Float, dy: Float) {
+        val cx = cursorOverlay?.x ?: return
+        val cy = cursorOverlay?.y ?: return
+
+        // Only trigger scroll gesture if we've moved significantly from the start point
+        if (Math.abs(cx - scrollStartX) > 100f || Math.abs(cy - scrollStartY) > 100f) {
+            // Dispatch a quick swipe in the opposite direction of joystick push to scroll content
+            val path = Path().apply {
+                moveTo(scrollStartX, scrollStartY)
+                lineTo(scrollStartX - (cx - scrollStartX), scrollStartY - (cy - scrollStartY))
+            }
+
+            val gesture = GestureDescription.Builder()
+                .addStroke(GestureDescription.StrokeDescription(path, 0, 150))
+                .build()
+
+            dispatchGesture(gesture, null, null)
+
+            // Reset start position for the next scroll chunk
+            scrollStartX = cx
+            scrollStartY = cy
+        }
+    }
+
+    private fun performDragRelease() {
+        val cx = cursorOverlay?.x ?: return
+        val cy = cursorOverlay?.y ?: return
+
+        if (Math.abs(cx - dragStartX) < 10f && Math.abs(cy - dragStartY) < 10f) {
+            regainFocus()
+            return
+        }
+
+        val path = Path().apply {
+            moveTo(dragStartX, dragStartY)
+            lineTo(cx, cy)
+        }
+
+        val gesture = GestureDescription.Builder()
+            .addStroke(GestureDescription.StrokeDescription(path, 0, 300))
+            .build()
+
+        dispatchGesture(gesture, object: GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                regainFocus()
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                regainFocus()
+            }
+        }, null)
+    }
+
     private fun performCursorClick() {
         val cx = cursorOverlay?.x ?: return
         val cy = cursorOverlay?.y ?: return
 
-        // If keyboard is showing, check if we clicked a key first
         if (keyboardOverlay?.isShowing() == true) {
             if (keyboardOverlay?.handleClickAt(cx, cy) == true) {
-                return // Handled by keyboard
+                return
             }
         }
 
-        // Otherwise dispatch system click
         val path = Path().apply {
             moveTo(cx, cy)
-            lineTo(cx + 0.1f, cy + 0.1f) // Avoid 0-length path crash
+            lineTo(cx + 0.1f, cy + 0.1f)
         }
         val gesture = GestureDescription.Builder()
             .addStroke(GestureDescription.StrokeDescription(path, 0, 50))
@@ -228,8 +321,10 @@ class GamepadAccessibilityService : AccessibilityService() {
 
         dispatchGesture(gesture, object: GestureResultCallback() {
             override fun onCompleted(gestureDescription: GestureDescription?) {
-                // Ensure our capture view keeps focus after a click opens a new app
-                joystickCaptureView?.requestFocus()
+                regainFocus()
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                regainFocus()
             }
         }, null)
     }
@@ -243,57 +338,78 @@ class GamepadAccessibilityService : AccessibilityService() {
             lineTo(cx + 0.1f, cy + 0.1f)
         }
         val gesture = GestureDescription.Builder()
-            .addStroke(GestureDescription.StrokeDescription(path, 0, 600)) // 600ms for long press
+            .addStroke(GestureDescription.StrokeDescription(path, 0, longPressDuration))
             .build()
 
-        dispatchGesture(gesture, null, null)
+        dispatchGesture(gesture, object: GestureResultCallback() {
+            override fun onCompleted(gestureDescription: GestureDescription?) {
+                regainFocus()
+            }
+            override fun onCancelled(gestureDescription: GestureDescription?) {
+                regainFocus()
+            }
+        }, null)
     }
 
     private fun handleKeyboardTyping(key: String) {
-        val activeNode = findFocusedEditableNode() ?: return
+        // Try the node we explicitly tracked, or fallback to scanning the tree
+        val activeNode = lastFocusedEditableNode ?: findFocusedEditableNodeFallback() ?: return
 
         val arguments = Bundle()
         val currentText = activeNode.text?.toString() ?: ""
 
+        // Try to respect cursor selection/index if available, else append
+        val selectionStart = activeNode.textSelectionStart.takeIf { it >= 0 } ?: currentText.length
+        val selectionEnd = activeNode.textSelectionEnd.takeIf { it >= 0 } ?: currentText.length
+
         when (key) {
             "DEL" -> {
                 if (currentText.isNotEmpty()) {
-                    arguments.putCharSequence(
-                        AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
+                    val newText = if (selectionStart == selectionEnd && selectionStart > 0) {
+                        // Delete char before cursor
+                        currentText.substring(0, selectionStart - 1) + currentText.substring(selectionEnd)
+                    } else if (selectionStart != selectionEnd) {
+                        // Delete selection
+                        currentText.substring(0, selectionStart) + currentText.substring(selectionEnd)
+                    } else {
+                        // Fallback: delete last char
                         currentText.substring(0, currentText.length - 1)
-                    )
+                    }
+                    arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, newText)
                     activeNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
                 }
             }
-            "SPACE" -> {
-                arguments.putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    "$currentText "
-                )
+            "SPACE", "ENTER" -> {
+                val insertStr = if (key == "SPACE") " " else "\n"
+
+                if (key == "ENTER" && activeNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                    // ACTION_CLICK often handles "Submit" for search/enter fields.
+                    return
+                }
+
+                val newText = currentText.substring(0, selectionStart) + insertStr + currentText.substring(selectionEnd)
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, newText)
                 activeNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
             }
-            "ENTER" -> {
-                // Try ACTION_CLICK (often submits forms or hits 'search') or fallback to newline
-                if (!activeNode.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
-                    arguments.putCharSequence(
-                        AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                        "$currentText\n"
-                    )
-                    activeNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
-                }
-            }
             else -> {
-                arguments.putCharSequence(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,
-                    currentText + key
-                )
+                val newText = currentText.substring(0, selectionStart) + key + currentText.substring(selectionEnd)
+                arguments.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, newText)
                 activeNode.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, arguments)
             }
         }
-        activeNode.recycle()
+
+        // Try to place the text caret at the end of the new insertion
+        val newCaretPos = selectionStart + (if (key == "DEL" && selectionStart == selectionEnd) -1 else if (key == "DEL") 0 else 1)
+        if (newCaretPos >= 0) {
+            val selectionArgs = Bundle().apply {
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_START_INT, newCaretPos)
+                putInt(AccessibilityNodeInfo.ACTION_ARGUMENT_SELECTION_END_INT, newCaretPos)
+            }
+            activeNode.performAction(AccessibilityNodeInfo.ACTION_SET_SELECTION, selectionArgs)
+        }
     }
 
-    private fun findFocusedEditableNode(): AccessibilityNodeInfo? {
+    private fun findFocusedEditableNodeFallback(): AccessibilityNodeInfo? {
         val windows = windows
         for (window in windows) {
             if (window.type != WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY) {
@@ -306,10 +422,18 @@ class GamepadAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
-        if (event?.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
-            joystickCaptureView?.requestFocus()
+        if (event == null) return
 
-            // Reload settings in case we just came back from the settings app
+        // Track the actively focused text field when the user clicks on it in the underlying app
+        if (event.eventType == AccessibilityEvent.TYPE_VIEW_FOCUSED) {
+            val source = event.source
+            if (source?.isEditable == true) {
+                lastFocusedEditableNode = source
+            }
+        }
+
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            regainFocus()
             loadSettings()
         }
     }

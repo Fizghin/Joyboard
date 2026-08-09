@@ -20,6 +20,7 @@ class CursorOverlay(private val context: Context) {
     private var screenHeight = 0
 
     private var baseSize = 48 // Base cursor size in px
+    private var isHovering = false
 
     init {
         val displayMetrics = context.resources.displayMetrics
@@ -64,6 +65,17 @@ class CursorOverlay(private val context: Context) {
 
         imageView?.translationX = x
         imageView?.translationY = y
+    }
+
+    fun setHoverState(hovering: Boolean) {
+        if (this.isHovering != hovering) {
+            this.isHovering = hovering
+            if (hovering) {
+                imageView?.setColorFilter(android.graphics.Color.GREEN)
+            } else {
+                imageView?.clearColorFilter()
+            }
+        }
     }
 
     fun setSizeMultiplier(multiplier: Float) {
