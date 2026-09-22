@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Notch Island</string>
+    <string name="service_channel_name">Island service</string>
+    <string name="service_channel_desc">Keeps the Dynamic Island running</string>
+    <string name="service_running">Dynamic Island is active</string>
+    <string name="service_running_desc">Tap to open settings</string>
+</resources>

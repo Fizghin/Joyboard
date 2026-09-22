@@ -1,0 +1,2 @@
+-keep class com.joyboard.notchisland.service.** { *; }
+-keepclassmembers class * extends android.service.notification.NotificationListenerService { *; }
