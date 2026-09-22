@@ -21,10 +21,14 @@ import java.net.URL
  */
 class UpdateService(private val context: Context) {
 
-    suspend fun check(currentVersionCode: Int, currentVersionName: String): UpdateState =
+    suspend fun check(
+        manifestUrl: String,
+        currentVersionCode: Int,
+        currentVersionName: String,
+    ): UpdateState =
         withContext(Dispatchers.IO) {
             runCatching {
-                val body = readText(MANIFEST_URL)
+                val body = readText(manifestUrl)
                 val json = JSONObject(body)
                 val info = UpdateInfo(
                     versionCode = json.getInt("versionCode"),
@@ -153,7 +157,9 @@ class UpdateService(private val context: Context) {
                 connection.disconnect()
                 error(
                     when (code) {
-                        404 -> "No update manifest published yet"
+                        404 -> "No manifest at that address — if it is a GitHub repository, " +
+                            "it has to be public for your phone to read it"
+                        401, 403 -> "The update source refused the request (is it private?)"
                         else -> "Server returned $code"
                     }
                 )
@@ -163,9 +169,6 @@ class UpdateService(private val context: Context) {
     }
 
     companion object {
-        /** Lives on the branch that carries the APKs, so it updates whenever they do. */
-        const val MANIFEST_URL =
-            "https://raw.githubusercontent.com/Fizghin/Joyboard/notch/update.json"
         private const val MAX_REDIRECTS = 5
         private const val DOWNLOAD_BUFFER = 64 * 1024
     }

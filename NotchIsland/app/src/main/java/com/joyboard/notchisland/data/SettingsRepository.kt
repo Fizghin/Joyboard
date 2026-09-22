@@ -96,6 +96,7 @@ class SettingsRepository(private val context: Context) {
         val notificationDuration = intPreferencesKey("notification_duration")
         val blockedPackages = stringSetPreferencesKey("blocked_packages")
         val silentNotifications = booleanPreferencesKey("silent_notifications")
+        val updateManifestUrl = stringPreferencesKey("update_manifest_url")
         val autoCheckUpdates = booleanPreferencesKey("auto_check_updates")
         val lastUpdateCheck = longPreferencesKey("last_update_check")
         val skippedVersion = intPreferencesKey("skipped_version")
@@ -152,6 +153,8 @@ class SettingsRepository(private val context: Context) {
             notificationDurationMs = this[K.notificationDuration] ?: d.notificationDurationMs,
             blockedPackages = this[K.blockedPackages] ?: d.blockedPackages,
             silentNotifications = this[K.silentNotifications] ?: d.silentNotifications,
+            updateManifestUrl = this[K.updateManifestUrl]?.takeIf { it.isNotBlank() }
+                ?: d.updateManifestUrl,
             autoCheckUpdates = this[K.autoCheckUpdates] ?: d.autoCheckUpdates,
             lastUpdateCheck = this[K.lastUpdateCheck] ?: d.lastUpdateCheck,
             skippedVersion = this[K.skippedVersion] ?: d.skippedVersion,
@@ -207,6 +210,7 @@ class SettingsRepository(private val context: Context) {
         this[K.notificationDuration] = s.notificationDurationMs
         this[K.blockedPackages] = s.blockedPackages
         this[K.silentNotifications] = s.silentNotifications
+        this[K.updateManifestUrl] = s.updateManifestUrl
         this[K.autoCheckUpdates] = s.autoCheckUpdates
         this[K.lastUpdateCheck] = s.lastUpdateCheck
         this[K.skippedVersion] = s.skippedVersion

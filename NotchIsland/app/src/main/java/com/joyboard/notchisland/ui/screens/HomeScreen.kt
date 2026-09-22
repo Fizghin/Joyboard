@@ -37,7 +37,9 @@ import com.joyboard.notchisland.ui.MainViewModel
 import com.joyboard.notchisland.ui.components.IslandPreview
 import com.joyboard.notchisland.BuildConfig
 import com.joyboard.notchisland.ui.components.SectionCard
+import com.joyboard.notchisland.ui.components.NavRow
 import com.joyboard.notchisland.ui.components.SwitchRow
+import com.joyboard.notchisland.ui.components.UrlDialog
 import com.joyboard.notchisland.update.UpdateState
 import com.joyboard.notchisland.util.openDndAccessSettings
 import com.joyboard.notchisland.util.openNotificationAccessSettings
@@ -209,6 +211,22 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                 checked = settings.autoCheckUpdates,
                 onCheckedChange = { value -> viewModel.update { it.copy(autoCheckUpdates = value) } }
             )
+            var editingSource by remember { mutableStateOf(false) }
+            NavRow(
+                title = "Update source",
+                subtitle = settings.updateManifestUrl,
+                onClick = { editingSource = true }
+            )
+            if (editingSource) {
+                UrlDialog(
+                    initial = settings.updateManifestUrl,
+                    onDismiss = { editingSource = false },
+                    onConfirm = { url ->
+                        viewModel.setUpdateManifestUrl(url)
+                        editingSource = false
+                    }
+                )
+            }
         }
 
         SectionCard(title = "Tips") {

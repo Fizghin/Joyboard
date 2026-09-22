@@ -71,6 +71,7 @@ data class IslandSettings(
     val silentNotifications: Boolean = false,
 
     // ---- updates ----
+    val updateManifestUrl: String = DEFAULT_UPDATE_MANIFEST_URL,
     val autoCheckUpdates: Boolean = true,
     val lastUpdateCheck: Long = 0L,
     val skippedVersion: Int = 0,
@@ -81,6 +82,14 @@ data class IslandSettings(
             Color.red(backgroundColor), Color.green(backgroundColor), Color.blue(backgroundColor)
         )
 }
+
+/**
+ * Where the in-app updater looks for a release manifest. The default points at this repository,
+ * which has to be public for a phone to read it; anything else that serves the same JSON works
+ * just as well.
+ */
+const val DEFAULT_UPDATE_MANIFEST_URL =
+    "https://raw.githubusercontent.com/Fizghin/Joyboard/notch/update.json"
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 

@@ -9,6 +9,7 @@ import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.joyboard.notchisland.BuildConfig
+import com.joyboard.notchisland.data.DEFAULT_UPDATE_MANIFEST_URL
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.SettingsRepository
 import com.joyboard.notchisland.service.IslandBus
@@ -144,7 +145,11 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun runCheck(announce: Boolean) {
         _updateState.value = UpdateState.Checking
         viewModelScope.launch {
-            val result = updateService.check(BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME)
+            val result = updateService.check(
+                settings.value.updateManifestUrl,
+                BuildConfig.VERSION_CODE,
+                BuildConfig.VERSION_NAME,
+            )
             repository.update { it.copy(lastUpdateCheck = System.currentTimeMillis()) }
             _updateState.value = when {
                 result is UpdateState.Available &&
@@ -206,6 +211,20 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 "Android would not open the installer", state.info
             )
         }
+    }
+
+    fun setUpdateManifestUrl(url: String) {
+        val trimmed = url.trim()
+        viewModelScope.launch {
+            repository.update {
+                it.copy(
+                    updateManifestUrl = trimmed.ifBlank { DEFAULT_UPDATE_MANIFEST_URL },
+                    lastUpdateCheck = 0L,
+                    skippedVersion = 0,
+                )
+            }
+        }
+        _updateState.value = UpdateState.Idle
     }
 
     fun dismissUpdate() {

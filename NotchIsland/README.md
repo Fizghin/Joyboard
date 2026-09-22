@@ -109,13 +109,33 @@ Two one-time hurdles the first time you update:
 - If you are coming from 1.0, install 1.1 by hand — 1.0 shipped before the updater existed, and
   1.0's release APK was unsigned. From 1.1 onward it is all in-app.
 
+**This repository is private, so the default source will not work as-is.** A phone has no
+credentials for `raw.githubusercontent.com`, so it gets a 404. Pick one:
+
+- make the repository public — the default URL then works with no further changes; or
+- put `update.json` and the two APKs anywhere public (a gist, a release asset, any static host)
+  and paste that manifest's address into *Island → Updates → Update source*.
+
 Releases are signed with the committed key in `keystore/notchisland.jks` so each update installs
-over the last one. That key is a distribution convenience for *these* public APKs, not a secret —
-if you fork this project, generate your own and point `UpdateService.MANIFEST_URL` at your own
-manifest.
+over the last one. That key is a distribution convenience for these APKs, not a secret — if you
+fork this project, generate your own and point the update source at your own manifest.
 
 To publish an update: bump `versionCode`/`versionName` in `app/build.gradle`, build, copy the
-APKs into `apks/`, and update `update.json` with the new version, notes and file sizes.
+APKs into `apks/`, and update `update.json` with the new version, notes and file sizes. The
+manifest is small enough to write by hand:
+
+```json
+{
+  "versionCode": 3,
+  "versionName": "1.2",
+  "mandatory": false,
+  "notes": ["What changed"],
+  "releaseApkUrl": "https://…/NotchIsland-release.apk",
+  "debugApkUrl": "https://…/NotchIsland-debug.apk",
+  "sizeBytes": 12527132,
+  "debugSizeBytes": 18861263
+}
+```
 
 ## Build from source
 
