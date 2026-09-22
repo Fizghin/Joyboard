@@ -35,7 +35,10 @@ import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.island.IslandMode
 import com.joyboard.notchisland.ui.MainViewModel
 import com.joyboard.notchisland.ui.components.IslandPreview
+import com.joyboard.notchisland.BuildConfig
 import com.joyboard.notchisland.ui.components.SectionCard
+import com.joyboard.notchisland.ui.components.SwitchRow
+import com.joyboard.notchisland.update.UpdateState
 import com.joyboard.notchisland.util.openDndAccessSettings
 import com.joyboard.notchisland.util.openNotificationAccessSettings
 import com.joyboard.notchisland.util.openOverlaySettings
@@ -163,6 +166,48 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
+            )
+        }
+
+        SectionCard(title = "Updates") {
+            val updateState by viewModel.updateState.collectAsStateLifecycle()
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(
+                        "Version ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodyLarge
+                    )
+                    Text(
+                        when (val state = updateState) {
+                            is UpdateState.Checking -> "Checking…"
+                            is UpdateState.UpToDate -> "You're on the latest version"
+                            is UpdateState.Available -> "Version ${state.info.versionName} is ready"
+                            is UpdateState.Downloading ->
+                                "Downloading ${(state.progress * 100).toInt()}%"
+                            is UpdateState.ReadyToInstall -> "Downloaded — tap to install"
+                            is UpdateState.Failed -> state.message
+                            UpdateState.Idle -> "Tap to check for a newer build"
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                OutlinedButton(
+                    onClick = { viewModel.checkForUpdatesNow() },
+                    enabled = updateState !is UpdateState.Checking &&
+                        updateState !is UpdateState.Downloading
+                ) { Text("Check") }
+            }
+            SwitchRow(
+                title = "Check automatically",
+                subtitle = "Looks once every few hours while the app is open",
+                checked = settings.autoCheckUpdates,
+                onCheckedChange = { value -> viewModel.update { it.copy(autoCheckUpdates = value) } }
             )
         }
 

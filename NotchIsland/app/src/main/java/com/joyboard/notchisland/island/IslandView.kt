@@ -853,15 +853,19 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
                         listener.onGesture(if (dy > 0) settings.swipeDownAction else settings.swipeUpAction)
                     abs(dx) > threshold ->
                         listener.onGesture(if (dx > 0) settings.swipeRightAction else settings.swipeLeftAction)
+                    settings.doubleTapAction == GestureAction.NONE -> {
+                        // Nothing to wait for, so the tap lands straight away.
+                        listener.onGesture(settings.tapAction)
+                    }
                     else -> {
                         val now = System.currentTimeMillis()
-                        if (now - lastTapTime < 280) {
+                        if (now - lastTapTime < DOUBLE_TAP_WINDOW) {
                             lastTapTime = 0
                             removeCallbacks(singleTapRunnable)
                             listener.onGesture(settings.doubleTapAction)
                         } else {
                             lastTapTime = now
-                            postDelayed(singleTapRunnable, 280)
+                            postDelayed(singleTapRunnable, DOUBLE_TAP_WINDOW)
                         }
                     }
                 }
@@ -874,6 +878,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     private val singleTapRunnable = Runnable { listener.onGesture(settings.tapAction) }
 
     companion object {
+        private const val DOUBLE_TAP_WINDOW = 230L
+
         fun formatDuration(ms: Long, forceMinutes: Boolean = false): String {
             val totalSeconds = (ms / 1000).coerceAtLeast(0)
             val hours = totalSeconds / 3600

@@ -14,11 +14,12 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.BuildConfig
+import com.joyboard.notchisland.ui.MainViewModel
 import com.joyboard.notchisland.ui.components.SectionCard
 import com.joyboard.notchisland.util.openBatteryOptimisationSettings
 
 @Composable
-fun AboutScreen() {
+fun AboutScreen(viewModel: MainViewModel) {
     val context = LocalContext.current
     Column(
         modifier = Modifier
@@ -28,6 +29,12 @@ fun AboutScreen() {
     ) {
         SectionCard(title = "Notch Island") {
             Body("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
+            OutlinedButton(
+                onClick = { viewModel.checkForUpdatesNow() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 8.dp)
+            ) { Text("Check for updates") }
             Body(
                 "An iOS-style Dynamic Island for Android. It draws a floating pill near the " +
                     "camera cutout and lets live activities — music, notifications, charging, " +

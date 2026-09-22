@@ -13,7 +13,12 @@ data class IslandSettings(
     val collapsedHeight: Int = 30,
     val cornerRadius: Int = 18,
     val offsetX: Int = 0,
-    val offsetY: Int = 6,
+    val offsetY: Int = 4,
+    /**
+     * Overlay windows always sit below the system status bar, which swallows touches in its own
+     * band. Keeping clear of it is what makes the island tappable, so this defaults to on.
+     */
+    val avoidStatusBar: Boolean = true,
     val expandedWidth: Int = 330,
     val compactWidth: Int = 190,
 
@@ -64,6 +69,11 @@ data class IslandSettings(
     val notificationDurationMs: Int = 4000,
     val blockedPackages: Set<String> = emptySet(),
     val silentNotifications: Boolean = false,
+
+    // ---- updates ----
+    val autoCheckUpdates: Boolean = true,
+    val lastUpdateCheck: Long = 0L,
+    val skippedVersion: Int = 0,
 ) {
     val alphaBackgroundColor: Int
         get() = Color.argb(

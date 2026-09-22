@@ -1,0 +1,15 @@
+{
+  "versionCode": 2,
+  "versionName": "1.1",
+  "mandatory": false,
+  "notes": [
+    "Tapping the island works again — it now sits clear of the status bar, which was swallowing every touch",
+    "Bigger touch target around the island, and taps register faster",
+    "New in-app updater: check, download and install without leaving the app",
+    "Release builds are signed, so updates install straight over the top"
+  ],
+  "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
+  "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
+  "sizeBytes": 12527132,
+  "debugSizeBytes": 18861263
+}

@@ -8,12 +8,15 @@ import android.graphics.drawable.Drawable
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
+import com.joyboard.notchisland.BuildConfig
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.SettingsRepository
 import com.joyboard.notchisland.service.IslandBus
 import com.joyboard.notchisland.service.NotchOverlayService
 import com.joyboard.notchisland.util.canDrawOverlays
 import com.joyboard.notchisland.util.canWriteSettings
+import com.joyboard.notchisland.update.UpdateService
+import com.joyboard.notchisland.update.UpdateState
 import com.joyboard.notchisland.util.hasNotificationAccess
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -48,6 +51,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val _apps = MutableStateFlow<List<AppEntry>>(emptyList())
     val apps: StateFlow<List<AppEntry>> = _apps.asStateFlow()
+
+    private val updateService = UpdateService(app)
+
+    private val _updateState = MutableStateFlow<UpdateState>(UpdateState.Idle)
+    val updateState: StateFlow<UpdateState> = _updateState.asStateFlow()
+
 
     val serviceRunning: Boolean get() = IslandBus.serviceRunning
 
@@ -114,8 +123,109 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             putExtra(NotchOverlayService.EXTRA_TIMER_MINUTES, minutes)
         }
 
+    // ------------------------------------------------------------------ updates
+
+    /** Called on launch: quiet, throttled, and silent when there is nothing new. */
+    fun maybeCheckForUpdates() {
+        val current = settings.value
+        if (!current.autoCheckUpdates) return
+        if (_updateState.value !is UpdateState.Idle) return
+        val elapsed = System.currentTimeMillis() - current.lastUpdateCheck
+        if (elapsed in 0 until CHECK_INTERVAL_MS) return
+        runCheck(announce = false)
+    }
+
+    /** Called from a button: always reports back, even when there is nothing to do. */
+    fun checkForUpdatesNow() {
+        if (_updateState.value is UpdateState.Checking) return
+        runCheck(announce = true)
+    }
+
+    private fun runCheck(announce: Boolean) {
+        _updateState.value = UpdateState.Checking
+        viewModelScope.launch {
+            val result = updateService.check(BuildConfig.VERSION_CODE, BuildConfig.VERSION_NAME)
+            repository.update { it.copy(lastUpdateCheck = System.currentTimeMillis()) }
+            _updateState.value = when {
+                result is UpdateState.Available &&
+                    !announce && result.info.versionCode == settings.value.skippedVersion ->
+                    UpdateState.Idle
+                result is UpdateState.UpToDate && !announce -> UpdateState.Idle
+                result is UpdateState.Failed && !announce -> UpdateState.Idle
+                else -> result
+            }
+        }
+    }
+
+    /** Downloads the release if needed, then hands it to the system installer. */
+    fun installUpdate() {
+        val state = _updateState.value
+        val info = when (state) {
+            is UpdateState.Available -> state.info
+            is UpdateState.Failed -> state.info
+            is UpdateState.ReadyToInstall -> {
+                launchInstaller(state)
+                return
+            }
+            else -> null
+        } ?: run {
+            checkForUpdatesNow()
+            return
+        }
+
+        if (!updateService.canInstall()) {
+            updateService.requestInstallPermission()
+            _updateState.value = UpdateState.Failed(
+                "Allow Notch Island to install apps, then tap Try again.", info
+            )
+            return
+        }
+
+        _updateState.value = UpdateState.Downloading(info, 0f)
+        viewModelScope.launch {
+            val result = updateService.download(info, BuildConfig.DEBUG) { progress ->
+                _updateState.value = UpdateState.Downloading(info, progress)
+            }
+            result
+                .onSuccess { file ->
+                    val ready = UpdateState.ReadyToInstall(info, file)
+                    _updateState.value = ready
+                    launchInstaller(ready)
+                }
+                .onFailure { error ->
+                    _updateState.value = UpdateState.Failed(
+                        error.message ?: "The download failed", info
+                    )
+                }
+        }
+    }
+
+    private fun launchInstaller(state: UpdateState.ReadyToInstall) {
+        if (!updateService.install(state.file)) {
+            _updateState.value = UpdateState.Failed(
+                "Android would not open the installer", state.info
+            )
+        }
+    }
+
+    fun dismissUpdate() {
+        _updateState.value = UpdateState.Idle
+    }
+
+    fun skipUpdate() {
+        val info = (_updateState.value as? UpdateState.Available)?.info
+        if (info != null) {
+            viewModelScope.launch { repository.update { it.copy(skippedVersion = info.versionCode) } }
+        }
+        _updateState.value = UpdateState.Idle
+    }
+
     fun toggleBlocked(packageName: String) {
         viewModelScope.launch { repository.toggleBlocked(packageName) }
+    }
+
+    private companion object {
+        const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
     }
 
     private fun loadApps() {

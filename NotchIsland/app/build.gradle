@@ -12,9 +12,21 @@ android {
         applicationId "com.joyboard.notchisland"
         minSdk 26
         targetSdk 34
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1"
         vectorDrawables.useSupportLibrary true
+    }
+
+    signingConfigs {
+        // A stable, committed key so that an in-app update always installs over the build the
+        // user already has. It is a distribution key for these public APKs only — fork this
+        // project and you should swap in your own before shipping anywhere that matters.
+        distribution {
+            storeFile rootProject.file('keystore/notchisland.jks')
+            storePassword 'notchisland'
+            keyAlias 'notchisland'
+            keyPassword 'notchisland'
+        }
     }
 
     buildTypes {
@@ -25,6 +37,7 @@ android {
         release {
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig signingConfigs.distribution
         }
     }
 

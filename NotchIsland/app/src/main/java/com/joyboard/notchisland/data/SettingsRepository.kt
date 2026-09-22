@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.floatPreferencesKey
 import androidx.datastore.preferences.core.intPreferencesKey
+import androidx.datastore.preferences.core.longPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.core.stringSetPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
@@ -54,6 +55,7 @@ class SettingsRepository(private val context: Context) {
         val cornerRadius = intPreferencesKey("corner_radius")
         val offsetX = intPreferencesKey("offset_x")
         val offsetY = intPreferencesKey("offset_y")
+        val avoidStatusBar = booleanPreferencesKey("avoid_status_bar")
         val expandedWidth = intPreferencesKey("expanded_width")
         val compactWidth = intPreferencesKey("compact_width")
         val backgroundColor = intPreferencesKey("background_color")
@@ -94,6 +96,9 @@ class SettingsRepository(private val context: Context) {
         val notificationDuration = intPreferencesKey("notification_duration")
         val blockedPackages = stringSetPreferencesKey("blocked_packages")
         val silentNotifications = booleanPreferencesKey("silent_notifications")
+        val autoCheckUpdates = booleanPreferencesKey("auto_check_updates")
+        val lastUpdateCheck = longPreferencesKey("last_update_check")
+        val skippedVersion = intPreferencesKey("skipped_version")
     }
 
     private fun Preferences.toSettings(): IslandSettings {
@@ -106,6 +111,7 @@ class SettingsRepository(private val context: Context) {
             cornerRadius = this[K.cornerRadius] ?: d.cornerRadius,
             offsetX = this[K.offsetX] ?: d.offsetX,
             offsetY = this[K.offsetY] ?: d.offsetY,
+            avoidStatusBar = this[K.avoidStatusBar] ?: d.avoidStatusBar,
             expandedWidth = this[K.expandedWidth] ?: d.expandedWidth,
             compactWidth = this[K.compactWidth] ?: d.compactWidth,
             backgroundColor = this[K.backgroundColor] ?: d.backgroundColor,
@@ -146,6 +152,9 @@ class SettingsRepository(private val context: Context) {
             notificationDurationMs = this[K.notificationDuration] ?: d.notificationDurationMs,
             blockedPackages = this[K.blockedPackages] ?: d.blockedPackages,
             silentNotifications = this[K.silentNotifications] ?: d.silentNotifications,
+            autoCheckUpdates = this[K.autoCheckUpdates] ?: d.autoCheckUpdates,
+            lastUpdateCheck = this[K.lastUpdateCheck] ?: d.lastUpdateCheck,
+            skippedVersion = this[K.skippedVersion] ?: d.skippedVersion,
         )
     }
 
@@ -157,6 +166,7 @@ class SettingsRepository(private val context: Context) {
         this[K.cornerRadius] = s.cornerRadius
         this[K.offsetX] = s.offsetX
         this[K.offsetY] = s.offsetY
+        this[K.avoidStatusBar] = s.avoidStatusBar
         this[K.expandedWidth] = s.expandedWidth
         this[K.compactWidth] = s.compactWidth
         this[K.backgroundColor] = s.backgroundColor
@@ -197,6 +207,9 @@ class SettingsRepository(private val context: Context) {
         this[K.notificationDuration] = s.notificationDurationMs
         this[K.blockedPackages] = s.blockedPackages
         this[K.silentNotifications] = s.silentNotifications
+        this[K.autoCheckUpdates] = s.autoCheckUpdates
+        this[K.lastUpdateCheck] = s.lastUpdateCheck
+        this[K.skippedVersion] = s.skippedVersion
     }
 
     companion object {

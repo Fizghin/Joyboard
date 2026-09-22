@@ -47,6 +47,7 @@ import com.joyboard.notchisland.ui.screens.BlockedAppsScreen
 import com.joyboard.notchisland.ui.screens.FeaturesScreen
 import com.joyboard.notchisland.ui.screens.GesturesScreen
 import com.joyboard.notchisland.ui.screens.HomeScreen
+import com.joyboard.notchisland.ui.components.UpdateDialog
 import com.joyboard.notchisland.ui.theme.NotchIslandTheme
 
 class MainActivity : ComponentActivity() {
@@ -62,8 +63,15 @@ class MainActivity : ComponentActivity() {
         requestPostNotifications()
         setContent {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
+            val updateState by viewModel.updateState.collectAsStateWithLifecycle()
             NotchIslandTheme(themeMode = settings.themeMode) {
                 NotchIslandApp(viewModel)
+                UpdateDialog(
+                    state = updateState,
+                    onInstall = { viewModel.installUpdate() },
+                    onDismiss = { viewModel.dismissUpdate() },
+                    onSkip = { viewModel.skipUpdate() },
+                )
             }
         }
     }
@@ -72,6 +80,7 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         viewModel.refreshPermissions()
         viewModel.ensureServiceRunning()
+        viewModel.maybeCheckForUpdates()
     }
 
     private fun requestPostNotifications() {
@@ -172,7 +181,7 @@ private fun NotchIslandApp(viewModel: MainViewModel) {
                 composable("appearance") { AppearanceScreen(viewModel) }
                 composable("gestures") { GesturesScreen(viewModel) }
                 composable("blocked") { BlockedAppsScreen(viewModel) }
-                composable("about") { AboutScreen() }
+                composable("about") { AboutScreen(viewModel) }
             }
         }
     }

@@ -83,14 +83,39 @@ never stored, logged or uploaded.
 
 ## Install
 
-Grab `apks/NotchIsland-debug.apk` from the repository root and install it — it is signed with
-the standard Android debug key, so it installs on any device without extra steps. Then open the
-app, grant *Display over other apps*, and flip the master switch.
+Download **`apks/NotchIsland-release.apk`** and install it. Open the app, grant *Display over
+other apps*, and flip the master switch.
 
-`apks/NotchIsland-release-unsigned.apk` is the smaller release build; sign it with your own key
-(`apksigner sign`) before installing.
+`apks/NotchIsland-debug.apk` is the debuggable build. It installs alongside the release one
+under a separate package id (`…notchisland.debug`), which is handy for development and useless
+otherwise.
 
 Minimum Android 8.0 (API 26), targets Android 14 (API 34).
+
+## Updating
+
+The app updates itself. On launch it quietly checks
+[`update.json`](https://github.com/Fizghin/Joyboard/blob/notch/update.json) at the repository
+root, and when a newer `versionCode` is published it raises a dialog with the release notes and
+a single **Update** button. That downloads the APK matching your build type, shows the progress
+in the dialog, and hands the file to Android's installer — no browser, no file manager, no
+sideloading dance. *Island → Updates* has a **Check** button and a switch to turn the automatic
+check off; *About* has the same button.
+
+Two one-time hurdles the first time you update:
+
+- Android asks you to allow Notch Island to install apps. The dialog sends you straight to that
+  setting; come back and tap **Try again**.
+- If you are coming from 1.0, install 1.1 by hand — 1.0 shipped before the updater existed, and
+  1.0's release APK was unsigned. From 1.1 onward it is all in-app.
+
+Releases are signed with the committed key in `keystore/notchisland.jks` so each update installs
+over the last one. That key is a distribution convenience for *these* public APKs, not a secret —
+if you fork this project, generate your own and point `UpdateService.MANIFEST_URL` at your own
+manifest.
+
+To publish an update: bump `versionCode`/`versionName` in `app/build.gradle`, build, copy the
+APKs into `apks/`, and update `update.json` with the new version, notes and file sizes.
 
 ## Build from source
 
@@ -121,6 +146,7 @@ NotchIsland/app/src/main/java/com/joyboard/notchisland/
 │   ├── NotchNotificationListener.kt
 │   ├── IslandBus.kt               listener → controller hand-off
 │   └── BootReceiver.kt
+├── update/          manifest check, APK download, installer hand-off
 └── ui/              Compose app: theme, view model, components, six screens
 ```
 
@@ -131,6 +157,11 @@ params.
 
 ## Known limits
 
+- **The island sits just below the status bar, not inside it.** Android layers every app overlay
+  *underneath* the system status bar, and the status bar consumes all touches in its own band —
+  an island drawn over the camera cutout is visible but completely untappable. *Look → Position →
+  Keep clear of the status bar* is on by default for that reason. Turn it off if you want the
+  cutout look and are willing to give up touch.
 - Wi-Fi and Bluetooth cannot be toggled silently by a normal app on Android 10+; those buttons
   open the system panel.
 - Brightness and auto-rotate need *Modify system settings*, which Android grants per app.

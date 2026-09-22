@@ -91,6 +91,16 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         }
 
         SectionCard(title = "Position") {
+            SwitchRow(
+                title = "Keep clear of the status bar",
+                subtitle = "Android layers overlays under the status bar, which swallows taps " +
+                    "inside it. Turn this off only if you want the island over the cutout and " +
+                    "do not mind losing touch.",
+                checked = settings.avoidStatusBar,
+                onCheckedChange = { value ->
+                    viewModel.update { it.copy(avoidStatusBar = value) }
+                }
+            )
             SliderRow(
                 title = "Horizontal offset",
                 value = settings.offsetX.toFloat(),

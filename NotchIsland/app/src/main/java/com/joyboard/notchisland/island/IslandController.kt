@@ -14,6 +14,7 @@ import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
 import android.view.View
+import android.view.WindowInsets
 import android.view.WindowManager
 import android.widget.FrameLayout
 import androidx.core.content.ContextCompat
@@ -142,12 +143,26 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private fun attach() {
         if (attached) return
-        val container = FrameLayout(context).apply {
+        val view = IslandView(context, this)
+        // The window wraps the island tightly, so anything that lands in the container's padding
+        // was aimed at the island — forward it instead of letting it fall on the floor.
+        val container = object : FrameLayout(context) {
+            override fun onTouchEvent(event: MotionEvent): Boolean {
+                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
+                    if (expandedByUser) {
+                        expandedByUser = false
+                        render()
+                    }
+                    return false
+                }
+                return view.onTouchEvent(event)
+            }
+        }.apply {
             clipChildren = false
             clipToPadding = false
-            setPadding(10.dp, 0, 10.dp, 12.dp)
+            setPadding(TOUCH_PADDING.dp, TOUCH_PADDING.dp, TOUCH_PADDING.dp, (TOUCH_PADDING + 8).dp)
+            isClickable = true
         }
-        val view = IslandView(context, this)
         container.addView(
             view,
             FrameLayout.LayoutParams(
@@ -156,13 +171,6 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 Gravity.CENTER_HORIZONTAL or Gravity.TOP
             )
         )
-        container.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE && expandedByUser) {
-                expandedByUser = false
-                render()
-            }
-            false
-        }
         runCatching {
             windowManager?.addView(container, buildParams())
             root = container
@@ -191,7 +199,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
             x = settings.offsetX.dp
-            y = settings.offsetY.dp
+            y = windowY()
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
                 layoutInDisplayCutoutMode =
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
@@ -201,6 +209,27 @@ class IslandController(private val context: Context) : IslandView.Listener {
                     WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
             }
         }
+
+    /**
+     * Overlay windows are always layered below the system status bar, and the status bar
+     * consumes every touch inside its own band. Sitting under it therefore makes the island
+     * untappable, so by default we drop the window just below it.
+     */
+    private fun windowY(): Int =
+        settings.offsetY.dp + if (settings.avoidStatusBar) statusBarHeight() else 0
+
+    private fun statusBarHeight(): Int {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            val insets = runCatching {
+                windowManager?.currentWindowMetrics?.windowInsets
+                    ?.getInsets(WindowInsets.Type.statusBars())?.top
+            }.getOrNull()
+            if (insets != null && insets > 0) return insets
+        }
+        val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
+        val fromResources = if (id > 0) context.resources.getDimensionPixelSize(id) else 0
+        return if (fromResources > 0) fromResources else 24.dp
+    }
 
     private fun baseFlags(): Int =
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
@@ -213,7 +242,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         val current = root ?: return
         val params = current.layoutParams as? WindowManager.LayoutParams ?: return
         params.x = settings.offsetX.dp
-        params.y = settings.offsetY.dp
+        params.y = windowY()
         var flags = baseFlags()
         if (settings.dimBackgroundWhenExpanded && island?.mode == IslandMode.EXPANDED) {
             flags = flags or WindowManager.LayoutParams.FLAG_DIM_BEHIND
@@ -591,6 +620,11 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     private fun drawable(res: Int): Drawable? = ContextCompat.getDrawable(context, res)
+
+    private companion object {
+        /** Slop around the island so a near miss still counts as a tap. */
+        const val TOUCH_PADDING = 14
+    }
 
     // ------------------------------------------------------------------ IslandView.Listener
 
