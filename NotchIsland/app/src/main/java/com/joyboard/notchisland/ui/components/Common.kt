@@ -34,6 +34,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import kotlin.math.roundToInt
@@ -199,6 +200,10 @@ private val palette = listOf(
 
 @Composable
 fun ColorRow(title: String, selected: Int, onSelected: (Int) -> Unit) {
+    val materialYouColor = MaterialTheme.colorScheme.primary.toArgb()
+    val fullPalette = remember(materialYouColor) {
+        listOf(materialYouColor) + palette.map { it.toInt() }.filter { it != materialYouColor }
+    }
     Column(modifier = Modifier.padding(vertical = 6.dp)) {
         Text(
             title,
@@ -209,8 +214,9 @@ fun ColorRow(title: String, selected: Int, onSelected: (Int) -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 18.dp)
         ) {
-            items(palette.size) { index ->
-                val color = palette[index].toInt()
+            items(fullPalette.size) { index ->
+                val color = fullPalette[index]
+                val isMaterialYou = color == materialYouColor
                 Box(
                     modifier = Modifier
                         .size(34.dp)
@@ -221,8 +227,17 @@ fun ColorRow(title: String, selected: Int, onSelected: (Int) -> Unit) {
                             else MaterialTheme.colorScheme.outline,
                             shape = CircleShape
                         )
-                        .clickable { onSelected(color) }
-                )
+                        .clickable { onSelected(color) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    if (isMaterialYou && color != selected) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .background(Color.White, CircleShape)
+                        )
+                    }
+                }
             }
         }
     }
