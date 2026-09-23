@@ -122,6 +122,34 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                     viewModel.update { it.copy(offsetY = value.roundToInt()) }
                 }
             )
+            SwitchRow(
+                title = "Separate touch trigger location",
+                subtitle = "Place the touch trigger area somewhere else than the dock view",
+                checked = settings.separateTouchTrigger,
+                onCheckedChange = { value ->
+                    viewModel.update { it.copy(separateTouchTrigger = value) }
+                }
+            )
+            if (settings.separateTouchTrigger) {
+                SliderRow(
+                    title = "Trigger horizontal offset",
+                    value = settings.triggerOffsetX.toFloat(),
+                    range = -120f..120f,
+                    valueLabel = "${settings.triggerOffsetX} dp",
+                    onValueChange = { value ->
+                        viewModel.update { it.copy(triggerOffsetX = value.roundToInt()) }
+                    }
+                )
+                SliderRow(
+                    title = "Trigger vertical offset",
+                    value = settings.triggerOffsetY.toFloat(),
+                    range = 0f..150f,
+                    valueLabel = "${settings.triggerOffsetY} dp",
+                    onValueChange = { value ->
+                        viewModel.update { it.copy(triggerOffsetY = value.roundToInt()) }
+                    }
+                )
+            }
         }
 
         SectionCard(title = "Colour") {

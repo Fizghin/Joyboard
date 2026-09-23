@@ -21,6 +21,9 @@ data class IslandSettings(
     val avoidStatusBar: Boolean = true,
     val expandedWidth: Int = 330,
     val compactWidth: Int = 190,
+    val separateTouchTrigger: Boolean = false,
+    val triggerOffsetX: Int = 0,
+    val triggerOffsetY: Int = 60,
 
     // ---- appearance ----
     val backgroundColor: Int = Color.BLACK,

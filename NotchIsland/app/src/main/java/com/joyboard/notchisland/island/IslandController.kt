@@ -36,6 +36,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private var settings = IslandSettings()
     private var root: FrameLayout? = null
+    private var triggerRoot: FrameLayout? = null
     private var island: IslandView? = null
     private var attached = false
     private var hiddenUntil = 0L
@@ -119,6 +120,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         haptics.strength = next.hapticStrength
         island?.applySettings(next)
         updateWindowParams()
+        updateTriggerOverlay()
         if (before.featureMedia != next.featureMedia) {
             if (next.featureMedia) mediaMonitor.start() else {
                 mediaMonitor.stop()
@@ -182,11 +184,59 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     private fun detach() {
+        triggerRoot?.let { runCatching { windowManager?.removeViewImmediate(it) } }
+        triggerRoot = null
         val current = root ?: return
         runCatching { windowManager?.removeViewImmediate(current) }
         root = null
         island = null
         attached = false
+    }
+
+    private fun updateTriggerOverlay() {
+        if (!attached || !settings.separateTouchTrigger) {
+            triggerRoot?.let {
+                runCatching { windowManager?.removeViewImmediate(it) }
+                triggerRoot = null
+            }
+            return
+        }
+
+        val triggerView = triggerRoot ?: FrameLayout(context).apply {
+            clipChildren = false
+            clipToPadding = false
+            setPadding(TOUCH_PADDING.dp, TOUCH_PADDING.dp, TOUCH_PADDING.dp, (TOUCH_PADDING + 8).dp)
+            isClickable = true
+            setOnTouchListener { _, event ->
+                island?.onTouchEvent(event) ?: false
+            }
+        }.also { triggerRoot = it }
+
+        val params = WindowManager.LayoutParams(
+            settings.collapsedWidth.dp + TOUCH_PADDING.dp * 2,
+            settings.collapsedHeight.dp + TOUCH_PADDING.dp * 2 + 8.dp,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            baseFlags(),
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+            x = settings.triggerOffsetX.dp
+            y = settings.triggerOffsetY.dp + if (settings.avoidStatusBar) statusBarHeight() else 0
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+            }
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                layoutInDisplayCutoutMode =
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+            }
+        }
+
+        if (triggerView.parent == null) {
+            runCatching { windowManager?.addView(triggerView, params) }
+        } else {
+            runCatching { windowManager?.updateViewLayout(triggerView, params) }
+        }
     }
 
     private fun buildParams(): WindowManager.LayoutParams =
@@ -261,7 +311,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         val lockedOut = !settings.showOnLockScreen && keyguard?.isKeyguardLocked == true
         val temporarilyHidden = SystemClock.elapsedRealtime() < hiddenUntil
         val hide = (settings.hideInLandscape && landscape) || lockedOut || !screenOn || temporarilyHidden
-        view.visibility = if (hide) View.INVISIBLE else View.VISIBLE
+        val vis = if (hide) View.INVISIBLE else View.VISIBLE
+        view.visibility = vis
+        triggerRoot?.visibility = vis
     }
 
     // ------------------------------------------------------------------ activity feed

@@ -58,6 +58,9 @@ class SettingsRepository(private val context: Context) {
         val avoidStatusBar = booleanPreferencesKey("avoid_status_bar")
         val expandedWidth = intPreferencesKey("expanded_width")
         val compactWidth = intPreferencesKey("compact_width")
+        val separateTouchTrigger = booleanPreferencesKey("separate_touch_trigger")
+        val triggerOffsetX = intPreferencesKey("trigger_offset_x")
+        val triggerOffsetY = intPreferencesKey("trigger_offset_y")
         val backgroundColor = intPreferencesKey("background_color")
         val opacity = floatPreferencesKey("opacity")
         val borderEnabled = booleanPreferencesKey("border_enabled")
@@ -115,6 +118,9 @@ class SettingsRepository(private val context: Context) {
             avoidStatusBar = this[K.avoidStatusBar] ?: d.avoidStatusBar,
             expandedWidth = this[K.expandedWidth] ?: d.expandedWidth,
             compactWidth = this[K.compactWidth] ?: d.compactWidth,
+            separateTouchTrigger = this[K.separateTouchTrigger] ?: d.separateTouchTrigger,
+            triggerOffsetX = this[K.triggerOffsetX] ?: d.triggerOffsetX,
+            triggerOffsetY = this[K.triggerOffsetY] ?: d.triggerOffsetY,
             backgroundColor = this[K.backgroundColor] ?: d.backgroundColor,
             opacity = this[K.opacity] ?: d.opacity,
             borderEnabled = this[K.borderEnabled] ?: d.borderEnabled,
@@ -172,6 +178,9 @@ class SettingsRepository(private val context: Context) {
         this[K.avoidStatusBar] = s.avoidStatusBar
         this[K.expandedWidth] = s.expandedWidth
         this[K.compactWidth] = s.compactWidth
+        this[K.separateTouchTrigger] = s.separateTouchTrigger
+        this[K.triggerOffsetX] = s.triggerOffsetX
+        this[K.triggerOffsetY] = s.triggerOffsetY
         this[K.backgroundColor] = s.backgroundColor
         this[K.opacity] = s.opacity
         this[K.borderEnabled] = s.borderEnabled
