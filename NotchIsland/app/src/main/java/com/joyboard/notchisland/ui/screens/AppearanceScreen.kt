@@ -12,11 +12,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.data.ThemeMode
 import com.joyboard.notchisland.island.IslandMode
 import com.joyboard.notchisland.ui.MainViewModel
+import com.joyboard.notchisland.ui.components.ActionRow
 import com.joyboard.notchisland.ui.components.ColorRow
 import com.joyboard.notchisland.ui.components.DropdownRow
 import com.joyboard.notchisland.ui.components.IslandPreview
@@ -93,9 +96,9 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         SectionCard(title = "Position") {
             SwitchRow(
                 title = "Keep clear of the status bar",
-                subtitle = "Android layers overlays under the status bar, which swallows taps " +
-                    "inside it. Turn this off only if you want the island over the cutout and " +
-                    "do not mind losing touch.",
+                subtitle = "Android layers overlays under the status bar. Turn this off to make " +
+                    "the dock/island show above the notification bar over the camera cutout " +
+                    "(note: status bar swallows touch inside its band).",
                 checked = settings.avoidStatusBar,
                 onCheckedChange = { value ->
                     viewModel.update { it.copy(avoidStatusBar = value) }
@@ -122,6 +125,14 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         }
 
         SectionCard(title = "Colour") {
+            val materialYouPrimary = MaterialTheme.colorScheme.primary
+            ActionRow(
+                label = "Auto-match Material You theme color",
+                onClick = {
+                    val colorInt = materialYouPrimary.toArgb()
+                    viewModel.update { it.copy(accentColor = colorInt) }
+                }
+            )
             ColorRow(
                 title = "Island background",
                 selected = settings.backgroundColor,

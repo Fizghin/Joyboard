@@ -48,10 +48,10 @@ fun AboutScreen(viewModel: MainViewModel) {
             Body("Anything transient fades back to the resting pill once its time is up.")
         }
 
-        SectionCard(title = "Keeping it alive") {
+        SectionCard(title = "Keeping it alive & position tips") {
             Body(
-                "Android may stop background overlays on aggressive battery settings. Excluding " +
-                    "Notch Island from battery optimisation keeps it steady."
+                "If the dock/island is stopped by Android, make sure the dock isn't optimised in battery settings. " +
+                    "Excluding Notch Island from battery optimisation ensures background services run reliably."
             )
             OutlinedButton(
                 onClick = { context.openBatteryOptimisationSettings() },
@@ -59,6 +59,10 @@ fun AboutScreen(viewModel: MainViewModel) {
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 8.dp)
             ) { Text("Battery optimisation settings") }
+            Body(
+                "To make the dock show above the notification bar over the camera cutout, go to " +
+                    "Look -> Position and turn off 'Keep clear of the status bar'."
+            )
         }
 
         SectionCard(title = "Privacy") {
