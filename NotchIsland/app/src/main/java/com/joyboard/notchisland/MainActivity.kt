@@ -26,10 +26,14 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.core.content.ContextCompat
@@ -64,8 +68,9 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by viewModel.settings.collectAsStateWithLifecycle()
             val updateState by viewModel.updateState.collectAsStateWithLifecycle()
+            val status by viewModel.status.collectAsStateWithLifecycle()
             NotchIslandTheme(themeMode = settings.themeMode) {
-                NotchIslandApp(viewModel)
+                NotchIslandApp(viewModel, status) { viewModel.clearStatus() }
                 UpdateDialog(
                     state = updateState,
                     onInstall = { viewModel.installUpdate() },
@@ -103,13 +108,24 @@ private val tabs = listOf(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun NotchIslandApp(viewModel: MainViewModel) {
+private fun NotchIslandApp(
+    viewModel: MainViewModel,
+    status: String?,
+    onStatusShown: () -> Unit,
+) {
     val navController = rememberNavController()
+    val snackbarHostState = remember { SnackbarHostState() }
+    LaunchedEffect(status) {
+        val message = status ?: return@LaunchedEffect
+        snackbarHostState.showSnackbar(message)
+        onStatusShown()
+    }
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isSubScreen = currentRoute == "blocked" || currentRoute == "about"
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
@@ -118,7 +134,7 @@ private fun NotchIslandApp(viewModel: MainViewModel) {
                             "features" -> "Live activities"
                             "appearance" -> "Appearance"
                             "gestures" -> "Gestures"
-                            "blocked" -> "Blocked apps"
+                            "blocked" -> "Per-app rules"
                             "about" -> "About"
                             else -> "Notch Island"
                         }

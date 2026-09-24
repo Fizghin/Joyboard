@@ -67,12 +67,28 @@ data class IslandSettings(
     val featureTimer: Boolean = true,
     val featurePrivacy: Boolean = true,
     val featureBatteryLow: Boolean = true,
+    val featureCalls: Boolean = true,
+    val featureOngoing: Boolean = true,
+    val featureStopwatch: Boolean = true,
+    val featureHistory: Boolean = true,
 
     // ---- notification handling ----
     val notificationStyle: NotificationStyle = NotificationStyle.PREVIEW,
     val notificationDurationMs: Int = 4000,
     val blockedPackages: Set<String> = emptySet(),
+    val autoExpandPackages: Set<String> = emptySet(),
     val silentNotifications: Boolean = false,
+    val quickReplyEnabled: Boolean = true,
+    val otpDetection: Boolean = true,
+    val autoExpandOtp: Boolean = true,
+    val autoExpandCalls: Boolean = true,
+
+    // ---- quiet hours and power ----
+    val quietHoursEnabled: Boolean = false,
+    val quietStartMinutes: Int = 23 * 60,
+    val quietEndMinutes: Int = 7 * 60,
+    val suspendWhenScreenOff: Boolean = true,
+    val respectSystemAnimationScale: Boolean = true,
 
     // ---- updates ----
     val updateManifestUrl: String = DEFAULT_UPDATE_MANIFEST_URL,
@@ -114,6 +130,17 @@ enum class ColorSource(val label: String) {
     ARTWORK("Match what's playing"),
 }
 
+/** True when the wall-clock minute falls inside the quiet window, wrapping over midnight. */
+fun IslandSettings.isQuietAt(minuteOfDay: Int): Boolean {
+    if (!quietHoursEnabled) return false
+    if (quietStartMinutes == quietEndMinutes) return false
+    return if (quietStartMinutes < quietEndMinutes) {
+        minuteOfDay >= quietStartMinutes && minuteOfDay < quietEndMinutes
+    } else {
+        minuteOfDay >= quietStartMinutes || minuteOfDay < quietEndMinutes
+    }
+}
+
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 enum class NotificationStyle { PREVIEW, MINIMAL, ICON_ONLY }
@@ -129,6 +156,8 @@ enum class GestureAction(val label: String) {
     TOGGLE_RINGER("Cycle ringer mode"),
     OPEN_SETTINGS("Open Notch Island"),
     OPEN_LAST_NOTIFICATION("Open last notification"),
+    SHOW_HISTORY("Show recent notifications"),
+    START_STOPWATCH("Start the stopwatch"),
     SHOW_QUICK_PANEL("Show quick toggles"),
     HIDE_TEMPORARILY("Hide for 30 seconds"),
 }

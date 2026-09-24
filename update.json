@@ -1,16 +1,21 @@
 {
-  "versionCode": 3,
-  "versionName": "1.2",
+  "versionCode": 4,
+  "versionName": "2.0",
   "mandatory": false,
   "notes": [
-    "Material You: the island can take its accent and body colour from your wallpaper, and the colour pickers now lead with wallpaper swatches",
-    "New \"Over the status bar\" anchor — the island is drawn up at the cutout and a transparent strip below it catches the taps, so it looks right without losing touch",
-    "Optimised: the panel is only rebuilt when its contents actually change, measurements are cached, the window is only re-laid-out on a real change, and the waveform stops animating when it cannot be seen",
-    "The preview now shows a stand-in status bar so the anchor choice is visible",
-    "About explains why no ordinary app can draw above the status bar"
+    "Calls take over the island with the caller's own answer and hang-up buttons",
+    "Ongoing activities — navigation, downloads, deliveries, recordings — stay put with their progress",
+    "Quick reply: answer a message straight from the island, keyboard and all",
+    "One-time passcodes are spotted and offered as a single tap to copy",
+    "Stopwatch with laps, a recent-notifications panel, and per-app auto-expand rules",
+    "Quiet hours, and the island rests while the screen is off",
+    "Fit to my camera cutout measures the real cutout and shapes the island to it",
+    "Quick settings tile and launcher shortcuts for toggle, timer, stopwatch and recents",
+    "Export and restore every setting as a JSON file",
+    "Honours the system's remove-animations setting"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 12543516,
-  "debugSizeBytes": 18822893
+  "sizeBytes": 12598268,
+  "debugSizeBytes": 18894068
 }

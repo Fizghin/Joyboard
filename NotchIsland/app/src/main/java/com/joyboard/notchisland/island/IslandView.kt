@@ -7,17 +7,23 @@ import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.drawable.GradientDrawable
+import android.content.res.ColorStateList
+import android.text.InputType
 import android.text.TextUtils
 import android.text.format.DateFormat
 import android.view.Gravity
+import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
+import android.view.inputmethod.EditorInfo
+import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
+import android.widget.ProgressBar
 import android.widget.SeekBar
 import android.widget.TextView
 import androidx.core.content.ContextCompat
@@ -27,6 +33,8 @@ import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.util.dp
+import com.joyboard.notchisland.util.formatRelative
+import com.joyboard.notchisland.util.formatStopwatch
 import com.joyboard.notchisland.util.readableAccent
 import com.joyboard.notchisland.util.visible
 import java.util.Date
@@ -45,6 +53,11 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         fun onMediaCommand(command: MediaCommand)
         fun onMediaSeek(positionMs: Long)
         fun onTimerCommand(command: TimerCommand)
+        fun onStopwatchCommand(command: StopwatchCommand)
+        fun onSendReply(item: NotificationItem, text: CharSequence)
+        fun onReplyFocusChanged(active: Boolean)
+        fun onCopyCode(code: String)
+        fun onHistoryTap(item: NotificationItem)
         fun onQuickToggle(toggle: QuickToggle)
         fun onVolumeChange(progress: Int)
         fun onBrightnessChange(progress: Int)
@@ -61,6 +74,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     private var settings: IslandSettings = IslandSettings()
     private var systemAccent: Int = 0xFF3B82F6.toInt()
     private var systemSurface: Int = Color.BLACK
+    private var systemAnimationScale: Float = 1f
     private var presentation: Presentation = Presentation(ActivityKind.IDLE)
     var mode: IslandMode = IslandMode.PILL
         private set
@@ -176,6 +190,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     // timer body views
     private var timerText: TextView? = null
     private var timerRing: RingProgressView? = null
+    private var stopwatchText: TextView? = null
+    private var replyField: EditText? = null
 
     init {
         isClickable = true
@@ -230,6 +246,18 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     fun applySettings(s: IslandSettings) {
         settings = s
         cachedExpandedKey = null
+        // Honour the accessibility "remove animations" setting rather than fighting it.
+        systemAnimationScale = if (s.respectSystemAnimationScale) {
+            runCatching {
+                android.provider.Settings.Global.getFloat(
+                    context.contentResolver,
+                    android.provider.Settings.Global.ANIMATOR_DURATION_SCALE,
+                    1f
+                )
+            }.getOrDefault(1f)
+        } else {
+            1f
+        }
         systemAccent = DynamicColors.accent(context, dark = true)
         systemSurface = DynamicColors.surface(context, dark = true)
         bgDrawable.setColor(resolvedBackground())
@@ -416,6 +444,17 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         timerRing?.progress = if (totalMs <= 0) 0f else remainingMs.toFloat() / totalMs
     }
 
+    fun refreshStopwatch(elapsedMs: Long) {
+        stopwatchText?.text = formatStopwatch(elapsedMs)
+    }
+
+    /** True while the reply field holds focus, so the controller keeps the window focusable. */
+    fun isReplying(): Boolean = replyField?.hasFocus() == true
+
+    fun clearReplyFocus() {
+        replyField?.clearFocus()
+    }
+
     fun refreshToggleStates() {
         toggleButtons.forEach { (toggle, view) ->
             val on = listener.quickToggleState(toggle)
@@ -482,8 +521,11 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         )
     }
 
-    private fun dur(base: Long): Long =
-        (base / settings.animationSpeed.coerceIn(0.4f, 2.5f)).toLong()
+    private fun dur(base: Long): Long {
+        if (systemAnimationScale <= 0f) return 0L
+        val scaled = base / settings.animationSpeed.coerceIn(0.4f, 2.5f) * systemAnimationScale
+        return scaled.toLong().coerceAtLeast(0L)
+    }
 
     // ------------------------------------------------------------------ body builders
 
@@ -506,6 +548,10 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             is ExpandedBody.Charging -> buildChargingBody(body, accent)
             is ExpandedBody.Timer -> buildTimerBody(body, accent)
             is ExpandedBody.Message -> buildMessageBody(body)
+            is ExpandedBody.Ongoing -> buildOngoingBody(body.item, accent)
+            is ExpandedBody.Call -> buildCallBody(body.item, accent)
+            is ExpandedBody.Stopwatch -> buildStopwatchBody(body, accent)
+            is ExpandedBody.History -> buildHistoryBody(body.items, accent)
             ExpandedBody.QuickPanel -> buildQuickPanelBody(accent)
         }
         return true
@@ -519,11 +565,20 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         is ExpandedBody.Media -> with(body.media) {
             "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$accent"
         }
-        is ExpandedBody.Notification ->
-            "notification|${body.item.key}|${body.item.actions.size}|$accent"
+        is ExpandedBody.Notification -> with(body.item) {
+            "notification|$key|${actions.size}|${settings.quickReplyEnabled && reply != null}|" +
+                "${settings.otpDetection && otp != null}|$accent"
+        }
         is ExpandedBody.Charging -> "charging|${body.level}|${body.plugged}|${body.fast}|$accent"
         is ExpandedBody.Timer -> "timer|${body.running}|$accent"
         is ExpandedBody.Message -> "message|${body.title}|${body.subtitle}"
+        is ExpandedBody.Ongoing -> with(body.item) {
+            "ongoing|$key|$title|$text|$progress|$progressMax|$progressIndeterminate|$accent"
+        }
+        is ExpandedBody.Call -> "call|${body.item.key}|${body.item.actions.size}|$accent"
+        is ExpandedBody.Stopwatch -> "stopwatch|${body.running}|${body.laps.size}|$accent"
+        is ExpandedBody.History ->
+            "history|${body.items.joinToString(",") { it.key }}|$accent"
         // The quick panel shows a clock, so it is allowed to go stale for at most a minute.
         ExpandedBody.QuickPanel ->
             "quick|$accent|${System.currentTimeMillis() / 60_000L}"
@@ -647,6 +702,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         actions.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
         actions.addView(pillButton("Dismiss", accent) { listener.onDismissCurrent() })
         bodyContainer.addView(actions)
+        addNotificationExtras(item, accent)
     }
 
     private fun buildChargingBody(body: ExpandedBody.Charging, accent: Int) {
@@ -727,6 +783,234 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         controls.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
         controls.addView(pillButton("Cancel", accent) { listener.onTimerCommand(TimerCommand.CANCEL) })
         bodyContainer.addView(controls)
+    }
+
+    private fun buildOngoingBody(item: NotificationItem, accent: Int) {
+        if (item.text.isNotBlank()) {
+            bodyContainer.addView(TextView(context).apply {
+                setTextColor(0xD9FFFFFF.toInt())
+                textSize = 13f
+                maxLines = 3
+                ellipsize = TextUtils.TruncateAt.END
+                text = item.text
+            })
+        }
+        if (item.hasProgress || item.progressIndeterminate) {
+            bodyContainer.addView(
+                ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
+                    isIndeterminate = item.progressIndeterminate
+                    if (!item.progressIndeterminate) {
+                        max = item.progressMax.coerceAtLeast(1)
+                        progress = item.progress.coerceIn(0, max)
+                    }
+                    progressTintList = ColorStateList.valueOf(accent)
+                    indeterminateTintList = ColorStateList.valueOf(accent)
+                    progressBackgroundTintList = ColorStateList.valueOf(0x4DFFFFFF)
+                },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 10.dp }
+            )
+            if (item.hasProgress) {
+                val percent = item.progress * 100 / item.progressMax.coerceAtLeast(1)
+                bodyContainer.addView(smallLabel("$percent%"))
+            }
+        }
+        val actions = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 10.dp }
+        }
+        actions.addView(pillButton("Open", accent, filled = true) { listener.onOpenPresentationTarget() })
+        item.actions.take(2).forEach { action ->
+            actions.addView(spacer(8.dp))
+            actions.addView(pillButton(action.title, accent) { listener.onNotificationAction(action) })
+        }
+        bodyContainer.addView(actions)
+    }
+
+    private fun buildCallBody(item: NotificationItem, accent: Int) {
+        if (item.text.isNotBlank()) {
+            bodyContainer.addView(smallLabel(item.text))
+        }
+        val actions = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 12.dp }
+        }
+        // A call notification carries its own answer and hang-up actions; we only relay them.
+        if (item.actions.isEmpty()) {
+            actions.addView(
+                pillButton("Open call", accent, filled = true) { listener.onOpenPresentationTarget() }
+            )
+        } else {
+            item.actions.take(3).forEachIndexed { index, action ->
+                if (index > 0) actions.addView(spacer(8.dp))
+                val declining = action.title.lowercase().let {
+                    it.contains("decline") || it.contains("hang") || it.contains("end") ||
+                        it.contains("reject")
+                }
+                actions.addView(
+                    pillButton(
+                        action.title,
+                        if (declining) 0xFFFF453A.toInt() else 0xFF34C759.toInt(),
+                        filled = true
+                    ) { listener.onNotificationAction(action) }
+                )
+            }
+        }
+        bodyContainer.addView(actions)
+    }
+
+    private fun buildStopwatchBody(body: ExpandedBody.Stopwatch, accent: Int) {
+        val time = TextView(context).apply {
+            setTextColor(Color.WHITE)
+            textSize = 34f
+            typeface = android.graphics.Typeface.MONOSPACE
+            text = formatStopwatch(body.elapsedMs)
+        }
+        stopwatchText = time
+        bodyContainer.addView(time)
+
+        if (body.laps.isNotEmpty()) {
+            body.laps.takeLast(3).forEachIndexed { index, lap ->
+                bodyContainer.addView(
+                    smallLabel("Lap ${body.laps.size - index}   ${formatStopwatch(lap)}")
+                )
+            }
+        }
+
+        val controls = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 12.dp }
+        }
+        controls.addView(
+            pillButton(if (body.running) "Pause" else "Start", accent, filled = true) {
+                listener.onStopwatchCommand(StopwatchCommand.START_PAUSE)
+            }
+        )
+        controls.addView(spacer(8.dp))
+        controls.addView(pillButton("Lap", accent) { listener.onStopwatchCommand(StopwatchCommand.LAP) })
+        controls.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
+        controls.addView(
+            pillButton("Reset", accent) { listener.onStopwatchCommand(StopwatchCommand.RESET) }
+        )
+        bodyContainer.addView(controls)
+    }
+
+    private fun buildHistoryBody(items: List<NotificationItem>, accent: Int) {
+        if (items.isEmpty()) {
+            bodyContainer.addView(smallLabel("Nothing has come through yet"))
+            return
+        }
+        items.take(6).forEach { item ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                isClickable = true
+                setPadding(0, 7.dp, 0, 7.dp)
+                setOnClickListener { listener.onHistoryTap(item) }
+            }
+            row.addView(ImageView(context).apply {
+                setImageDrawable(item.appIcon ?: item.smallIcon)
+                layoutParams = LinearLayout.LayoutParams(22.dp, 22.dp)
+            })
+            val column = LinearLayout(context).apply {
+                orientation = LinearLayout.VERTICAL
+                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                    .apply { marginStart = 10.dp }
+            }
+            column.addView(TextView(context).apply {
+                setTextColor(Color.WHITE)
+                textSize = 12.5f
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                text = item.title
+            })
+            column.addView(TextView(context).apply {
+                setTextColor(0x99FFFFFF.toInt())
+                textSize = 11f
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                text = item.text.ifBlank { item.appLabel }
+            })
+            row.addView(column)
+            row.addView(smallLabel(formatRelative(System.currentTimeMillis(), item.whenMs)))
+            bodyContainer.addView(
+                row,
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                )
+            )
+        }
+    }
+
+    /** The one-tap passcode copy and the inline reply field, when a notification offers them. */
+    private fun addNotificationExtras(item: NotificationItem, accent: Int) {
+        if (settings.otpDetection) item.otp?.let { code ->
+            bodyContainer.addView(
+                pillButton("Copy $code", accent, filled = true) { listener.onCopyCode(code) },
+                LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 10.dp }
+            )
+        }
+        if (!settings.quickReplyEnabled) return
+        val reply = item.reply ?: return
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            layoutParams = LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 10.dp }
+        }
+        val field = EditText(context).apply {
+            hint = reply.title
+            setHintTextColor(0x80FFFFFF.toInt())
+            setTextColor(Color.WHITE)
+            textSize = 13f
+            maxLines = 3
+            background = GradientDrawable().apply {
+                cornerRadius = 18f.dp
+                setColor(0x1FFFFFFF)
+            }
+            setPadding(14.dp, 10.dp, 14.dp, 10.dp)
+            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
+            imeOptions = EditorInfo.IME_ACTION_SEND
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+            // The overlay window is normally unfocusable; it has to be told to accept the IME.
+            setOnFocusChangeListener { _, hasFocus -> listener.onReplyFocusChanged(hasFocus) }
+            setOnEditorActionListener { view, actionId, _ ->
+                if (actionId == EditorInfo.IME_ACTION_SEND) {
+                    sendReply(item, view.text)
+                    true
+                } else {
+                    false
+                }
+            }
+        }
+        replyField = field
+        row.addView(field)
+        row.addView(spacer(8.dp))
+        row.addView(
+            circleButton(R.drawable.ic_next, 40.dp) { sendReply(item, field.text) }.apply {
+                (background as? GradientDrawable)?.setColor(accent)
+                setColorFilter(Color.BLACK)
+            }
+        )
+        bodyContainer.addView(row)
+    }
+
+    private fun sendReply(item: NotificationItem, text: CharSequence) {
+        if (text.isBlank()) return
+        listener.onSendReply(item, text.toString())
+        replyField?.setText("")
+        replyField?.clearFocus()
+        listener.onReplyFocusChanged(false)
     }
 
     private fun buildMessageBody(body: ExpandedBody.Message) {
@@ -892,6 +1176,18 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         listener.onGesture(settings.longPressAction)
     }
 
+    /** While the reply field has focus this window owns the back key, so give it a job. */
+    override fun dispatchKeyEventPreIme(event: KeyEvent): Boolean {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && replyField?.hasFocus() == true) {
+            if (event.action == KeyEvent.ACTION_UP) {
+                replyField?.clearFocus()
+                listener.onReplyFocusChanged(false)
+            }
+            return true
+        }
+        return super.dispatchKeyEventPreIme(event)
+    }
+
     override fun onInterceptTouchEvent(ev: MotionEvent): Boolean =
         mode != IslandMode.EXPANDED
 
@@ -957,16 +1253,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     companion object {
         private const val DOUBLE_TAP_WINDOW = 230L
 
-        fun formatDuration(ms: Long, forceMinutes: Boolean = false): String {
-            val totalSeconds = (ms / 1000).coerceAtLeast(0)
-            val hours = totalSeconds / 3600
-            val minutes = (totalSeconds % 3600) / 60
-            val seconds = totalSeconds % 60
-            return when {
-                hours > 0 -> String.format("%d:%02d:%02d", hours, minutes, seconds)
-                forceMinutes || minutes > 0 -> String.format("%02d:%02d", minutes, seconds)
-                else -> String.format("0:%02d", seconds)
-            }
-        }
+        fun formatDuration(ms: Long, forceMinutes: Boolean = false): String =
+            com.joyboard.notchisland.util.formatDuration(ms, forceMinutes)
     }
 }

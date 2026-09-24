@@ -26,15 +26,22 @@ priority queue and shows the winner:
 
 | Activity | Priority | Lives for |
 | --- | --- | --- |
-| Notification preview | highest | 1.5–12 s (configurable) |
+| Call | highest | until the call ends |
+| Notification preview | | 1.5–12 s (configurable) |
 | Unlock confirmation | | 1.4 s |
 | Privacy indicator (mic / camera) | | while the sensor is live |
 | Volume change | | 1.6 s |
 | Ringer mode change | | 1.5 s |
 | Low battery warning | | 5 s |
 | Charging / unplugged | | 4.5 s |
+| Stopwatch | | until reset |
 | Timer countdown | | until it finishes |
+| Ongoing activity (navigation, download, delivery) | | until its notification goes |
 | Now playing | lowest | while a media session exists |
+
+The ordering rules live in `ActivityQueue`, which has no Android dependencies and is covered by
+unit tests — the "sticky activity resurfaces once the transient one expires" behaviour is a test,
+not a hope.
 
 Transient activities fade back to whatever sticky activity is underneath — pause a song mid-way
 through a notification and the island returns to the now-playing readout, not to nothing.
@@ -43,17 +50,33 @@ through a notification and the island returns to the now-playing readout, not to
 progress bar, previous / play / next, and a media volume slider. With the accent set to *Match
 what's playing*, the colour is pulled out of the album art with Palette.
 
-**Notifications.** App icon, title preview and — when expanded — the body text plus the
-notification's own action buttons, an Open button that fires its content intent, and Dismiss.
-Per-app blocking with a searchable app list.
+**Notifications, handled rather than just shown.** App icon, title preview and — when expanded —
+the body, the notification's own action buttons, Open and Dismiss. On top of that:
+
+- **Quick reply.** Messaging notifications that carry a `RemoteInput` get a reply box in the
+  island. The overlay is normally unfocusable so it never steals input; focus is granted only
+  while the field is in use, and the back key hands it back.
+- **Passcodes.** A one-time code in the text becomes a single *Copy 482915* button. Detection is
+  deliberately conservative — a bare number needs verification wording around it — and is unit
+  tested against both the codes it should find and the order numbers it should not.
+- **Calls.** A call notification takes the island and keeps it, showing the caller and relaying
+  the app's own answer and hang-up actions, tinted green and red.
+- **Ongoing activities.** Navigation, downloads, deliveries and recordings stay in the island
+  with a live progress bar instead of flashing past.
+- **Recent.** The last dozen notifications are kept for a history panel you can pull back up.
+- **Per-app rules.** Block an app entirely, or mark it to expand the island on arrival.
 
 **Quick panel.** Expanding the idle island gives you a clock, date, brightness and volume
 sliders, and round toggles for flashlight, Wi-Fi, Bluetooth, Do Not Disturb, ringer mode,
 auto-rotate and app settings. Toggles that Android reserves for the system open the matching
 settings panel instead of failing silently.
 
-**Timers.** Start one from the app; it takes over the island with a countdown ring and
-pause / +1 min / cancel controls.
+**Timers and a stopwatch.** A countdown with a progress ring and pause / +1 min / cancel, and a
+stopwatch with laps. Both live in the island until they are done.
+
+**Quiet hours and rest.** The island can step aside for a stretch of the day (the window wraps
+over midnight correctly — also unit tested), and stops watching media and sensors while the
+screen is off.
 
 **Gestures.** Tap, double tap, long press and all four swipes are individually remappable to
 twelve actions (expand, collapse, play/pause, next, previous, flashlight, cycle ringer, open the
@@ -73,7 +96,13 @@ Four tabs plus two sub-screens, all Material 3 Compose:
   outline, shadow, animation speed, app theme.
 - **Gestures** — the seven gesture mappings, haptics and strength, auto-collapse delay.
 - **Blocked apps** — searchable list of launchable apps.
-- **About** — how priority works, battery optimisation, privacy.
+- **About** — how priority works, why nothing can draw above the status bar, battery
+  optimisation, privacy, and **export / restore** of every setting as a JSON file.
+
+Beyond the app itself: a **quick settings tile** toggles the island from the shade, and
+**launcher shortcuts** (long-press the icon) cover toggle, a 5-minute timer, the stopwatch and
+recents. *Look → Size → Fit to my camera cutout* measures the real `DisplayCutout` and shapes the
+island to the hardware it is imitating.
 
 Every setting is stored in DataStore and collected by both the app and the overlay service, so
 changes land on screen as you drag the slider.
@@ -181,10 +210,21 @@ manifest is small enough to write by hand:
 ```bash
 export ANDROID_HOME=/path/to/android-sdk    # needs platform 34 + build-tools 34.0.0
 cd NotchIsland
+gradle testDebugUnitTest      # the pure-logic suite
 gradle assembleDebug          # or: gradle assembleRelease
 ```
 
-Output lands in `app/build/outputs/apk/`.
+Output lands in `app/build/outputs/apk/`. `./publish.sh` does the whole release chore: runs the
+tests, builds both APKs, copies them into `apks/` and rewrites `update.json` with the new version
+and file sizes. CI (`.github/workflows/notchisland.yml`) runs the tests, lint and both builds on
+every push to `notch`.
+
+### Tests
+
+The parts that can be tested without a device are pulled out and tested: the live-activity
+priority queue, passcode detection, duration formatting, quiet-hour windows that wrap midnight,
+and the settings backup round trip including forward compatibility with unknown enum values.
+Everything else — window layering, gestures, the overlay itself — needs a real device.
 
 ## How it is put together
 
@@ -192,7 +232,10 @@ Output lands in `app/build/outputs/apk/`.
 NotchIsland/app/src/main/java/com/joyboard/notchisland/
 ├── data/            IslandSettings + DataStore repository
 ├── island/
-│   ├── IslandController.kt   overlay window, priority queue, all the wiring
+│   ├── IslandController.kt   overlay window, all the wiring
+│   ├── ActivityQueue.kt      priority ordering and expiry (tested)
+│   ├── OtpExtractor.kt       passcode detection (tested)
+│   ├── StopwatchEngine.kt    laps and elapsed time
 │   ├── IslandView.kt         the morphing view: three modes, gestures, panels
 │   ├── MediaMonitor.kt       MediaSessionManager + Palette accent extraction
 │   ├── SystemMonitors.kt     battery, volume, ringer, screen, mic/camera
@@ -203,6 +246,7 @@ NotchIsland/app/src/main/java/com/joyboard/notchisland/
 ├── service/
 │   ├── NotchOverlayService.kt     foreground service that hosts the overlay
 │   ├── NotchNotificationListener.kt
+│   ├── IslandTileService.kt       the quick settings tile
 │   ├── IslandBus.kt               listener → controller hand-off
 │   └── BootReceiver.kt
 ├── update/          manifest check, APK download, installer hand-off
@@ -230,6 +274,12 @@ progress rings skip no-op updates instead of starting an animator each time.
   presets and *Match my wallpaper* resolves to a sensible default.
 - Wi-Fi and Bluetooth cannot be toggled silently by a normal app on Android 10+; those buttons
   open the system panel.
+- Quick reply only appears for notifications whose app ships a free-form `RemoteInput`. Apps that
+  only offer "open to reply" cannot be replied to from anywhere but their own UI.
+- Answering a call means firing the notification's own action. An app that does not publish one
+  can only be opened, not answered.
+- There is no per-app *hiding by foreground app* — that needs an accessibility service, which is
+  a heavier permission than this app currently asks for.
 - Brightness and auto-rotate need *Modify system settings*, which Android grants per app.
 - Aggressive battery managers on some OEM skins can stop the overlay service; exclude the app
   from battery optimisation (there is a button in About).

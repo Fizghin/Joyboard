@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
+    <shortcut
+        android:shortcutId="toggle"
+        android:enabled="true"
+        android:icon="@drawable/ic_island"
+        android:shortcutShortLabel="@string/shortcut_toggle_short"
+        android:shortcutLongLabel="@string/shortcut_toggle_long">
+        <intent
+            android:action="com.joyboard.notchisland.shortcut.TOGGLE"
+            android:targetPackage="com.joyboard.notchisland"
+            android:targetClass="com.joyboard.notchisland.ShortcutRouterActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="timer"
+        android:enabled="true"
+        android:icon="@drawable/ic_timer"
+        android:shortcutShortLabel="@string/shortcut_timer_short"
+        android:shortcutLongLabel="@string/shortcut_timer_long">
+        <intent
+            android:action="com.joyboard.notchisland.shortcut.TIMER"
+            android:targetPackage="com.joyboard.notchisland"
+            android:targetClass="com.joyboard.notchisland.ShortcutRouterActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="stopwatch"
+        android:enabled="true"
+        android:icon="@drawable/ic_stopwatch"
+        android:shortcutShortLabel="@string/shortcut_stopwatch_short"
+        android:shortcutLongLabel="@string/shortcut_stopwatch_long">
+        <intent
+            android:action="com.joyboard.notchisland.shortcut.STOPWATCH"
+            android:targetPackage="com.joyboard.notchisland"
+            android:targetClass="com.joyboard.notchisland.ShortcutRouterActivity" />
+    </shortcut>
+    <shortcut
+        android:shortcutId="history"
+        android:enabled="true"
+        android:icon="@drawable/ic_bell"
+        android:shortcutShortLabel="@string/shortcut_history_short"
+        android:shortcutLongLabel="@string/shortcut_history_long">
+        <intent
+            android:action="com.joyboard.notchisland.shortcut.HISTORY"
+            android:targetPackage="com.joyboard.notchisland"
+            android:targetClass="com.joyboard.notchisland.ShortcutRouterActivity" />
+    </shortcut>
+</shortcuts>

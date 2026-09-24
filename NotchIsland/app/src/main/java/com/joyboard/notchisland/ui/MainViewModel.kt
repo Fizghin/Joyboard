@@ -5,15 +5,19 @@ import android.app.NotificationManager
 import android.content.Intent
 import android.content.pm.ApplicationInfo
 import android.graphics.drawable.Drawable
+import android.net.Uri
 import android.os.Build
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.joyboard.notchisland.BuildConfig
 import com.joyboard.notchisland.data.DEFAULT_UPDATE_MANIFEST_URL
 import com.joyboard.notchisland.data.IslandSettings
+import com.joyboard.notchisland.data.PositionMode
+import com.joyboard.notchisland.data.SettingsCodec
 import com.joyboard.notchisland.data.SettingsRepository
 import com.joyboard.notchisland.service.IslandBus
 import com.joyboard.notchisland.service.NotchOverlayService
+import com.joyboard.notchisland.util.CutoutDetector
 import com.joyboard.notchisland.util.canDrawOverlays
 import com.joyboard.notchisland.util.canWriteSettings
 import com.joyboard.notchisland.update.UpdateService
@@ -241,6 +245,79 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleBlocked(packageName: String) {
         viewModelScope.launch { repository.toggleBlocked(packageName) }
+    }
+
+    fun toggleAutoExpand(packageName: String) {
+        viewModelScope.launch { repository.toggleAutoExpand(packageName) }
+    }
+
+    // ------------------------------------------------------------------ cutout, backup, restore
+
+    private val _status = MutableStateFlow<String?>(null)
+    val status: StateFlow<String?> = _status.asStateFlow()
+
+    fun clearStatus() {
+        _status.value = null
+    }
+
+    /** Measures the real camera cutout and shapes the island to match it. */
+    fun fitToCutout() {
+        val cutout = CutoutDetector.detect(getApplication())
+        if (cutout == null) {
+            _status.value = "No camera cutout reported by this display"
+            return
+        }
+        viewModelScope.launch {
+            repository.update {
+                it.copy(
+                    collapsedWidth = (cutout.widthDp + 16).coerceIn(48, 300),
+                    collapsedHeight = (cutout.heightDp + 6).coerceIn(18, 64),
+                    cornerRadius = ((cutout.heightDp + 6) / 2).coerceIn(6, 40),
+                    offsetX = cutout.centerOffsetDp.coerceIn(-140, 140),
+                    offsetY = cutout.topDp.coerceIn(0, 40),
+                    positionMode = PositionMode.OVERLAP_STATUS_BAR,
+                )
+            }
+            _status.value =
+                "Matched a ${cutout.widthDp}×${cutout.heightDp} dp cutout"
+        }
+    }
+
+    fun exportSettings(uri: Uri) {
+        viewModelScope.launch {
+            val json = SettingsCodec.toJson(settings.value)
+            val ok = withContext(Dispatchers.IO) {
+                runCatching {
+                    getApplication<Application>().contentResolver.openOutputStream(uri)?.use {
+                        it.write(json.toByteArray())
+                    } ?: error("could not open the file")
+                }.isSuccess
+            }
+            _status.value = if (ok) "Settings exported" else "Could not write that file"
+        }
+    }
+
+    fun importSettings(uri: Uri) {
+        viewModelScope.launch {
+            val json = withContext(Dispatchers.IO) {
+                runCatching {
+                    getApplication<Application>().contentResolver.openInputStream(uri)
+                        ?.bufferedReader()?.use { it.readText() }
+                }.getOrNull()
+            }
+            if (json.isNullOrBlank()) {
+                _status.value = "Could not read that file"
+                return@launch
+            }
+            val restored = runCatching { SettingsCodec.fromJson(json, settings.value) }.getOrNull()
+            if (restored == null) {
+                _status.value = "That file is not a Notch Island backup"
+                return@launch
+            }
+            repository.update { restored }
+            restartOverlay()
+            _status.value = "Settings restored"
+        }
     }
 
     private companion object {

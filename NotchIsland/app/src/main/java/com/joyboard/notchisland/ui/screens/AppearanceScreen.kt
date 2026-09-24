@@ -47,6 +47,19 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         )
 
         SectionCard(title = "Size", subtitle = "Match your phone's camera cutout.") {
+            OutlinedButton(
+                onClick = { viewModel.fitToCutout() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
+            ) { Text("Fit to my camera cutout") }
+            Text(
+                "Measures the real cutout and sets the width, height, corner and offsets to " +
+                    "match it, then anchors the island over the status bar.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
+            )
             SliderRow(
                 title = "Resting width",
                 value = settings.collapsedWidth.toFloat(),

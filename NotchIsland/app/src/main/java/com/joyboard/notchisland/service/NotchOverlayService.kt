@@ -38,10 +38,20 @@ class NotchOverlayService : LifecycleService() {
                 return@launch
             }
             val created = IslandController(this@NotchOverlayService)
+            val ok = runCatching {
+                created.start(initial)
+                true
+            }.getOrElse { error ->
+                android.util.Log.e("NotchIsland", "could not attach the overlay", error)
+                false
+            }
+            if (!ok) {
+                stopSelf()
+                return@launch
+            }
             controller = created
             IslandBus.controller = created
             IslandBus.serviceRunning = true
-            created.start(initial)
             started = true
             repository.settings.collect { settings ->
                 if (!settings.enabled) {
@@ -62,6 +72,9 @@ class NotchOverlayService : LifecycleService() {
                 val minutes = intent.getIntExtra(EXTRA_TIMER_MINUTES, 1)
                 controller?.startTimer(minutes * 60_000L)
             }
+            ACTION_START_STOPWATCH -> controller?.startStopwatch()
+            ACTION_SHOW_HISTORY ->
+                controller?.onGesture(com.joyboard.notchisland.data.GestureAction.SHOW_HISTORY)
             ACTION_STOP -> stopSelf()
         }
         return START_STICKY
@@ -121,6 +134,8 @@ class NotchOverlayService : LifecycleService() {
         const val ACTION_EXPAND = "com.joyboard.notchisland.EXPAND"
         const val ACTION_COLLAPSE = "com.joyboard.notchisland.COLLAPSE"
         const val ACTION_START_TIMER = "com.joyboard.notchisland.START_TIMER"
+        const val ACTION_START_STOPWATCH = "com.joyboard.notchisland.START_STOPWATCH"
+        const val ACTION_SHOW_HISTORY = "com.joyboard.notchisland.SHOW_HISTORY"
         const val ACTION_STOP = "com.joyboard.notchisland.STOP"
         const val EXTRA_TIMER_MINUTES = "timer_minutes"
         private const val NOTIFICATION_ID = 1001

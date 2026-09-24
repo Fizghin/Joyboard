@@ -4,4 +4,15 @@
     <string name="service_channel_desc">Keeps the Dynamic Island running</string>
     <string name="service_running">Dynamic Island is active</string>
     <string name="service_running_desc">Tap to open settings</string>
+    <string name="tile_on">Island on</string>
+    <string name="tile_off">Island off</string>
+    <string name="needs_overlay_permission">Allow display over other apps first</string>
+    <string name="shortcut_toggle_short">Toggle</string>
+    <string name="shortcut_toggle_long">Turn the island on or off</string>
+    <string name="shortcut_timer_short">Timer</string>
+    <string name="shortcut_timer_long">Start a 5 minute timer</string>
+    <string name="shortcut_stopwatch_short">Stopwatch</string>
+    <string name="shortcut_stopwatch_long">Start the stopwatch</string>
+    <string name="shortcut_history_short">Recent</string>
+    <string name="shortcut_history_long">Show recent notifications</string>
 </resources>

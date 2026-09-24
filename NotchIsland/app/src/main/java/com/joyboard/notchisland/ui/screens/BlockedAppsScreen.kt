@@ -1,12 +1,14 @@
 package com.joyboard.notchisland.ui.screens
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Checkbox
@@ -47,19 +49,40 @@ fun BlockedAppsScreen(viewModel: MainViewModel) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         )
         Text(
-            "Checked apps never appear in the island.",
+            "Block keeps an app out of the island entirely. Open makes the island expand on its " +
+                "own when that app sends something.",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
         )
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(start = 20.dp, end = 20.dp, top = 6.dp, bottom = 2.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Spacer(modifier = Modifier.weight(1f))
+            Text(
+                "Block",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(52.dp)
+            )
+            Text(
+                "Open",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.width(52.dp)
+            )
+        }
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(filtered, key = { it.packageName }) { app ->
                 val blocked = app.packageName in settings.blockedPackages
+                val autoExpand = app.packageName in settings.autoExpandPackages
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clickable { viewModel.toggleBlocked(app.packageName) }
-                        .padding(horizontal = 20.dp, vertical = 10.dp),
+                        .padding(horizontal = 20.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     app.icon?.let { drawable ->
@@ -83,10 +106,19 @@ fun BlockedAppsScreen(viewModel: MainViewModel) {
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
-                    Checkbox(
-                        checked = blocked,
-                        onCheckedChange = { viewModel.toggleBlocked(app.packageName) }
-                    )
+                    Box(modifier = Modifier.width(52.dp)) {
+                        Checkbox(
+                            checked = blocked,
+                            onCheckedChange = { viewModel.toggleBlocked(app.packageName) }
+                        )
+                    }
+                    Box(modifier = Modifier.width(52.dp)) {
+                        Checkbox(
+                            checked = autoExpand,
+                            enabled = !blocked,
+                            onCheckedChange = { viewModel.toggleAutoExpand(app.packageName) }
+                        )
+                    }
                 }
             }
         }

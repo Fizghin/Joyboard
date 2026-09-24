@@ -21,7 +21,9 @@ object IslandBus {
         handler.post { target.onNotification(item) }
     }
 
+    /** Ongoing and call activities retire when their notification is taken away. */
     fun dropNotification(key: String) {
-        // transient notifications expire on their own; nothing to do for now
+        val target = controller ?: return
+        handler.post { target.onNotificationRemoved(key) }
     }
 }

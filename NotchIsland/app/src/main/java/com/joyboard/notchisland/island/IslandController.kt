@@ -1,6 +1,9 @@
 package com.joyboard.notchisland.island
 
 import android.app.KeyguardManager
+import android.app.RemoteInput
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
@@ -10,6 +13,7 @@ import android.media.AudioManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.os.Bundle
 import android.os.SystemClock
 import android.view.Gravity
 import android.view.MotionEvent
@@ -19,13 +23,17 @@ import android.view.WindowManager
 import android.graphics.drawable.GradientDrawable
 import android.widget.FrameLayout
 import android.widget.LinearLayout
+import android.widget.Toast
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.MainActivity
 import com.joyboard.notchisland.R
 import com.joyboard.notchisland.data.GestureAction
+import com.joyboard.notchisland.data.NotificationStyle
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.PositionMode
+import com.joyboard.notchisland.data.isQuietAt
 import com.joyboard.notchisland.util.dp
+import com.joyboard.notchisland.util.formatStopwatch
 
 /**
  * Owns the overlay window and decides what the island shows. Live activities compete by
@@ -45,13 +53,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private var hiddenUntil = 0L
     private var screenOn = true
 
-    private val activities = LinkedHashMap<ActivityKind, LiveActivity>()
+    private val activities = ActivityQueue()
+    private val history = ArrayDeque<NotificationItem>()
     private var expandedByUser = false
+    private var showingHistory = false
     private var lastNotification: NotificationItem? = null
 
     private val haptics = Haptics(context)
     private val quickActions = QuickActions(context)
     private val mediaMonitor = MediaMonitor(context) { snapshot -> onMediaSnapshot(snapshot) }
+    private val stopwatch = StopwatchEngine { elapsed, running -> onStopwatchTick(elapsed, running) }
     private val timer = TimerEngine(
         onTick = { remaining, total, running -> onTimerTick(remaining, total, running) },
         onFinished = { onTimerFinished() }
@@ -65,7 +76,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private val expiryRunnable = Runnable { render() }
     private val collapseRunnable = Runnable {
+        if (island?.isReplying() == true) return@Runnable
         expandedByUser = false
+        showingHistory = false
         render()
     }
     private val mediaTicker = object : Runnable {
@@ -87,8 +100,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
         ringerMonitor = RingerMonitor(context) { mode -> onRinger(mode) }
         screenMonitor = ScreenMonitor(
             onUnlock = { onUnlock() },
-            onScreenOff = { screenOn = false; updateVisibility() },
-            onScreenOn = { screenOn = true; updateVisibility() },
+            onScreenOff = { screenOn = false; onScreenPower(false) },
+            onScreenOn = { screenOn = true; onScreenPower(true) },
             context = context,
         )
         privacyMonitor = PrivacyMonitor(context) { mic, camera -> onPrivacy(mic, camera) }
@@ -322,27 +335,46 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { windowManager?.updateViewLayout(current, params) }
     }
 
+    /** With the screen off there is nothing to draw, so the pollers go quiet too. */
+    private fun onScreenPower(on: Boolean) {
+        updateVisibility()
+        if (!settings.suspendWhenScreenOff) return
+        if (on) {
+            if (settings.featureMedia) mediaMonitor.start()
+            if (settings.featurePrivacy) privacyMonitor.start()
+        } else {
+            handler.removeCallbacks(mediaTicker)
+            mediaMonitor.stop()
+            privacyMonitor.stop()
+        }
+    }
+
     private fun updateVisibility() {
         val view = root ?: return
         val landscape =
             context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val lockedOut = !settings.showOnLockScreen && keyguard?.isKeyguardLocked == true
         val temporarilyHidden = SystemClock.elapsedRealtime() < hiddenUntil
-        val hide = (settings.hideInLandscape && landscape) || lockedOut || !screenOn || temporarilyHidden
+        val now = java.util.Calendar.getInstance()
+        val quiet = settings.isQuietAt(
+            now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+        )
+        val hide = (settings.hideInLandscape && landscape) || lockedOut || !screenOn ||
+            temporarilyHidden || quiet
         view.visibility = if (hide) View.INVISIBLE else View.VISIBLE
     }
 
     // ------------------------------------------------------------------ activity feed
 
     fun push(activity: LiveActivity) {
-        activities[activity.kind] = activity
+        activities.put(activity)
         if (activity.autoExpand) expandedByUser = true
         render()
         haptics.tick()
     }
 
     fun drop(kind: ActivityKind) {
-        if (activities.remove(kind) != null) render()
+        if (activities.remove(kind)) render()
     }
 
     private fun onMediaSnapshot(snapshot: MediaSnapshot?) {
@@ -350,11 +382,11 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (snapshot == null) {
             activities.remove(ActivityKind.MEDIA)
         } else {
-            activities[ActivityKind.MEDIA] = LiveActivity(
+            activities.put(LiveActivity(
                 kind = ActivityKind.MEDIA,
                 presentation = mediaPresentation(snapshot),
                 expiresAt = Long.MAX_VALUE,
-            )
+            ))
         }
         render()
     }
@@ -371,34 +403,121 @@ class IslandController(private val context: Context) : IslandView.Listener {
     )
 
     fun onNotification(item: NotificationItem) {
-        if (!settings.featureNotifications) return
         if (item.packageName in settings.blockedPackages) return
+        when {
+            item.isCall && settings.featureCalls -> pushCall(item)
+            item.ongoing -> pushOngoing(item)
+            settings.featureNotifications -> pushNotification(item)
+        }
+    }
+
+    /** An ongoing or call notification going away takes its activity with it. */
+    fun onNotificationRemoved(key: String) {
+        var changed = false
+        if (activities.peek(ActivityKind.CALL)?.presentation?.notificationKey == key) {
+            changed = activities.remove(ActivityKind.CALL)
+        }
+        if (activities.peek(ActivityKind.ONGOING)?.presentation?.notificationKey == key) {
+            changed = activities.remove(ActivityKind.ONGOING) || changed
+        }
+        if (changed) render()
+    }
+
+    private fun pushCall(item: NotificationItem) {
         lastNotification = item
+        activities.put(
+            LiveActivity(
+                kind = ActivityKind.CALL,
+                presentation = Presentation(
+                    kind = ActivityKind.CALL,
+                    leadingIcon = item.appIcon ?: item.smallIcon,
+                    leadingBitmap = item.largeIcon,
+                    trailing = Trailing.Waveform(true, 0xFF34C759.toInt()),
+                    accent = 0xFF34C759.toInt(),
+                    title = item.title.ifBlank { item.appLabel },
+                    subtitle = item.text.ifBlank { "Call" },
+                    body = ExpandedBody.Call(item),
+                    tapIntent = item.contentIntent,
+                    notificationKey = item.key,
+                ),
+                // A call stays until its notification goes away.
+                expiresAt = Long.MAX_VALUE,
+                autoExpand = settings.autoExpandCalls,
+            )
+        )
+        render()
+        haptics.pop()
+    }
+
+    private fun pushOngoing(item: NotificationItem) {
+        if (!settings.featureOngoing) return
+        activities.put(
+            LiveActivity(
+                kind = ActivityKind.ONGOING,
+                presentation = Presentation(
+                    kind = ActivityKind.ONGOING,
+                    leadingIcon = item.appIcon ?: item.smallIcon,
+                    leadingBitmap = item.largeIcon,
+                    trailing = if (item.hasProgress) {
+                        Trailing.Ring(
+                            item.progress.toFloat() / item.progressMax.coerceAtLeast(1),
+                            item.accent
+                        )
+                    } else {
+                        Trailing.Icon(item.smallIcon, item.accent)
+                    },
+                    accent = item.accent,
+                    title = item.title.ifBlank { item.appLabel },
+                    subtitle = item.text.ifBlank { item.appLabel },
+                    body = ExpandedBody.Ongoing(item),
+                    tapIntent = item.contentIntent,
+                    notificationKey = item.key,
+                ),
+                expiresAt = Long.MAX_VALUE,
+            )
+        )
+        render()
+    }
+
+    private fun pushNotification(item: NotificationItem) {
+        lastNotification = item
+        remember(item)
         val presentation = Presentation(
             kind = ActivityKind.NOTIFICATION,
             leadingIcon = item.appIcon ?: item.smallIcon,
             leadingBitmap = item.largeIcon,
-            trailing = when (settings.notificationStyle) {
-                com.joyboard.notchisland.data.NotificationStyle.PREVIEW ->
+            trailing = when {
+                item.otp != null -> Trailing.Text(item.otp, item.accent)
+                settings.notificationStyle == NotificationStyle.PREVIEW ->
                     Trailing.Text(item.title.take(18), item.accent)
-                com.joyboard.notchisland.data.NotificationStyle.MINIMAL ->
+                settings.notificationStyle == NotificationStyle.MINIMAL ->
                     Trailing.Text(item.appLabel.take(14), item.accent)
-                com.joyboard.notchisland.data.NotificationStyle.ICON_ONLY ->
-                    Trailing.Icon(item.smallIcon, item.accent)
+                else -> Trailing.Icon(item.smallIcon, item.accent)
             },
             accent = item.accent,
             title = item.title.ifBlank { item.appLabel },
             subtitle = item.text.ifBlank { item.appLabel },
             body = ExpandedBody.Notification(item),
             tapIntent = item.contentIntent,
+            notificationKey = item.key,
         )
+        // A passcode or a reply box is worth opening for; a plain alert is not.
+        val worthExpanding = (item.otp != null && settings.autoExpandOtp) ||
+            item.packageName in settings.autoExpandPackages
         push(
             LiveActivity(
                 kind = ActivityKind.NOTIFICATION,
                 presentation = presentation,
                 expiresAt = SystemClock.elapsedRealtime() + settings.notificationDurationMs,
+                autoExpand = worthExpanding,
             )
         )
+    }
+
+    private fun remember(item: NotificationItem) {
+        history.removeAll { it.key == item.key }
+        history.addFirst(item)
+        while (history.size > HISTORY_LIMIT) history.removeLast()
     }
 
     private fun onBattery(state: BatteryState, plugChanged: Boolean) {
@@ -423,10 +542,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
         if (!plugChanged || !settings.featureCharging) {
             // keep the charging card fresh if it is already on screen
-            activities[ActivityKind.CHARGING]?.let {
-                activities[ActivityKind.CHARGING] = it.copy(
-                    presentation = chargingPresentation(state)
-                )
+            activities.peek(ActivityKind.CHARGING)?.let {
+                activities.put(it.copy(presentation = chargingPresentation(state)))
                 render()
             }
             return
@@ -574,7 +691,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             render()
             return
         }
-        activities[ActivityKind.TIMER] = LiveActivity(
+        activities.put(LiveActivity(
             ActivityKind.TIMER,
             Presentation(
                 kind = ActivityKind.TIMER,
@@ -587,7 +704,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 body = ExpandedBody.Timer(remaining, total, running),
             ),
             expiresAt = Long.MAX_VALUE,
-        )
+        ))
         val view = island
         if (view != null && view.mode == IslandMode.EXPANDED) {
             view.refreshTimer(remaining, total)
@@ -621,12 +738,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     // ------------------------------------------------------------------ rendering
 
-    private fun currentTop(): LiveActivity? {
-        val now = SystemClock.elapsedRealtime()
-        val expired = activities.filterValues { it.expiresAt <= now }.keys
-        expired.forEach { activities.remove(it) }
-        return activities.values.maxByOrNull { it.kind.priority }
-    }
+    private fun currentTop(): LiveActivity? = activities.top()
 
     private fun idlePresentation(): Presentation = Presentation(
         kind = ActivityKind.IDLE,
@@ -638,12 +750,20 @@ class IslandController(private val context: Context) : IslandView.Listener {
         body = ExpandedBody.QuickPanel,
     )
 
-    private fun render() {
+    private fun render() = runCatching { renderInternal() }.getOrElse {
+        // A render must never take the service down with it.
+        android.util.Log.w("NotchIsland", "render failed", it)
+    }
+
+    private fun renderInternal() {
         val view = island ?: return
         handler.removeCallbacks(expiryRunnable)
 
         val top = currentTop()
-        val presentation = top?.presentation ?: idlePresentation()
+        val presentation = when {
+            showingHistory && expandedByUser -> historyPresentation()
+            else -> top?.presentation ?: idlePresentation()
+        }
         view.setPresentation(presentation)
 
         val target = when {
@@ -666,10 +786,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
 
         // schedule the next expiry pass
-        val now = SystemClock.elapsedRealtime()
-        val nextExpiry = activities.values.map { it.expiresAt }.filter { it != Long.MAX_VALUE }.minOrNull()
-        if (nextExpiry != null) {
-            handler.postDelayed(expiryRunnable, (nextExpiry - now).coerceAtLeast(60L))
+        activities.millisUntilNextExpiry()?.let { delay ->
+            handler.postDelayed(expiryRunnable, delay.coerceAtLeast(60L))
         }
 
         handler.removeCallbacks(collapseRunnable)
@@ -693,6 +811,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
         /** Width of the transparent strip that catches taps in overlap mode. */
         const val STRIP_WIDTH = 96
+
+        /** How many notifications the island remembers for its history panel. */
+        const val HISTORY_LIMIT = 12
     }
 
     // ------------------------------------------------------------------ IslandView.Listener
@@ -712,6 +833,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             }
             GestureAction.COLLAPSE -> {
                 expandedByUser = false
+                showingHistory = false
                 haptics.tick()
                 render()
             }
@@ -730,6 +852,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 expandedByUser = true
                 render()
             }
+            GestureAction.SHOW_HISTORY -> {
+                if (settings.featureHistory) {
+                    showingHistory = true
+                    expandedByUser = true
+                    haptics.pop()
+                    render()
+                }
+            }
+            GestureAction.START_STOPWATCH -> startStopwatch()
             GestureAction.HIDE_TEMPORARILY -> {
                 hiddenUntil = SystemClock.elapsedRealtime() + 30_000
                 updateVisibility()
@@ -797,6 +928,143 @@ class IslandController(private val context: Context) : IslandView.Listener {
     override fun currentVolume(): Pair<Int, Int> = volumeMonitor.musicVolume()
 
     override fun currentBrightness(): Int = quickActions.brightness()
+
+    override fun onStopwatchCommand(command: StopwatchCommand) {
+        when (command) {
+            StopwatchCommand.START_PAUSE -> stopwatch.toggle()
+            StopwatchCommand.LAP -> stopwatch.lap()
+            StopwatchCommand.RESET -> {
+                stopwatch.reset()
+                activities.remove(ActivityKind.STOPWATCH)
+            }
+        }
+        haptics.tick()
+        render()
+    }
+
+    override fun onSendReply(item: NotificationItem, text: CharSequence) {
+        val reply = item.reply ?: return
+        val intent = reply.intent ?: return
+        val results = Bundle().apply { putCharSequence(reply.resultKey, text) }
+        val fill = Intent()
+        RemoteInput.addResultsToIntent(reply.remoteInputs, fill, results)
+        runCatching { intent.send(context, 0, fill) }
+            .onFailure { toast("Could not send the reply") }
+        setWindowFocusable(false)
+        expandedByUser = false
+        activities.remove(ActivityKind.NOTIFICATION)
+        haptics.pop()
+        render()
+    }
+
+    override fun onReplyFocusChanged(active: Boolean) {
+        setWindowFocusable(active)
+        if (active) {
+            // Do not collapse the island out from under someone who is typing.
+            handler.removeCallbacks(collapseRunnable)
+        } else if (expandedByUser && settings.autoCollapseSeconds > 0) {
+            handler.postDelayed(collapseRunnable, settings.autoCollapseSeconds * 1000L)
+        }
+    }
+
+    override fun onCopyCode(code: String) {
+        val clipboard = context.getSystemService(ClipboardManager::class.java)
+        runCatching {
+            clipboard?.setPrimaryClip(ClipData.newPlainText("Passcode", code))
+            toast("Copied $code")
+        }
+        haptics.pop()
+        expandedByUser = false
+        activities.remove(ActivityKind.NOTIFICATION)
+        render()
+    }
+
+    override fun onHistoryTap(item: NotificationItem) {
+        runCatching { item.contentIntent?.send() }
+        expandedByUser = false
+        render()
+    }
+
+    private fun onStopwatchTick(elapsed: Long, running: Boolean) {
+        if (!stopwatch.active) {
+            activities.remove(ActivityKind.STOPWATCH)
+            render()
+            return
+        }
+        activities.put(
+            LiveActivity(
+                ActivityKind.STOPWATCH,
+                Presentation(
+                    kind = ActivityKind.STOPWATCH,
+                    leadingIcon = drawable(R.drawable.ic_stopwatch),
+                    leadingTint = settings.accentColor,
+                    trailing = Trailing.Text(formatStopwatch(elapsed), settings.accentColor),
+                    accent = settings.accentColor,
+                    title = "Stopwatch",
+                    subtitle = formatStopwatch(elapsed),
+                    body = ExpandedBody.Stopwatch(elapsed, running, stopwatch.laps.toList()),
+                ),
+                expiresAt = Long.MAX_VALUE,
+            )
+        )
+        val view = island
+        if (view != null && view.mode == IslandMode.EXPANDED) {
+            view.refreshStopwatch(elapsed)
+            updateCompactOnly()
+        } else {
+            render()
+        }
+    }
+
+    fun startStopwatch() {
+        if (!settings.featureStopwatch) return
+        stopwatch.start()
+        expandedByUser = true
+        render()
+    }
+
+    /**
+     * The overlay is unfocusable so it never steals input, but an inline reply needs the
+     * keyboard, so focus is granted only while the field is being used.
+     */
+    private fun setWindowFocusable(focusable: Boolean) {
+        val current = root ?: return
+        val params = current.layoutParams as? WindowManager.LayoutParams ?: return
+        val wantFlags = if (focusable) {
+            (baseFlags() and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()) or
+                WindowManager.LayoutParams.FLAG_DIM_BEHIND
+        } else {
+            baseFlags()
+        }
+        if (params.flags == wantFlags) return
+        params.flags = wantFlags
+        params.softInputMode = if (focusable) {
+            WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
+                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        } else {
+            WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
+        }
+        if (focusable) params.dimAmount = 0.4f
+        runCatching { windowManager?.updateViewLayout(current, params) }
+        if (!focusable) {
+            island?.clearReplyFocus()
+            updateWindowParams()
+        }
+    }
+
+    private fun toast(message: String) {
+        runCatching { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
+    }
+
+    private fun historyPresentation() = Presentation(
+        kind = ActivityKind.IDLE,
+        leadingIcon = drawable(R.drawable.ic_bell),
+        leadingTint = settings.accentColor,
+        accent = settings.accentColor,
+        title = "Recent",
+        subtitle = "${history.size} notification(s)",
+        body = ExpandedBody.History(history.toList()),
+    )
 
     private fun openPresentationTarget() {
         val top = currentTop()?.presentation

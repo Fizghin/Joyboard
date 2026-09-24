@@ -8,6 +8,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -79,6 +81,31 @@ fun AboutScreen(viewModel: MainViewModel) {
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 8.dp)
             ) { Text("Battery optimisation settings") }
+        }
+
+        SectionCard(
+            title = "Backup",
+            subtitle = "Every setting, as a small JSON file you keep."
+        ) {
+            val exporter = rememberLauncherForActivityResult(
+                ActivityResultContracts.CreateDocument("application/json")
+            ) { uri -> uri?.let { viewModel.exportSettings(it) } }
+            val importer = rememberLauncherForActivityResult(
+                ActivityResultContracts.OpenDocument()
+            ) { uri -> uri?.let { viewModel.importSettings(it) } }
+
+            OutlinedButton(
+                onClick = { exporter.launch("notch-island-settings.json") },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
+            ) { Text("Export settings") }
+            OutlinedButton(
+                onClick = { importer.launch(arrayOf("application/json", "text/plain", "*/*")) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 2.dp)
+            ) { Text("Restore from a backup") }
         }
 
         SectionCard(title = "Privacy") {

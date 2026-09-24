@@ -14,7 +14,10 @@ enum class IslandMode { HIDDEN, PILL, COMPACT, EXPANDED }
 enum class ActivityKind(val priority: Int, val persistent: Boolean) {
     IDLE(0, true),
     MEDIA(20, true),
+    /** Someone else's long-running notification: navigation, a download, a delivery. */
+    ONGOING(25, true),
     TIMER(30, true),
+    STOPWATCH(32, true),
     CHARGING(40, false),
     BATTERY_LOW(45, false),
     RINGER(50, false),
@@ -22,6 +25,8 @@ enum class ActivityKind(val priority: Int, val persistent: Boolean) {
     PRIVACY(60, false),
     UNLOCK(65, false),
     NOTIFICATION(70, false),
+    /** A ringing or connected call always wins, and stays until it ends. */
+    CALL(90, true),
 }
 
 /** What the right-hand side of the compact island shows. */
@@ -36,6 +41,11 @@ sealed interface Trailing {
 /** What the expanded island shows below the header. */
 sealed interface ExpandedBody {
     data object QuickPanel : ExpandedBody
+    data class Ongoing(val item: NotificationItem) : ExpandedBody
+    data class Call(val item: NotificationItem) : ExpandedBody
+    data class Stopwatch(val elapsedMs: Long, val running: Boolean, val laps: List<Long>) :
+        ExpandedBody
+    data class History(val items: List<NotificationItem>) : ExpandedBody
     data class Media(val media: MediaSnapshot) : ExpandedBody
     data class Notification(val item: NotificationItem) : ExpandedBody
     data class Charging(val level: Int, val plugged: Boolean, val fast: Boolean) : ExpandedBody
@@ -56,6 +66,8 @@ data class Presentation(
     val body: ExpandedBody = ExpandedBody.QuickPanel,
     val expandable: Boolean = true,
     val tapIntent: PendingIntent? = null,
+    /** Set when the activity is backed by a notification, so removal can retire it. */
+    val notificationKey: String? = null,
 )
 
 data class MediaSnapshot(
@@ -89,9 +101,36 @@ data class NotificationItem(
     val contentIntent: PendingIntent?,
     val actions: List<NotificationAction>,
     val isConversation: Boolean,
-)
+    /** Long-running notifications become sticky activities instead of passing previews. */
+    val ongoing: Boolean = false,
+    val category: String? = null,
+    val progress: Int = -1,
+    val progressMax: Int = 0,
+    val progressIndeterminate: Boolean = false,
+    /** A one-time passcode found in the text, offered as a one-tap copy. */
+    val otp: String? = null,
+    /** The notification's own inline-reply action, when it has one. */
+    val reply: ReplyAction? = null,
+) {
+    val isCall: Boolean get() = category == "call"
+
+    val hasProgress: Boolean get() = progress >= 0 && progressMax > 0
+}
 
 data class NotificationAction(val title: String, val intent: PendingIntent?)
+
+/** An inline reply the island can send without opening the app. */
+data class ReplyAction(
+    val title: String,
+    val intent: PendingIntent?,
+    val resultKey: String,
+    val remoteInputs: Array<android.app.RemoteInput>,
+) {
+    override fun equals(other: Any?): Boolean =
+        other is ReplyAction && other.resultKey == resultKey && other.title == title
+
+    override fun hashCode(): Int = 31 * resultKey.hashCode() + title.hashCode()
+}
 
 /** A live activity currently competing for the island. */
 data class LiveActivity(

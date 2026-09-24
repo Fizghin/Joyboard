@@ -41,6 +41,12 @@ class SettingsRepository(private val context: Context) {
 
     suspend fun setEnabled(enabled: Boolean) = update { it.copy(enabled = enabled) }
 
+    suspend fun toggleAutoExpand(pkg: String) = update {
+        val next = it.autoExpandPackages.toMutableSet()
+        if (!next.add(pkg)) next.remove(pkg)
+        it.copy(autoExpandPackages = next)
+    }
+
     suspend fun toggleBlocked(pkg: String) = update {
         val next = it.blockedPackages.toMutableSet()
         if (!next.add(pkg)) next.remove(pkg)
@@ -96,6 +102,20 @@ class SettingsRepository(private val context: Context) {
         val featureTimer = booleanPreferencesKey("feature_timer")
         val featurePrivacy = booleanPreferencesKey("feature_privacy")
         val featureBatteryLow = booleanPreferencesKey("feature_battery_low")
+        val featureCalls = booleanPreferencesKey("feature_calls")
+        val featureOngoing = booleanPreferencesKey("feature_ongoing")
+        val featureStopwatch = booleanPreferencesKey("feature_stopwatch")
+        val featureHistory = booleanPreferencesKey("feature_history")
+        val autoExpandPackages = stringSetPreferencesKey("auto_expand_packages")
+        val quickReplyEnabled = booleanPreferencesKey("quick_reply_enabled")
+        val otpDetection = booleanPreferencesKey("otp_detection")
+        val autoExpandOtp = booleanPreferencesKey("auto_expand_otp")
+        val autoExpandCalls = booleanPreferencesKey("auto_expand_calls")
+        val quietHoursEnabled = booleanPreferencesKey("quiet_hours_enabled")
+        val quietStartMinutes = intPreferencesKey("quiet_start_minutes")
+        val quietEndMinutes = intPreferencesKey("quiet_end_minutes")
+        val suspendWhenScreenOff = booleanPreferencesKey("suspend_when_screen_off")
+        val respectSystemAnimationScale = booleanPreferencesKey("respect_animation_scale")
         val notificationStyle = stringPreferencesKey("notification_style")
         val notificationDuration = intPreferencesKey("notification_duration")
         val blockedPackages = stringSetPreferencesKey("blocked_packages")
@@ -159,6 +179,21 @@ class SettingsRepository(private val context: Context) {
             featureTimer = this[K.featureTimer] ?: d.featureTimer,
             featurePrivacy = this[K.featurePrivacy] ?: d.featurePrivacy,
             featureBatteryLow = this[K.featureBatteryLow] ?: d.featureBatteryLow,
+            featureCalls = this[K.featureCalls] ?: d.featureCalls,
+            featureOngoing = this[K.featureOngoing] ?: d.featureOngoing,
+            featureStopwatch = this[K.featureStopwatch] ?: d.featureStopwatch,
+            featureHistory = this[K.featureHistory] ?: d.featureHistory,
+            autoExpandPackages = this[K.autoExpandPackages] ?: d.autoExpandPackages,
+            quickReplyEnabled = this[K.quickReplyEnabled] ?: d.quickReplyEnabled,
+            otpDetection = this[K.otpDetection] ?: d.otpDetection,
+            autoExpandOtp = this[K.autoExpandOtp] ?: d.autoExpandOtp,
+            autoExpandCalls = this[K.autoExpandCalls] ?: d.autoExpandCalls,
+            quietHoursEnabled = this[K.quietHoursEnabled] ?: d.quietHoursEnabled,
+            quietStartMinutes = this[K.quietStartMinutes] ?: d.quietStartMinutes,
+            quietEndMinutes = this[K.quietEndMinutes] ?: d.quietEndMinutes,
+            suspendWhenScreenOff = this[K.suspendWhenScreenOff] ?: d.suspendWhenScreenOff,
+            respectSystemAnimationScale = this[K.respectSystemAnimationScale]
+                ?: d.respectSystemAnimationScale,
             notificationStyle = this[K.notificationStyle]?.toEnum<NotificationStyle>() ?: d.notificationStyle,
             notificationDurationMs = this[K.notificationDuration] ?: d.notificationDurationMs,
             blockedPackages = this[K.blockedPackages] ?: d.blockedPackages,
@@ -219,6 +254,20 @@ class SettingsRepository(private val context: Context) {
         this[K.featureTimer] = s.featureTimer
         this[K.featurePrivacy] = s.featurePrivacy
         this[K.featureBatteryLow] = s.featureBatteryLow
+        this[K.featureCalls] = s.featureCalls
+        this[K.featureOngoing] = s.featureOngoing
+        this[K.featureStopwatch] = s.featureStopwatch
+        this[K.featureHistory] = s.featureHistory
+        this[K.autoExpandPackages] = s.autoExpandPackages
+        this[K.quickReplyEnabled] = s.quickReplyEnabled
+        this[K.otpDetection] = s.otpDetection
+        this[K.autoExpandOtp] = s.autoExpandOtp
+        this[K.autoExpandCalls] = s.autoExpandCalls
+        this[K.quietHoursEnabled] = s.quietHoursEnabled
+        this[K.quietStartMinutes] = s.quietStartMinutes
+        this[K.quietEndMinutes] = s.quietEndMinutes
+        this[K.suspendWhenScreenOff] = s.suspendWhenScreenOff
+        this[K.respectSystemAnimationScale] = s.respectSystemAnimationScale
         this[K.notificationStyle] = s.notificationStyle.name
         this[K.notificationDuration] = s.notificationDurationMs
         this[K.blockedPackages] = s.blockedPackages
