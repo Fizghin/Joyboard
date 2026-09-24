@@ -56,6 +56,9 @@ class SettingsRepository(private val context: Context) {
         val offsetX = intPreferencesKey("offset_x")
         val offsetY = intPreferencesKey("offset_y")
         val avoidStatusBar = booleanPreferencesKey("avoid_status_bar")
+        val positionMode = stringPreferencesKey("position_mode")
+        val touchStripHeight = intPreferencesKey("touch_strip_height")
+        val showTouchHint = booleanPreferencesKey("show_touch_hint")
         val expandedWidth = intPreferencesKey("expanded_width")
         val compactWidth = intPreferencesKey("compact_width")
         val backgroundColor = intPreferencesKey("background_color")
@@ -64,7 +67,8 @@ class SettingsRepository(private val context: Context) {
         val borderColor = intPreferencesKey("border_color")
         val borderWidth = intPreferencesKey("border_width")
         val shadowEnabled = booleanPreferencesKey("shadow_enabled")
-        val tintFromArtwork = booleanPreferencesKey("tint_from_artwork")
+        val accentSource = stringPreferencesKey("accent_source")
+        val backgroundSource = stringPreferencesKey("background_source")
         val accentColor = intPreferencesKey("accent_color")
         val animationSpeed = floatPreferencesKey("animation_speed")
         val themeMode = stringPreferencesKey("theme_mode")
@@ -112,7 +116,12 @@ class SettingsRepository(private val context: Context) {
             cornerRadius = this[K.cornerRadius] ?: d.cornerRadius,
             offsetX = this[K.offsetX] ?: d.offsetX,
             offsetY = this[K.offsetY] ?: d.offsetY,
-            avoidStatusBar = this[K.avoidStatusBar] ?: d.avoidStatusBar,
+            // Carries forward the old boolean for anyone upgrading from 1.1.
+            positionMode = this[K.positionMode]?.toEnum<PositionMode>()
+                ?: if (this[K.avoidStatusBar] == false) PositionMode.OVERLAP_STATUS_BAR
+                else d.positionMode,
+            touchStripHeight = this[K.touchStripHeight] ?: d.touchStripHeight,
+            showTouchHint = this[K.showTouchHint] ?: d.showTouchHint,
             expandedWidth = this[K.expandedWidth] ?: d.expandedWidth,
             compactWidth = this[K.compactWidth] ?: d.compactWidth,
             backgroundColor = this[K.backgroundColor] ?: d.backgroundColor,
@@ -121,7 +130,8 @@ class SettingsRepository(private val context: Context) {
             borderColor = this[K.borderColor] ?: d.borderColor,
             borderWidth = this[K.borderWidth] ?: d.borderWidth,
             shadowEnabled = this[K.shadowEnabled] ?: d.shadowEnabled,
-            tintFromArtwork = this[K.tintFromArtwork] ?: d.tintFromArtwork,
+            accentSource = this[K.accentSource]?.toEnum<ColorSource>() ?: d.accentSource,
+            backgroundSource = this[K.backgroundSource]?.toEnum<ColorSource>() ?: d.backgroundSource,
             accentColor = this[K.accentColor] ?: d.accentColor,
             animationSpeed = this[K.animationSpeed] ?: d.animationSpeed,
             themeMode = this[K.themeMode]?.toEnum<ThemeMode>() ?: d.themeMode,
@@ -169,7 +179,9 @@ class SettingsRepository(private val context: Context) {
         this[K.cornerRadius] = s.cornerRadius
         this[K.offsetX] = s.offsetX
         this[K.offsetY] = s.offsetY
-        this[K.avoidStatusBar] = s.avoidStatusBar
+        this[K.positionMode] = s.positionMode.name
+        this[K.touchStripHeight] = s.touchStripHeight
+        this[K.showTouchHint] = s.showTouchHint
         this[K.expandedWidth] = s.expandedWidth
         this[K.compactWidth] = s.compactWidth
         this[K.backgroundColor] = s.backgroundColor
@@ -178,7 +190,8 @@ class SettingsRepository(private val context: Context) {
         this[K.borderColor] = s.borderColor
         this[K.borderWidth] = s.borderWidth
         this[K.shadowEnabled] = s.shadowEnabled
-        this[K.tintFromArtwork] = s.tintFromArtwork
+        this[K.accentSource] = s.accentSource.name
+        this[K.backgroundSource] = s.backgroundSource.name
         this[K.accentColor] = s.accentColor
         this[K.animationSpeed] = s.animationSpeed
         this[K.themeMode] = s.themeMode.name

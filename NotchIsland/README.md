@@ -12,6 +12,15 @@ then settles back down.
 something happens, and expands into a full panel when you tap it. Sizes, corners, colour and
 motion are all yours to set.
 
+**Two anchors.** *Below the status bar* makes every pixel tappable. *Over the status bar* draws
+the island up at the camera cutout for the real notch look and hangs a transparent strip beneath
+it to catch the taps the status bar would otherwise eat — see
+[Where the island sits](#where-the-island-sits).
+
+**Material You.** The accent and the island body can each follow your wallpaper, and the colour
+pickers lead with wallpaper swatches before the fixed presets. The accent can instead follow the
+album art of whatever is playing, or just be a colour you pick.
+
 **Live activities, by priority.** Several things can be live at once, so the island runs a
 priority queue and shows the winner:
 
@@ -31,8 +40,8 @@ Transient activities fade back to whatever sticky activity is underneath — pau
 through a notification and the island returns to the now-playing readout, not to nothing.
 
 **Now playing.** Album art on the left, dancing waveform on the right. Expand for a scrubbable
-progress bar, previous / play / next, and a media volume slider. The accent colour is pulled out
-of the album art with Palette, so the island takes on the colour of whatever is playing.
+progress bar, previous / play / next, and a media volume slider. With the accent set to *Match
+what's playing*, the colour is pulled out of the album art with Palette.
 
 **Notifications.** App icon, title preview and — when expanded — the body text plus the
 notification's own action buttons, an Open button that fires its content intent, and Dismiss.
@@ -59,14 +68,44 @@ Four tabs plus two sub-screens, all Material 3 Compose:
 - **Activities** — a switch per live activity, notification preview style and duration, blocked
   apps, and behaviour (always-on pill, hide in landscape, lock screen, dim when expanded, start
   on boot).
-- **Look** — resting/compact/expanded widths, height, corner radius, X/Y offset, background and
-  accent colour, opacity, outline, shadow, album-art tinting, animation speed, app theme.
+- **Look** — anchor and touch strip, resting/compact/expanded widths, height, corner radius, X/Y
+  offset, colour sources (wallpaper / album art / manual) with wallpaper-first swatches, opacity,
+  outline, shadow, animation speed, app theme.
 - **Gestures** — the seven gesture mappings, haptics and strength, auto-collapse delay.
 - **Blocked apps** — searchable list of launchable apps.
 - **About** — how priority works, battery optimisation, privacy.
 
 Every setting is stored in DataStore and collected by both the app and the overlay service, so
 changes land on screen as you drag the slider.
+
+## Where the island sits
+
+Android layers windows by type, and an app overlay — the only kind an app without system
+privileges can create — is **always placed below the status bar**. The status bar consumes every
+touch inside its own band. No permission, flag or window type changes that. This is why the first
+build looked fine and ignored every tap: the whole island was inside the dead band.
+
+There are two honest ways to live with that, and *Look → Position → Anchor* picks between them:
+
+| Anchor | Looks like | Touch |
+| --- | --- | --- |
+| **Below the status bar** (default) | a pill hanging just under the bar | the whole island |
+| **Over the status bar** | drawn at the cutout, like hardware | a transparent strip below it |
+| **Custom offset** | wherever you put it | only what falls below the bar |
+
+In overlap mode the island is drawn up at the cutout and the window keeps a transparent strip
+hanging below the status bar — inside the same window, so it costs no extra surface — and every
+touch that lands there is forwarded to the island. A faint handle marks the spot; the strip's
+height is a slider. Centre the island and the system clock and icons sit either side of it rather
+than drawing through it. Once the island expands it grows well past the bar, so the whole panel
+takes touches normally.
+
+The strip is the one trade-off: a small band of screen just under the status bar, as wide as the
+strip, belongs to the island rather than the app behind it. Shrink it to taste, or use the default
+anchor and give up the cutout look.
+
+Anything that genuinely draws *above* the status bar is a system app, a launcher, or a build with
+elevated privileges.
 
 ## Permissions
 
@@ -171,17 +210,24 @@ NotchIsland/app/src/main/java/com/joyboard/notchisland/
 ```
 
 The overlay is a `TYPE_APPLICATION_OVERLAY` window with `WRAP_CONTENT` bounds, so it only
-consumes touches where the island actually is — the rest of the status bar keeps working
-normally. The window grows and shrinks with the island because the view animates its own layout
-params.
+consumes touches where the island actually is — the rest of the screen keeps working normally.
+The window grows and shrinks with the island because the view animates its own layout params.
+
+A few things are done deliberately to keep it cheap. The expanded panel carries a content
+signature and is only rebuilt when that changes, so a volume blip or a timer tick never
+reconstructs a seek bar; its measured height is cached against the same signature. The window's
+layout params are diffed before `updateViewLayout`, because that call relayouts the whole window.
+The touch strip is sized from the resting pill rather than the live height, so expanding never
+resizes the window twice. The waveform stops animating the moment it is not visible, and the
+progress rings skip no-op updates instead of starting an animator each time.
 
 ## Known limits
 
-- **The island sits just below the status bar, not inside it.** Android layers every app overlay
-  *underneath* the system status bar, and the status bar consumes all touches in its own band —
-  an island drawn over the camera cutout is visible but completely untappable. *Look → Position →
-  Keep clear of the status bar* is on by default for that reason. Turn it off if you want the
-  cutout look and are willing to give up touch.
+- App overlays cannot be drawn above the status bar; see
+  [Where the island sits](#where-the-island-sits) for what that means and how overlap mode works
+  around it.
+- Material You colours need Android 12 or newer. Below that the pickers fall back to fixed
+  presets and *Match my wallpaper* resolves to a sensible default.
 - Wi-Fi and Bluetooth cannot be toggled silently by a normal app on Android 10+; those buttons
   open the system panel.
 - Brightness and auto-rotate need *Modify system settings*, which Android grants per app.

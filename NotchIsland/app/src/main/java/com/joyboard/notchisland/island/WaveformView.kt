@@ -29,8 +29,22 @@ class WaveformView(context: Context) : View(context) {
         set(value) {
             if (field == value) return
             field = value
-            if (value) start() else stop()
+            syncAnimation()
         }
+
+    private fun syncAnimation() {
+        if (playing && isShown && alpha > 0.05f) start() else stop()
+    }
+
+    override fun onVisibilityChanged(changedView: View, visibility: Int) {
+        super.onVisibilityChanged(changedView, visibility)
+        syncAnimation()
+    }
+
+    override fun onAttachedToWindow() {
+        super.onAttachedToWindow()
+        syncAnimation()
+    }
 
     init {
         layoutParams = android.widget.LinearLayout.LayoutParams(18.dp, 14.dp)
@@ -38,6 +52,7 @@ class WaveformView(context: Context) : View(context) {
 
     private fun start() {
         if (animator != null) return
+        if (!isAttachedToWindow) return
         animator = ValueAnimator.ofFloat(0f, 6.28f).apply {
             duration = 1100
             repeatCount = ValueAnimator.INFINITE

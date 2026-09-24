@@ -32,13 +32,18 @@ class RingProgressView(context: Context) : View(context) {
         set(value) { field = value; trackPaint.strokeWidth = value; progressPaint.strokeWidth = value; invalidate() }
 
     var label: String? = null
-        set(value) { field = value; invalidate() }
+        set(value) {
+            if (field == value) return
+            field = value
+            invalidate()
+        }
 
     var labelSizePx: Float = 9f.dp
         set(value) { field = value; textPaint.textSize = value; invalidate() }
 
     var ringColor: Int = 0xFF34C759.toInt()
         set(value) {
+            if (field == value) return
             field = value
             progressPaint.color = value
             trackPaint.color = value.withAlpha(0.22f)
@@ -48,7 +53,14 @@ class RingProgressView(context: Context) : View(context) {
     var progress: Float = 0f
         set(value) {
             val target = value.coerceIn(0f, 1f)
+            if (field == target) return
             field = target
+            if (!isAttachedToWindow) {
+                // Nothing to animate towards yet; land on the value directly.
+                shown = target
+                invalidate()
+                return
+            }
             animator?.cancel()
             animator = ValueAnimator.ofFloat(shown, target).apply {
                 duration = 420

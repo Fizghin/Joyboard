@@ -16,12 +16,15 @@ import android.view.MotionEvent
 import android.view.View
 import android.view.WindowInsets
 import android.view.WindowManager
+import android.graphics.drawable.GradientDrawable
 import android.widget.FrameLayout
+import android.widget.LinearLayout
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.MainActivity
 import com.joyboard.notchisland.R
 import com.joyboard.notchisland.data.GestureAction
 import com.joyboard.notchisland.data.IslandSettings
+import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.util.dp
 
 /**
@@ -35,8 +38,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val keyguard = context.getSystemService(KeyguardManager::class.java)
 
     private var settings = IslandSettings()
-    private var root: FrameLayout? = null
+    private var root: LinearLayout? = null
     private var island: IslandView? = null
+    private var touchStrip: FrameLayout? = null
     private var attached = false
     private var hiddenUntil = 0L
     private var screenOn = true
@@ -118,6 +122,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         haptics.enabled = next.hapticsEnabled
         haptics.strength = next.hapticStrength
         island?.applySettings(next)
+        refreshTouchStrip()
         updateWindowParams()
         if (before.featureMedia != next.featureMedia) {
             if (next.featureMedia) mediaMonitor.start() else {
@@ -137,16 +142,22 @@ class IslandController(private val context: Context) : IslandView.Listener {
     fun onConfigurationChanged(configuration: Configuration) {
         updateVisibility()
         island?.let { view ->
-            handler.post { view.snapToMode(view.mode) }
+            handler.post {
+                // A wallpaper or theme change arrives as a configuration change, and that is
+                // what moves the Material You palette, so re-read the colours here.
+                view.applySettings(settings)
+                refreshTouchStrip()
+                view.snapToMode(view.mode)
+            }
         }
     }
 
     private fun attach() {
         if (attached) return
         val view = IslandView(context, this)
-        // The window wraps the island tightly, so anything that lands in the container's padding
-        // was aimed at the island — forward it instead of letting it fall on the floor.
-        val container = object : FrameLayout(context) {
+        // The window wraps the island tightly, so anything landing in the container's padding or
+        // in the touch strip was aimed at the island — forward it instead of dropping it.
+        val container = object : LinearLayout(context) {
             override fun onTouchEvent(event: MotionEvent): Boolean {
                 if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
                     if (expandedByUser) {
@@ -158,26 +169,45 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 return view.onTouchEvent(event)
             }
         }.apply {
+            orientation = LinearLayout.VERTICAL
+            gravity = Gravity.CENTER_HORIZONTAL
             clipChildren = false
             clipToPadding = false
-            setPadding(TOUCH_PADDING.dp, TOUCH_PADDING.dp, TOUCH_PADDING.dp, (TOUCH_PADDING + 8).dp)
             isClickable = true
         }
+
+        val strip = FrameLayout(context).apply {
+            addView(
+                View(context).apply {
+                    background = GradientDrawable().apply {
+                        cornerRadius = 2f.dp
+                        setColor(0x4DFFFFFF)
+                    }
+                },
+                FrameLayout.LayoutParams(26.dp, 3.dp, Gravity.CENTER)
+            )
+        }
+
         container.addView(
             view,
-            FrameLayout.LayoutParams(
-                settings.collapsedWidth.dp,
-                settings.collapsedHeight.dp,
-                Gravity.CENTER_HORIZONTAL or Gravity.TOP
-            )
+            LinearLayout.LayoutParams(settings.collapsedWidth.dp, settings.collapsedHeight.dp)
+                .apply { gravity = Gravity.CENTER_HORIZONTAL }
         )
+        container.addView(
+            strip,
+            LinearLayout.LayoutParams(STRIP_WIDTH.dp, 0)
+                .apply { gravity = Gravity.CENTER_HORIZONTAL }
+        )
+
         runCatching {
             windowManager?.addView(container, buildParams())
             root = container
             island = view
+            touchStrip = strip
             attached = true
             view.applySettings(settings)
             view.snapToMode(IslandMode.PILL)
+            refreshTouchStrip()
         }
     }
 
@@ -186,6 +216,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { windowManager?.removeViewImmediate(current) }
         root = null
         island = null
+        touchStrip = null
         attached = false
     }
 
@@ -212,12 +243,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     /**
      * Overlay windows are always layered below the system status bar, and the status bar
-     * consumes every touch inside its own band. Sitting under it therefore makes the island
-     * untappable, so by default we drop the window just below it.
+     * consumes every touch inside its own band. Where the window starts therefore decides how
+     * much of the island can be touched at all.
      */
-    private fun windowY(): Int =
-        settings.offsetY.dp + if (settings.avoidStatusBar) statusBarHeight() else 0
+    private fun windowY(): Int = when (settings.positionMode) {
+        PositionMode.BELOW_STATUS_BAR -> settings.offsetY.dp + statusBarHeight()
+        PositionMode.OVERLAP_STATUS_BAR -> settings.offsetY.dp
+        PositionMode.CUSTOM -> settings.offsetY.dp
+    }
 
+    /** Height of the system status bar, which is the band where touches never reach us. */
     private fun statusBarHeight(): Int {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             val insets = runCatching {
@@ -231,6 +266,31 @@ class IslandController(private val context: Context) : IslandView.Listener {
         return if (fromResources > 0) fromResources else 24.dp
     }
 
+    /**
+     * Sizes the transparent strip under the island. It is measured from the resting pill rather
+     * than the live height, so expanding and collapsing never re-lays-out the window.
+     */
+    private fun refreshTouchStrip() {
+        val container = root ?: return
+        val strip = touchStrip ?: return
+        val overlap = settings.positionMode == PositionMode.OVERLAP_STATUS_BAR
+        val topPadding = if (overlap) 0 else TOUCH_PADDING.dp
+        if (container.paddingTop != topPadding) {
+            container.setPadding(TOUCH_PADDING.dp, topPadding, TOUCH_PADDING.dp, TOUCH_PADDING.dp)
+        }
+        val height = if (!overlap) 0 else {
+            val islandBottom = windowY() + settings.collapsedHeight.dp
+            (statusBarHeight() + settings.touchStripHeight.dp - islandBottom).coerceAtLeast(0)
+        }
+        val params = strip.layoutParams
+        if (params.height != height) {
+            params.height = height
+            strip.layoutParams = params
+        }
+        strip.getChildAt(0)?.visibility =
+            if (overlap && settings.showTouchHint && height > 6.dp) View.VISIBLE else View.INVISIBLE
+    }
+
     private fun baseFlags(): Int =
         WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
             WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
@@ -241,16 +301,24 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun updateWindowParams() {
         val current = root ?: return
         val params = current.layoutParams as? WindowManager.LayoutParams ?: return
-        params.x = settings.offsetX.dp
-        params.y = windowY()
+        val x = settings.offsetX.dp
+        val y = windowY()
         var flags = baseFlags()
+        val dim: Float
         if (settings.dimBackgroundWhenExpanded && island?.mode == IslandMode.EXPANDED) {
             flags = flags or WindowManager.LayoutParams.FLAG_DIM_BEHIND
-            params.dimAmount = 0.32f
+            dim = 0.32f
         } else {
-            params.dimAmount = 0f
+            dim = 0f
         }
+        // updateViewLayout forces a relayout of the whole window, so only call it on a real change.
+        if (params.x == x && params.y == y && params.flags == flags && params.dimAmount == dim) {
+            return
+        }
+        params.x = x
+        params.y = y
         params.flags = flags
+        params.dimAmount = dim
         runCatching { windowManager?.updateViewLayout(current, params) }
     }
 
@@ -576,7 +644,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
         val top = currentTop()
         val presentation = top?.presentation ?: idlePresentation()
-        view.setPresentation(presentation, animate = false)
+        view.setPresentation(presentation)
 
         val target = when {
             expandedByUser -> IslandMode.EXPANDED
@@ -587,8 +655,6 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (view.mode != target) {
             view.animateToMode(target)
             haptics.tick()
-        } else {
-            view.animateToMode(target, force = true)
         }
         updateWindowParams()
         updateVisibility()
@@ -616,7 +682,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun updateCompactOnly() {
         val view = island ?: return
         val top = currentTop() ?: return
-        view.setPresentation(top.presentation, animate = false)
+        view.setPresentation(top.presentation)
     }
 
     private fun drawable(res: Int): Drawable? = ContextCompat.getDrawable(context, res)
@@ -624,6 +690,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private companion object {
         /** Slop around the island so a near miss still counts as a tap. */
         const val TOUCH_PADDING = 14
+
+        /** Width of the transparent strip that catches taps in overlap mode. */
+        const val STRIP_WIDTH = 96
     }
 
     // ------------------------------------------------------------------ IslandView.Listener

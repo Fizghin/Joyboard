@@ -38,8 +38,14 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.platform.LocalContext
+import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.IslandSettings
+import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.island.IslandMode
+import com.joyboard.notchisland.util.DynamicColors
+
+private val STATUS_BAR_BAND = 26.dp
 
 /** A faithful, tappable mock of the overlay so settings can be judged without leaving the app. */
 @Composable
@@ -49,7 +55,18 @@ fun IslandPreview(
     onModeChange: (IslandMode) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val accent = Color(settings.accentColor)
+    val context = LocalContext.current
+    val accent = Color(
+        when (settings.accentSource) {
+            ColorSource.MANUAL -> settings.accentColor
+            // The preview cannot know the album art, so it stands in with the wallpaper accent.
+            else -> DynamicColors.accent(context, dark = true)
+        }
+    )
+    val bodyColor = when (settings.backgroundSource) {
+        ColorSource.MATERIAL_YOU -> DynamicColors.surface(context, dark = true)
+        else -> settings.backgroundColor
+    }
     val width by animateDpAsState(
         targetValue = when (mode) {
             IslandMode.EXPANDED -> settings.expandedWidth.dp
@@ -76,7 +93,7 @@ fun IslandPreview(
         label = "radius"
     )
     val background by animateColorAsState(
-        targetValue = Color(settings.backgroundColor).copy(alpha = settings.opacity),
+        targetValue = Color(bodyColor).copy(alpha = settings.opacity),
         label = "bg"
     )
 
@@ -100,20 +117,70 @@ fun IslandPreview(
                     .padding(18.dp)
             ) {
                 Text(
-                    "9:41",
+                    when (settings.positionMode) {
+                        PositionMode.OVERLAP_STATUS_BAR -> "Over the status bar"
+                        PositionMode.CUSTOM -> "Custom offset"
+                        else -> "Below the status bar"
+                    },
                     color = Color.White.copy(alpha = 0.92f),
-                    style = MaterialTheme.typography.headlineSmall
+                    style = MaterialTheme.typography.titleSmall
                 )
                 Text(
-                    "Preview wallpaper",
+                    if (settings.positionMode == PositionMode.OVERLAP_STATUS_BAR)
+                        "Taps land on the strip under the pill"
+                    else "The whole island takes taps",
                     color = Color.White.copy(alpha = 0.6f),
                     style = MaterialTheme.typography.labelSmall
                 )
             }
 
+            // A stand-in status bar, so the anchor choice is visible rather than described.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(STATUS_BAR_BAND)
+                    .padding(horizontal = 12.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    "9:41",
+                    color = Color.White.copy(alpha = 0.75f),
+                    style = MaterialTheme.typography.labelSmall
+                )
+                Spacer(modifier = Modifier.weight(1f))
+                repeat(3) {
+                    Box(
+                        modifier = Modifier
+                            .padding(start = 4.dp)
+                            .size(5.dp)
+                            .background(Color.White.copy(alpha = 0.6f), CircleShape)
+                    )
+                }
+            }
+
+            val islandTop = when (settings.positionMode) {
+                PositionMode.OVERLAP_STATUS_BAR -> settings.offsetY.dp
+                else -> STATUS_BAR_BAND + settings.offsetY.dp
+            }
+
+            if (settings.positionMode == PositionMode.OVERLAP_STATUS_BAR &&
+                settings.showTouchHint
+            ) {
+                Box(
+                    modifier = Modifier
+                        .offset(
+                            x = settings.offsetX.dp,
+                            y = STATUS_BAR_BAND + settings.touchStripHeight.dp / 2
+                        )
+                        .width(26.dp)
+                        .height(3.dp)
+                        .background(Color.White.copy(alpha = 0.35f), CircleShape)
+                )
+            }
+
             Box(
                 modifier = Modifier
-                    .offset(x = settings.offsetX.dp, y = (settings.offsetY + 10).dp)
+                    .offset(x = settings.offsetX.dp, y = islandTop)
                     .width(width)
                     .height(height)
                     .clip(RoundedCornerShape(radius))

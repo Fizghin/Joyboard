@@ -23,7 +23,9 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.R
 import com.joyboard.notchisland.data.GestureAction
+import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.IslandSettings
+import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.util.dp
 import com.joyboard.notchisland.util.readableAccent
 import com.joyboard.notchisland.util.visible
@@ -57,6 +59,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     // ------------------------------------------------------------------ state
 
     private var settings: IslandSettings = IslandSettings()
+    private var systemAccent: Int = 0xFF3B82F6.toInt()
+    private var systemSurface: Int = Color.BLACK
     private var presentation: Presentation = Presentation(ActivityKind.IDLE)
     var mode: IslandMode = IslandMode.PILL
         private set
@@ -66,6 +70,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         setColor(Color.BLACK)
     }
     private var sizeAnimator: ValueAnimator? = null
+    private var bodySignature: String? = null
+    private var cachedExpandedKey: String? = null
+    private var cachedExpandedHeight = 0
     private val spring = PathInterpolator(0.22f, 1.12f, 0.36f, 1f)
     private val ease = PathInterpolator(0.33f, 0f, 0.1f, 1f)
 
@@ -222,7 +229,10 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     fun applySettings(s: IslandSettings) {
         settings = s
-        bgDrawable.setColor(s.alphaBackgroundColor)
+        cachedExpandedKey = null
+        systemAccent = DynamicColors.accent(context, dark = true)
+        systemSurface = DynamicColors.surface(context, dark = true)
+        bgDrawable.setColor(resolvedBackground())
         if (s.borderEnabled) {
             bgDrawable.setStroke(s.borderWidth.dp, s.borderColor)
         } else {
@@ -234,9 +244,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         requestLayout()
     }
 
-    fun setPresentation(p: Presentation, animate: Boolean = true) {
+    fun setPresentation(p: Presentation) {
         presentation = p
-        val accent = readableAccent(if (settings.tintFromArtwork) p.accent else settings.accentColor)
+        val accent = resolveAccent(p)
 
         // ---- compact side ----
         if (p.leadingBitmap != null) {
@@ -300,19 +310,37 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             }
         }
 
-        if (mode == IslandMode.EXPANDED) buildBody(p, accent)
-        togglesRow.visible(mode == IslandMode.EXPANDED && showsToggles(p))
-        if (mode == IslandMode.EXPANDED) refreshToggleStates()
-        if (animate && mode != IslandMode.HIDDEN) animateToMode(mode, force = true)
+        if (mode == IslandMode.EXPANDED) {
+            togglesRow.visible(showsToggles(p))
+            // Only re-measure and resize when the panel's contents actually changed.
+            if (buildBody(p, accent)) resizeToMeasuredHeight()
+            refreshToggleStates()
+        }
+    }
+
+    /** Grows or shrinks the expanded panel to fit new content, without a full mode animation. */
+    private fun resizeToMeasuredHeight() {
+        val targetHeight = heightFor(IslandMode.EXPANDED, widthFor(IslandMode.EXPANDED))
+        val startHeight = height.takeIf { it > 0 } ?: targetHeight
+        if (startHeight == targetHeight) return
+        sizeAnimator?.cancel()
+        sizeAnimator = ValueAnimator.ofInt(startHeight, targetHeight).apply {
+            duration = dur(240)
+            interpolator = ease
+            addUpdateListener { a ->
+                val lp = layoutParams ?: return@addUpdateListener
+                lp.height = a.animatedValue as Int
+                layoutParams = lp
+            }
+            start()
+        }
     }
 
     fun animateToMode(target: IslandMode, force: Boolean = false) {
         if (target == mode && !force) return
         val previous = mode
         mode = target
-        val accent = readableAccent(
-            if (settings.tintFromArtwork) presentation.accent else settings.accentColor
-        )
+        val accent = resolveAccent(presentation)
         if (target == IslandMode.EXPANDED) buildBody(presentation, accent)
         togglesRow.visible(target == IslandMode.EXPANDED && showsToggles(presentation))
         if (target == IslandMode.EXPANDED) refreshToggleStates()
@@ -326,6 +354,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
         expandedRoot.visible(target == IslandMode.EXPANDED)
         compactRow.visible(target == IslandMode.COMPACT || target == IslandMode.PILL)
+        // Bars only cost frames while they can actually be seen.
+        trailingWave.visible(trailingWave.visibility == View.VISIBLE && target == IslandMode.COMPACT)
+        headerWave.playing = headerWave.playing && target == IslandMode.EXPANDED
 
         compactRow.animate().alpha(if (target == IslandMode.COMPACT) 1f else 0f)
             .setDuration(dur(160)).start()
@@ -358,7 +389,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         mode = target
         val w = widthFor(target)
         val h = heightFor(target, w)
-        val lp = layoutParams as? LayoutParams ?: LayoutParams(w, h)
+        // The island lives inside whatever container the controller built, so stay generic.
+        val lp = layoutParams ?: ViewGroup.LayoutParams(w, h)
         lp.width = w
         lp.height = h
         layoutParams = lp
@@ -387,9 +419,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     fun refreshToggleStates() {
         toggleButtons.forEach { (toggle, view) ->
             val on = listener.quickToggleState(toggle)
-            val accent = readableAccent(
-                if (settings.tintFromArtwork) presentation.accent else settings.accentColor
-            )
+            val accent = resolveAccent(presentation)
             (view.background as? GradientDrawable)?.setColor(
                 if (on) accent else 0x1FFFFFFF
             )
@@ -413,11 +443,15 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     }
 
     private fun measureExpandedHeight(width: Int): Int {
+        val key = "$width|$bodySignature|${togglesRow.visibility}"
+        if (key == cachedExpandedKey && cachedExpandedHeight > 0) return cachedExpandedHeight
         expandedRoot.measure(
             MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
-        return expandedRoot.measuredHeight.coerceAtLeast(96.dp)
+        cachedExpandedKey = key
+        cachedExpandedHeight = expandedRoot.measuredHeight.coerceAtLeast(96.dp)
+        return cachedExpandedHeight
     }
 
     private fun radiusFor(m: IslandMode): Float = when (m) {
@@ -426,6 +460,26 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             .coerceAtMost(settings.cornerRadius.dp.toFloat() + 4f.dp)
         else -> settings.cornerRadius.dp.toFloat()
             .coerceAtMost(settings.collapsedHeight.dp / 2f)
+    }
+
+    /** The accent in force right now, given the chosen source. */
+    private fun resolveAccent(p: Presentation): Int = readableAccent(
+        when (settings.accentSource) {
+            ColorSource.ARTWORK -> p.accent
+            ColorSource.MATERIAL_YOU -> systemAccent
+            ColorSource.MANUAL -> settings.accentColor
+        }
+    )
+
+    private fun resolvedBackground(): Int {
+        val base = when (settings.backgroundSource) {
+            ColorSource.MATERIAL_YOU -> systemSurface
+            else -> settings.backgroundColor
+        }
+        return Color.argb(
+            (Color.alpha(base) * settings.opacity.coerceIn(0f, 1f)).toInt(),
+            Color.red(base), Color.green(base), Color.blue(base)
+        )
     }
 
     private fun dur(base: Long): Long =
@@ -438,7 +492,11 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         else -> false
     }
 
-    private fun buildBody(p: Presentation, accent: Int) {
+    /** Returns true when the panel was actually rebuilt. */
+    private fun buildBody(p: Presentation, accent: Int): Boolean {
+        val signature = bodyKey(p, accent)
+        if (signature == bodySignature && bodyContainer.childCount > 0) return false
+        bodySignature = signature
         bodyContainer.removeAllViews()
         mediaSeek = null; mediaPosition = null; mediaDuration = null; playPause = null
         timerText = null; timerRing = null
@@ -450,6 +508,25 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             is ExpandedBody.Message -> buildMessageBody(body)
             ExpandedBody.QuickPanel -> buildQuickPanelBody(accent)
         }
+        return true
+    }
+
+    /**
+     * Identity of the panel's contents. Anything not in here is either animated in place
+     * (progress, countdowns) or does not change what the panel looks like.
+     */
+    private fun bodyKey(p: Presentation, accent: Int): String = when (val body = p.body) {
+        is ExpandedBody.Media -> with(body.media) {
+            "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$accent"
+        }
+        is ExpandedBody.Notification ->
+            "notification|${body.item.key}|${body.item.actions.size}|$accent"
+        is ExpandedBody.Charging -> "charging|${body.level}|${body.plugged}|${body.fast}|$accent"
+        is ExpandedBody.Timer -> "timer|${body.running}|$accent"
+        is ExpandedBody.Message -> "message|${body.title}|${body.subtitle}"
+        // The quick panel shows a clock, so it is allowed to go stale for at most a minute.
+        ExpandedBody.QuickPanel ->
+            "quick|$accent|${System.currentTimeMillis() / 60_000L}"
     }
 
     private fun bindMediaHeader(media: MediaSnapshot, accent: Int) {

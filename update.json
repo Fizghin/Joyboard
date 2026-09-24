@@ -1,16 +1,16 @@
 {
-  "versionCode": 2,
-  "versionName": "1.1",
+  "versionCode": 3,
+  "versionName": "1.2",
   "mandatory": false,
   "notes": [
-    "Tapping the island works again — it now sits clear of the status bar, which was swallowing every touch",
-    "Bigger touch target around the island, and taps register faster",
-    "New in-app updater: check, download and install without leaving the app",
-    "Release builds are signed, so updates install straight over the top",
-    "Update source is now editable in the app, for when the APKs live somewhere other than this repo"
+    "Material You: the island can take its accent and body colour from your wallpaper, and the colour pickers now lead with wallpaper swatches",
+    "New \"Over the status bar\" anchor — the island is drawn up at the cutout and a transparent strip below it catches the taps, so it looks right without losing touch",
+    "Optimised: the panel is only rebuilt when its contents actually change, measurements are cached, the window is only re-laid-out on a real change, and the waveform stops animating when it cannot be seen",
+    "The preview now shows a stand-in status bar so the anchor choice is visible",
+    "About explains why no ordinary app can draw above the status bar"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
   "sizeBytes": 12543516,
-  "debugSizeBytes": 18867204
+  "debugSizeBytes": 18822893
 }

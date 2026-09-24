@@ -48,6 +48,26 @@ fun AboutScreen(viewModel: MainViewModel) {
             Body("Anything transient fades back to the resting pill once its time is up.")
         }
 
+        SectionCard(title = "Why it can't sit on top of the status bar") {
+            Body(
+                "Android layers windows by type. An app overlay — the only kind an app without " +
+                    "system privileges can create — is always placed below the status bar, and " +
+                    "the status bar consumes every touch inside its own band. No permission, " +
+                    "flag or window type changes that for a normal app."
+            )
+            Body(
+                "So \"over the status bar\" is done by drawing, not by layering. In Look → " +
+                    "Position → Over the status bar the island is drawn up at the cutout, where " +
+                    "it reads as part of the hardware, and a transparent strip hangs just below " +
+                    "the status bar to catch taps. Centre it and the system clock and icons sit " +
+                    "either side of it rather than through it."
+            )
+            Body(
+                "Anything that genuinely draws above the status bar is a system app, a launcher, " +
+                    "or a build with elevated privileges."
+            )
+        }
+
         SectionCard(title = "Keeping it alive") {
             Body(
                 "Android may stop background overlays on aggressive battery settings. Excluding " +

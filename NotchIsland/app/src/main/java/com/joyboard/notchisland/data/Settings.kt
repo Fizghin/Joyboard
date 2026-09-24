@@ -14,11 +14,14 @@ data class IslandSettings(
     val cornerRadius: Int = 18,
     val offsetX: Int = 0,
     val offsetY: Int = 4,
+    val positionMode: PositionMode = PositionMode.BELOW_STATUS_BAR,
     /**
-     * Overlay windows always sit below the system status bar, which swallows touches in its own
-     * band. Keeping clear of it is what makes the island tappable, so this defaults to on.
+     * In [PositionMode.OVERLAP_STATUS_BAR] the pill is drawn up in the status bar band, where
+     * touches never arrive. This transparent strip hangs below it, inside the same window, so
+     * there is always somewhere to tap.
      */
-    val avoidStatusBar: Boolean = true,
+    val touchStripHeight: Int = 20,
+    val showTouchHint: Boolean = true,
     val expandedWidth: Int = 330,
     val compactWidth: Int = 190,
 
@@ -29,7 +32,8 @@ data class IslandSettings(
     val borderColor: Int = 0xFF2A2A2E.toInt(),
     val borderWidth: Int = 1,
     val shadowEnabled: Boolean = true,
-    val tintFromArtwork: Boolean = true,
+    val accentSource: ColorSource = ColorSource.MATERIAL_YOU,
+    val backgroundSource: ColorSource = ColorSource.MANUAL,
     val accentColor: Int = 0xFF3B82F6.toInt(),
     val animationSpeed: Float = 1f,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
@@ -90,6 +94,25 @@ data class IslandSettings(
  */
 const val DEFAULT_UPDATE_MANIFEST_URL =
     "https://raw.githubusercontent.com/Fizghin/Joyboard/notch/update.json"
+
+/** Where the island is anchored, and therefore what can be touched. */
+enum class PositionMode(val label: String) {
+    /** Entirely below the status bar: every pixel of the island is tappable. */
+    BELOW_STATUS_BAR("Below the status bar"),
+
+    /** Drawn up in the status bar for the notch look, with a touch strip hanging below. */
+    OVERLAP_STATUS_BAR("Over the status bar"),
+
+    /** Wherever the offsets put it, untouched by either rule. */
+    CUSTOM("Custom offset"),
+}
+
+/** Where a colour comes from: picked by hand, from the wallpaper, or from the album art. */
+enum class ColorSource(val label: String) {
+    MANUAL("Chosen colour"),
+    MATERIAL_YOU("Match my wallpaper"),
+    ARTWORK("Match what's playing"),
+}
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
