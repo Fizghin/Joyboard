@@ -24,6 +24,15 @@ data class IslandSettings(
     val showTouchHint: Boolean = true,
     val expandedWidth: Int = 330,
     val compactWidth: Int = 190,
+    /** The halfway "preview card" stage between compact and fully open. */
+    val mediumWidth: Int = 260,
+    val preset: IslandPreset = IslandPreset.CUSTOM,
+    /**
+     * Pure black, fully rounded corners and the SwiftUI spring the real Dynamic Island uses,
+     * regardless of what the colour and motion settings say.
+     */
+    val iosMode: Boolean = false,
+    val showFauxCamera: Boolean = false,
 
     // ---- appearance ----
     val backgroundColor: Int = Color.BLACK,
@@ -49,10 +58,12 @@ data class IslandSettings(
     val alwaysShowPill: Boolean = true,
 
     // ---- gestures ----
+    /** Whether a tap walks through the sizes or jumps straight to the full panel. */
+    val tapExpansion: TapExpansion = TapExpansion.STEP,
     val tapAction: GestureAction = GestureAction.EXPAND,
     val doubleTapAction: GestureAction = GestureAction.MEDIA_PLAY_PAUSE,
     val longPressAction: GestureAction = GestureAction.OPEN_SETTINGS,
-    val swipeDownAction: GestureAction = GestureAction.EXPAND,
+    val swipeDownAction: GestureAction = GestureAction.EXPAND_FULL,
     val swipeUpAction: GestureAction = GestureAction.COLLAPSE,
     val swipeLeftAction: GestureAction = GestureAction.MEDIA_NEXT,
     val swipeRightAction: GestureAction = GestureAction.MEDIA_PREVIOUS,
@@ -141,6 +152,15 @@ fun IslandSettings.isQuietAt(minuteOfDay: Int): Boolean {
     }
 }
 
+/** What a tap does to the island's size. */
+enum class TapExpansion(val label: String) {
+    /** Pill → compact preview → small card → everything, one tap at a time. */
+    STEP("Step through the sizes"),
+
+    /** Straight to the full panel. */
+    DIRECT("Open everything at once"),
+}
+
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 enum class NotificationStyle { PREVIEW, MINIMAL, ICON_ONLY }
@@ -148,6 +168,7 @@ enum class NotificationStyle { PREVIEW, MINIMAL, ICON_ONLY }
 enum class GestureAction(val label: String) {
     NONE("Do nothing"),
     EXPAND("Expand island"),
+    EXPAND_FULL("Open everything"),
     COLLAPSE("Collapse island"),
     MEDIA_PLAY_PAUSE("Play / pause"),
     MEDIA_NEXT("Next track"),

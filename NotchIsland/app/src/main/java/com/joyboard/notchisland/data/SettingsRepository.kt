@@ -67,6 +67,11 @@ class SettingsRepository(private val context: Context) {
         val showTouchHint = booleanPreferencesKey("show_touch_hint")
         val expandedWidth = intPreferencesKey("expanded_width")
         val compactWidth = intPreferencesKey("compact_width")
+        val mediumWidth = intPreferencesKey("medium_width")
+        val preset = stringPreferencesKey("preset")
+        val iosMode = booleanPreferencesKey("ios_mode")
+        val showFauxCamera = booleanPreferencesKey("show_faux_camera")
+        val tapExpansion = stringPreferencesKey("tap_expansion")
         val backgroundColor = intPreferencesKey("background_color")
         val opacity = floatPreferencesKey("opacity")
         val borderEnabled = booleanPreferencesKey("border_enabled")
@@ -144,6 +149,11 @@ class SettingsRepository(private val context: Context) {
             showTouchHint = this[K.showTouchHint] ?: d.showTouchHint,
             expandedWidth = this[K.expandedWidth] ?: d.expandedWidth,
             compactWidth = this[K.compactWidth] ?: d.compactWidth,
+            mediumWidth = this[K.mediumWidth] ?: d.mediumWidth,
+            preset = this[K.preset]?.toEnum<IslandPreset>() ?: d.preset,
+            iosMode = this[K.iosMode] ?: d.iosMode,
+            showFauxCamera = this[K.showFauxCamera] ?: d.showFauxCamera,
+            tapExpansion = this[K.tapExpansion]?.toEnum<TapExpansion>() ?: d.tapExpansion,
             backgroundColor = this[K.backgroundColor] ?: d.backgroundColor,
             opacity = this[K.opacity] ?: d.opacity,
             borderEnabled = this[K.borderEnabled] ?: d.borderEnabled,
@@ -219,6 +229,11 @@ class SettingsRepository(private val context: Context) {
         this[K.showTouchHint] = s.showTouchHint
         this[K.expandedWidth] = s.expandedWidth
         this[K.compactWidth] = s.compactWidth
+        this[K.mediumWidth] = s.mediumWidth
+        this[K.preset] = s.preset.name
+        this[K.iosMode] = s.iosMode
+        this[K.showFauxCamera] = s.showFauxCamera
+        this[K.tapExpansion] = s.tapExpansion.name
         this[K.backgroundColor] = s.backgroundColor
         this[K.opacity] = s.opacity
         this[K.borderEnabled] = s.borderEnabled

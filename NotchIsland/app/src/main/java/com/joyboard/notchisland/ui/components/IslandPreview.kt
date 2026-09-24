@@ -70,6 +70,7 @@ fun IslandPreview(
     val width by animateDpAsState(
         targetValue = when (mode) {
             IslandMode.EXPANDED -> settings.expandedWidth.dp
+            IslandMode.MEDIUM -> settings.mediumWidth.dp
             IslandMode.COMPACT -> settings.compactWidth.dp
             else -> settings.collapsedWidth.dp
         },
@@ -79,6 +80,7 @@ fun IslandPreview(
     val height by animateDpAsState(
         targetValue = when (mode) {
             IslandMode.EXPANDED -> 168.dp
+            IslandMode.MEDIUM -> 74.dp
             IslandMode.COMPACT -> (settings.collapsedHeight + 4).dp
             else -> settings.collapsedHeight.dp
         },
@@ -87,7 +89,8 @@ fun IslandPreview(
     )
     val radius by animateDpAsState(
         targetValue = when (mode) {
-            IslandMode.EXPANDED -> 28.dp
+            IslandMode.EXPANDED -> if (settings.iosMode) 44.dp else 28.dp
+            IslandMode.MEDIUM -> if (settings.iosMode) 32.dp else 24.dp
             else -> settings.cornerRadius.dp
         },
         label = "radius"
@@ -193,17 +196,31 @@ fun IslandPreview(
                         ) else Modifier
                     )
                     .clickable {
+                        // Mirrors the real stepping, so the preview teaches the gesture.
                         onModeChange(
                             when (mode) {
                                 IslandMode.PILL -> IslandMode.COMPACT
-                                IslandMode.COMPACT -> IslandMode.EXPANDED
+                                IslandMode.COMPACT -> IslandMode.MEDIUM
+                                IslandMode.MEDIUM -> IslandMode.EXPANDED
                                 else -> IslandMode.PILL
                             }
                         )
                     }
             ) {
+                if (settings.showFauxCamera && mode != IslandMode.EXPANDED &&
+                    mode != IslandMode.MEDIUM
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .padding(end = 13.dp)
+                            .size(11.dp)
+                            .background(Color(0xFF0A0A0C), CircleShape)
+                    )
+                }
                 when (mode) {
                     IslandMode.COMPACT -> CompactContent(accent)
+                    IslandMode.MEDIUM -> MediumContent(accent)
                     IslandMode.EXPANDED -> ExpandedContent(accent)
                     else -> Unit
                 }
@@ -218,8 +235,9 @@ fun IslandPreview(
         ) {
             listOf(
                 IslandMode.PILL to "Idle",
-                IslandMode.COMPACT to "Compact",
-                IslandMode.EXPANDED to "Expanded",
+                IslandMode.COMPACT to "Preview",
+                IslandMode.MEDIUM to "Small",
+                IslandMode.EXPANDED to "Full",
             ).forEach { (value, label) ->
                 val selected = mode == value
                 Box(
@@ -290,6 +308,41 @@ private fun Bars(accent: Color) {
                 cornerRadius = androidx.compose.ui.geometry.CornerRadius(barWidth / 2f)
             )
         }
+    }
+}
+
+/** The halfway card: the header alone, which is what a second tap opens. */
+@Composable
+private fun MediumContent(accent: Color) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(14.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            modifier = Modifier
+                .size(40.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .background(accent.copy(alpha = 0.9f)),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(Icons.Default.MusicNote, contentDescription = null, tint = Color.Black)
+        }
+        Column(modifier = Modifier.padding(start = 12.dp).weight(1f)) {
+            Text(
+                "Midnight City",
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                style = MaterialTheme.typography.bodyMedium
+            )
+            Text(
+                "M83 · Music",
+                color = Color.White.copy(alpha = 0.65f),
+                style = MaterialTheme.typography.labelSmall
+            )
+        }
+        Bars(accent)
     }
 }
 

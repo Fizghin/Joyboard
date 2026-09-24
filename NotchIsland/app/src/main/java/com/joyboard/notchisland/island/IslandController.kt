@@ -31,6 +31,8 @@ import com.joyboard.notchisland.data.GestureAction
 import com.joyboard.notchisland.data.NotificationStyle
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.PositionMode
+import com.joyboard.notchisland.data.TapExpansion
+import com.joyboard.notchisland.service.NotchNotificationListener
 import com.joyboard.notchisland.data.isQuietAt
 import com.joyboard.notchisland.util.dp
 import com.joyboard.notchisland.util.formatStopwatch
@@ -55,7 +57,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private val activities = ActivityQueue()
     private val history = ArrayDeque<NotificationItem>()
-    private var expandedByUser = false
+    /** The size the user has asked for, or null when the island is deciding for itself. */
+    private var userStage: IslandMode? = null
     private var showingHistory = false
     private var lastNotification: NotificationItem? = null
 
@@ -77,7 +80,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val expiryRunnable = Runnable { render() }
     private val collapseRunnable = Runnable {
         if (island?.isReplying() == true) return@Runnable
-        expandedByUser = false
+        userStage = null
         showingHistory = false
         render()
     }
@@ -173,8 +176,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         val container = object : LinearLayout(context) {
             override fun onTouchEvent(event: MotionEvent): Boolean {
                 if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
-                    if (expandedByUser) {
-                        expandedByUser = false
+                    if (userStage != null) {
+                        userStage = null
+                        showingHistory = false
                         render()
                     }
                     return false
@@ -368,7 +372,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     fun push(activity: LiveActivity) {
         activities.put(activity)
-        if (activity.autoExpand) expandedByUser = true
+        if (activity.autoExpand) userStage = IslandMode.EXPANDED
         render()
         haptics.tick()
     }
@@ -681,7 +685,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     fun startTimer(durationMs: Long) {
         if (!settings.featureTimer) return
         timer.start(durationMs)
-        expandedByUser = true
+        userStage = IslandMode.EXPANDED
         render()
     }
 
@@ -761,13 +765,13 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
         val top = currentTop()
         val presentation = when {
-            showingHistory && expandedByUser -> historyPresentation()
+            showingHistory && userStage != null -> historyPresentation()
             else -> top?.presentation ?: idlePresentation()
         }
         view.setPresentation(presentation)
 
         val target = when {
-            expandedByUser -> IslandMode.EXPANDED
+            userStage != null -> userStage!!
             top != null -> IslandMode.COMPACT
             settings.alwaysShowPill -> IslandMode.PILL
             else -> IslandMode.HIDDEN
@@ -791,7 +795,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
 
         handler.removeCallbacks(collapseRunnable)
-        if (expandedByUser && settings.autoCollapseSeconds > 0) {
+        if (userStage != null && settings.autoCollapseSeconds > 0) {
             handler.postDelayed(collapseRunnable, settings.autoCollapseSeconds * 1000L)
         }
     }
@@ -819,20 +823,26 @@ class IslandController(private val context: Context) : IslandView.Listener {
     // ------------------------------------------------------------------ IslandView.Listener
 
     override fun onRequestMode(mode: IslandMode) {
-        expandedByUser = mode == IslandMode.EXPANDED
+        userStage = if (mode == IslandMode.PILL || mode == IslandMode.HIDDEN) null else mode
         render()
     }
 
     override fun onGesture(action: GestureAction) {
         when (action) {
             GestureAction.NONE -> Unit
+            // A tap either walks up the sizes or goes straight to the panel, per the setting.
             GestureAction.EXPAND -> {
-                expandedByUser = true
+                if (settings.tapExpansion == TapExpansion.STEP) stepUp() else openEverything()
+                haptics.pop()
+                render()
+            }
+            GestureAction.EXPAND_FULL -> {
+                openEverything()
                 haptics.pop()
                 render()
             }
             GestureAction.COLLAPSE -> {
-                expandedByUser = false
+                userStage = null
                 showingHistory = false
                 haptics.tick()
                 render()
@@ -849,13 +859,13 @@ class IslandController(private val context: Context) : IslandView.Listener {
             GestureAction.OPEN_LAST_NOTIFICATION -> openPresentationTarget()
             GestureAction.SHOW_QUICK_PANEL -> {
                 activities.remove(ActivityKind.NOTIFICATION)
-                expandedByUser = true
+                openEverything()
                 render()
             }
             GestureAction.SHOW_HISTORY -> {
                 if (settings.featureHistory) {
                     showingHistory = true
-                    expandedByUser = true
+                    userStage = IslandMode.EXPANDED
                     haptics.pop()
                     render()
                 }
@@ -895,7 +905,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (handled) {
             island?.refreshToggleStates()
         } else {
-            expandedByUser = false
+            userStage = null
             render()
         }
     }
@@ -912,14 +922,21 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     override fun onNotificationAction(action: NotificationAction) {
         runCatching { action.intent?.send() }
-        expandedByUser = false
+        userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
         render()
     }
 
     override fun onDismissCurrent() {
-        currentTop()?.let { activities.remove(it.kind) }
-        expandedByUser = false
+        currentTop()?.let { activity ->
+            activities.remove(activity.kind)
+            // A dismissed notification should also stop nagging from the shade.
+            activity.presentation.notificationKey?.let {
+                NotchNotificationListener.instance?.dismiss(it)
+            }
+        }
+        userStage = null
+        showingHistory = false
         render()
     }
 
@@ -951,7 +968,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { intent.send(context, 0, fill) }
             .onFailure { toast("Could not send the reply") }
         setWindowFocusable(false)
-        expandedByUser = false
+        userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
         haptics.pop()
         render()
@@ -962,7 +979,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (active) {
             // Do not collapse the island out from under someone who is typing.
             handler.removeCallbacks(collapseRunnable)
-        } else if (expandedByUser && settings.autoCollapseSeconds > 0) {
+        } else if (userStage != null && settings.autoCollapseSeconds > 0) {
             handler.postDelayed(collapseRunnable, settings.autoCollapseSeconds * 1000L)
         }
     }
@@ -974,14 +991,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
             toast("Copied $code")
         }
         haptics.pop()
-        expandedByUser = false
+        userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
         render()
     }
 
     override fun onHistoryTap(item: NotificationItem) {
         runCatching { item.contentIntent?.send() }
-        expandedByUser = false
+        userStage = null
+        showingHistory = false
         render()
     }
 
@@ -1019,7 +1037,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     fun startStopwatch() {
         if (!settings.featureStopwatch) return
         stopwatch.start()
-        expandedByUser = true
+        userStage = IslandMode.EXPANDED
         render()
     }
 
@@ -1056,6 +1074,21 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
     }
 
+    /**
+     * One tap, one step: the resting pill opens to the compact preview, then to the small card,
+     * then to everything, then back to rest. Where it starts depends on what the island is
+     * already showing, so a tap during a notification opens that notification.
+     */
+    private fun stepUp() {
+        val current = userStage ?: island?.mode ?: IslandMode.PILL
+        userStage = ExpansionStepper.next(current)
+        if (userStage == null) showingHistory = false
+    }
+
+    private fun openEverything() {
+        userStage = IslandMode.EXPANDED
+    }
+
     private fun historyPresentation() = Presentation(
         kind = ActivityKind.IDLE,
         leadingIcon = drawable(R.drawable.ic_bell),
@@ -1074,7 +1107,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         } else {
             openApp()
         }
-        expandedByUser = false
+        userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
         render()
     }
@@ -1084,7 +1117,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             Intent(context, MainActivity::class.java)
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TOP)
         )
-        expandedByUser = false
+        userStage = null
         render()
     }
 }

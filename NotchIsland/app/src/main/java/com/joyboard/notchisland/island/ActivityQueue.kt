@@ -3,6 +3,19 @@ package com.joyboard.notchisland.island
 import android.os.SystemClock
 
 /**
+ * One tap, one step. Returns the next size up, or null to mean "back to resting" — which is what
+ * a tap on the fully open island does.
+ */
+object ExpansionStepper {
+    fun next(current: IslandMode): IslandMode? = when (current) {
+        IslandMode.HIDDEN, IslandMode.PILL -> IslandMode.COMPACT
+        IslandMode.COMPACT -> IslandMode.MEDIUM
+        IslandMode.MEDIUM -> IslandMode.EXPANDED
+        IslandMode.EXPANDED -> null
+    }
+}
+
+/**
  * The island can only show one thing at a time, so live activities compete here. The highest
  * [ActivityKind.priority] that has not expired wins; everything else waits its turn and
  * reappears when the winner goes away.

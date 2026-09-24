@@ -1,18 +1,14 @@
 {
-  "versionCode": 4,
-  "versionName": "2.0",
+  "versionCode": 5,
+  "versionName": "2.1",
   "mandatory": false,
   "notes": [
-    "Calls take over the island with the caller's own answer and hang-up buttons",
-    "Ongoing activities — navigation, downloads, deliveries, recordings — stay put with their progress",
-    "Quick reply: answer a message straight from the island, keyboard and all",
-    "One-time passcodes are spotted and offered as a single tap to copy",
-    "Stopwatch with laps, a recent-notifications panel, and per-app auto-expand rules",
-    "Quiet hours, and the island rests while the screen is off",
-    "Fit to my camera cutout measures the real cutout and shapes the island to it",
-    "Quick settings tile and launcher shortcuts for toggle, timer, stopwatch and recents",
-    "Export and restore every setting as a JSON file",
-    "Honours the system's remove-animations setting"
+    "Device presets with the real iPhone Dynamic Island measurements — 14/15 Pro, both Pro Max sizes, 16 Pro and 16 Pro Max",
+    "iOS mode: pure black, fully rounded, a 44 dp corner when open, an optional camera lens, and SwiftUI's own damped-spring motion rather than an ease curve",
+    "A tap now steps the island up one size at a time: pill, compact preview, small card, everything, then back to rest",
+    "Swipe down skips the steps and opens everything at once",
+    "Tap behaviour is a setting, so a single tap can still open the full panel outright",
+    "The in-app preview steps the same way, with a Small stage between Preview and Full"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",

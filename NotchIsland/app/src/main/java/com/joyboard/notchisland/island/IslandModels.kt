@@ -5,7 +5,11 @@ import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
 
 /** How large the island is drawn right now. */
-enum class IslandMode { HIDDEN, PILL, COMPACT, EXPANDED }
+/**
+ * The sizes the island steps through. [MEDIUM] is the halfway card: the header and nothing else,
+ * which is what a second tap opens before the full panel.
+ */
+enum class IslandMode { HIDDEN, PILL, COMPACT, MEDIUM, EXPANDED }
 
 /**
  * Every source of island content is a "live activity". Higher [priority] wins when several are

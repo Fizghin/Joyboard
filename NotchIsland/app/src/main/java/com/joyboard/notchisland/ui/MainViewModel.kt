@@ -12,6 +12,7 @@ import androidx.lifecycle.viewModelScope
 import com.joyboard.notchisland.BuildConfig
 import com.joyboard.notchisland.data.DEFAULT_UPDATE_MANIFEST_URL
 import com.joyboard.notchisland.data.IslandSettings
+import com.joyboard.notchisland.data.IslandPreset
 import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.SettingsCodec
 import com.joyboard.notchisland.data.SettingsRepository
@@ -245,6 +246,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun toggleBlocked(packageName: String) {
         viewModelScope.launch { repository.toggleBlocked(packageName) }
+    }
+
+    /** Shapes the island to a known device, and turns iOS motion on for the Apple ones. */
+    fun applyPreset(preset: IslandPreset) {
+        viewModelScope.launch {
+            repository.update { current ->
+                preset.applyTo(current).let {
+                    if (preset.isApple) it.copy(iosMode = true, showFauxCamera = true) else it
+                }
+            }
+            _status.value = "Shaped to ${preset.label}"
+        }
     }
 
     fun toggleAutoExpand(packageName: String) {

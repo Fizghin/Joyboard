@@ -5,11 +5,14 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.data.GestureAction
+import com.joyboard.notchisland.data.TapExpansion
 import com.joyboard.notchisland.ui.MainViewModel
 import com.joyboard.notchisland.ui.components.DropdownRow
 import com.joyboard.notchisland.ui.components.SectionCard
@@ -28,6 +31,32 @@ fun GesturesScreen(viewModel: MainViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(bottom = 32.dp)
     ) {
+        SectionCard(
+            title = "Opening it",
+            subtitle = "How far a tap takes the island."
+        ) {
+            DropdownRow(
+                title = "Tap behaviour",
+                selected = settings.tapExpansion,
+                options = TapExpansion.entries.toList(),
+                label = { it.label },
+                onSelected = { value -> viewModel.update { it.copy(tapExpansion = value) } }
+            )
+            Text(
+                when (settings.tapExpansion) {
+                    TapExpansion.STEP ->
+                        "Tap once for the compact preview, again for the small card, again for " +
+                            "everything, and once more to put it away. Swipe down to skip " +
+                            "straight to the full panel."
+                    TapExpansion.DIRECT ->
+                        "A tap opens the full panel in one go."
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
+            )
+        }
+
         SectionCard(
             title = "Gestures",
             subtitle = "Every touch on the island can be remapped."

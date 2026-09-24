@@ -23,6 +23,11 @@ object SettingsCodec {
         put("showTouchHint", settings.showTouchHint)
         put("expandedWidth", settings.expandedWidth)
         put("compactWidth", settings.compactWidth)
+        put("mediumWidth", settings.mediumWidth)
+        put("preset", settings.preset.name)
+        put("iosMode", settings.iosMode)
+        put("showFauxCamera", settings.showFauxCamera)
+        put("tapExpansion", settings.tapExpansion.name)
         put("backgroundColor", settings.backgroundColor)
         put("opacity", settings.opacity.toDouble())
         put("borderEnabled", settings.borderEnabled)
@@ -97,6 +102,11 @@ object SettingsCodec {
             showTouchHint = o.optBoolean("showTouchHint", base.showTouchHint),
             expandedWidth = o.optInt("expandedWidth", base.expandedWidth),
             compactWidth = o.optInt("compactWidth", base.compactWidth),
+            mediumWidth = o.optInt("mediumWidth", base.mediumWidth),
+            preset = o.enum("preset", base.preset),
+            iosMode = o.optBoolean("iosMode", base.iosMode),
+            showFauxCamera = o.optBoolean("showFauxCamera", base.showFauxCamera),
+            tapExpansion = o.enum("tapExpansion", base.tapExpansion),
             backgroundColor = o.optInt("backgroundColor", base.backgroundColor),
             opacity = o.optDouble("opacity", base.opacity.toDouble()).toFloat(),
             borderEnabled = o.optBoolean("borderEnabled", base.borderEnabled),

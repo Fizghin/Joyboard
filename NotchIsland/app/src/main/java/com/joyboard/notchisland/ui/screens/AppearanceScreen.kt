@@ -16,6 +16,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.data.ColorSource
+import com.joyboard.notchisland.data.IslandPreset
 import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.ThemeMode
 import com.joyboard.notchisland.island.IslandMode
@@ -45,6 +46,33 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             mode = previewMode,
             onModeChange = { previewMode = it },
         )
+
+        SectionCard(
+            title = "Shape",
+            subtitle = "Start from a device, then adjust anything below."
+        ) {
+            DropdownRow(
+                title = "Preset",
+                selected = settings.preset,
+                options = IslandPreset.entries.toList(),
+                label = { it.label },
+                onSelected = { value -> viewModel.applyPreset(value) }
+            )
+            SwitchRow(
+                title = "iOS mode",
+                subtitle = "Pure black, fully rounded, a 44 dp corner when open, and the same " +
+                    "damped-spring motion SwiftUI gives the real Dynamic Island. Overrides the " +
+                    "colour and shadow settings.",
+                checked = settings.iosMode,
+                onCheckedChange = { value -> viewModel.update { it.copy(iosMode = value) } }
+            )
+            SwitchRow(
+                title = "Draw a camera lens",
+                subtitle = "A small dark circle inside the pill, so it reads as hardware",
+                checked = settings.showFauxCamera,
+                onCheckedChange = { value -> viewModel.update { it.copy(showFauxCamera = value) } }
+            )
+        }
 
         SectionCard(title = "Size", subtitle = "Match your phone's camera cutout.") {
             OutlinedButton(
@@ -94,6 +122,15 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 valueLabel = "${settings.compactWidth} dp",
                 onValueChange = { value ->
                     viewModel.update { it.copy(compactWidth = value.roundToInt()) }
+                }
+            )
+            SliderRow(
+                title = "Small card width",
+                value = settings.mediumWidth.toFloat(),
+                range = 150f..380f,
+                valueLabel = "${settings.mediumWidth} dp",
+                onValueChange = { value ->
+                    viewModel.update { it.copy(mediumWidth = value.roundToInt()) }
                 }
             )
             SliderRow(

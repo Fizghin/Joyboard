@@ -8,9 +8,19 @@ then settles back down.
 
 ## What it does
 
-**Three shapes.** The island rests as a bare pill, grows into a compact two-sided readout when
-something happens, and expands into a full panel when you tap it. Sizes, corners, colour and
-motion are all yours to set.
+**Four sizes, one tap apart.** The island rests as a bare pill, opens to a compact preview, then
+to a small card, then to the full panel — one tap per step, and one more to put it away. Swipe
+down to skip the steps and open everything at once. If you would rather a tap just opened it,
+*Gestures → Tap behaviour → Open everything at once* does that. Sizes, corners, colour and motion
+are all yours to set.
+
+**An iOS replica, if you want one.** *Look → Shape → Preset* carries the real housing
+measurements for the iPhone 14/15 Pro, both Pro Max sizes and the 16 Pro pair — 126 × 37 pt at
+11 pt from the top edge, and so on. Picking an Apple preset also switches on **iOS mode**: pure
+black, fully rounded, a 44 dp corner when open, an optional camera lens drawn inside the pill,
+and the same damped-spring motion the real thing uses. That last part is not an ease curve
+pretending — `SpringInterpolator` implements SwiftUI's `spring(response:dampingFraction:)`
+response, so it overshoots and settles the way the Dynamic Island does.
 
 **Two anchors.** *Below the status bar* makes every pixel tappable. *Over the status bar* draws
 the island up at the camera cutout for the real notch look and hangs a transparent strip beneath
@@ -91,10 +101,11 @@ Four tabs plus two sub-screens, all Material 3 Compose:
 - **Activities** — a switch per live activity, notification preview style and duration, blocked
   apps, and behaviour (always-on pill, hide in landscape, lock screen, dim when expanded, start
   on boot).
-- **Look** — anchor and touch strip, resting/compact/expanded widths, height, corner radius, X/Y
+- **Look** — device preset and iOS mode, anchor and touch strip, resting/compact/expanded widths, height, corner radius, X/Y
   offset, colour sources (wallpaper / album art / manual) with wallpaper-first swatches, opacity,
   outline, shadow, animation speed, app theme.
-- **Gestures** — the seven gesture mappings, haptics and strength, auto-collapse delay.
+- **Gestures** — tap behaviour (step or straight open), the seven gesture mappings, haptics and
+  strength, auto-collapse delay.
 - **Blocked apps** — searchable list of launchable apps.
 - **About** — how priority works, why nothing can draw above the status bar, battery
   optimisation, privacy, and **export / restore** of every setting as a JSON file.

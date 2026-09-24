@@ -87,8 +87,17 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     private var bodySignature: String? = null
     private var cachedExpandedKey: String? = null
     private var cachedExpandedHeight = 0
-    private val spring = PathInterpolator(0.22f, 1.12f, 0.36f, 1f)
+    private val androidSpring = PathInterpolator(0.22f, 1.12f, 0.36f, 1f)
+    private val iosSpring = SpringInterpolator.island()
+    private val iosSubtleSpring = SpringInterpolator.subtle()
     private val ease = PathInterpolator(0.33f, 0f, 0.1f, 1f)
+
+    /** The real Dynamic Island's own motion, used verbatim when iOS mode is on. */
+    private fun growInterpolator(): android.view.animation.Interpolator =
+        if (settings.iosMode) iosSpring else androidSpring
+
+    private fun shrinkInterpolator(): android.view.animation.Interpolator =
+        if (settings.iosMode) iosSubtleSpring else ease
 
     // ------------------------------------------------------------------ views
 
@@ -121,6 +130,16 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         strokeWidth = 2.4f.dp
     }
     private val trailingWave = WaveformView(context)
+
+    /** A stand-in front camera, so the pill reads as hardware rather than a floating widget. */
+    private val fauxCamera = View(context).apply {
+        background = GradientDrawable().apply {
+            shape = GradientDrawable.OVAL
+            setColor(0xFF0A0A0C.toInt())
+            setStroke(1, 0xFF17171B.toInt())
+        }
+        visibility = View.GONE
+    }
 
     private val expandedRoot = LinearLayout(context).apply {
         orientation = LinearLayout.VERTICAL
@@ -213,6 +232,12 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             compactRow,
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         )
+        addView(
+            fauxCamera,
+            LayoutParams(11.dp, 11.dp, Gravity.CENTER_VERTICAL or Gravity.END).apply {
+                marginEnd = 13.dp
+            }
+        )
 
         val titleColumn = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -261,12 +286,17 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         systemAccent = DynamicColors.accent(context, dark = true)
         systemSurface = DynamicColors.surface(context, dark = true)
         bgDrawable.setColor(resolvedBackground())
-        if (s.borderEnabled) {
+        fauxCamera.visible(s.showFauxCamera && mode != IslandMode.EXPANDED)
+        if (s.iosMode) {
+            // The real thing is pure black with no outline and no shadow behind it.
+            bgDrawable.setColor(Color.BLACK)
+            bgDrawable.setStroke(0, Color.TRANSPARENT)
+        } else if (s.borderEnabled) {
             bgDrawable.setStroke(s.borderWidth.dp, s.borderColor)
         } else {
             bgDrawable.setStroke(0, Color.TRANSPARENT)
         }
-        elevation = if (s.shadowEnabled) 10f.dp else 0f
+        elevation = if (s.shadowEnabled && !s.iosMode) 10f.dp else 0f
         bgDrawable.cornerRadius = radiusFor(mode)
         invalidateOutline()
         requestLayout()
@@ -338,17 +368,17 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             }
         }
 
-        if (mode == IslandMode.EXPANDED) {
-            togglesRow.visible(showsToggles(p))
+        if (mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM) {
+            togglesRow.visible(mode == IslandMode.EXPANDED && showsToggles(p))
             // Only re-measure and resize when the panel's contents actually changed.
             if (buildBody(p, accent)) resizeToMeasuredHeight()
-            refreshToggleStates()
+            if (mode == IslandMode.EXPANDED) refreshToggleStates()
         }
     }
 
     /** Grows or shrinks the expanded panel to fit new content, without a full mode animation. */
     private fun resizeToMeasuredHeight() {
-        val targetHeight = heightFor(IslandMode.EXPANDED, widthFor(IslandMode.EXPANDED))
+        val targetHeight = heightFor(mode, widthFor(mode))
         val startHeight = height.takeIf { it > 0 } ?: targetHeight
         if (startHeight == targetHeight) return
         sizeAnimator?.cancel()
@@ -369,7 +399,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         val previous = mode
         mode = target
         val accent = resolveAccent(presentation)
-        if (target == IslandMode.EXPANDED) buildBody(presentation, accent)
+        val opened = target == IslandMode.EXPANDED || target == IslandMode.MEDIUM
+        if (opened) buildBody(presentation, accent)
+        bodyContainer.visible(target == IslandMode.EXPANDED)
         togglesRow.visible(target == IslandMode.EXPANDED && showsToggles(presentation))
         if (target == IslandMode.EXPANDED) refreshToggleStates()
 
@@ -380,23 +412,31 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         val startRadius = bgDrawable.cornerRadius
         val targetRadius = radiusFor(target)
 
-        expandedRoot.visible(target == IslandMode.EXPANDED)
+        expandedRoot.visible(opened)
         compactRow.visible(target == IslandMode.COMPACT || target == IslandMode.PILL)
+        fauxCamera.visible(settings.showFauxCamera && !opened)
         // Bars only cost frames while they can actually be seen.
         trailingWave.visible(trailingWave.visibility == View.VISIBLE && target == IslandMode.COMPACT)
         headerWave.playing = headerWave.playing && target == IslandMode.EXPANDED
 
         compactRow.animate().alpha(if (target == IslandMode.COMPACT) 1f else 0f)
             .setDuration(dur(160)).start()
-        expandedRoot.animate().alpha(if (target == IslandMode.EXPANDED) 1f else 0f)
-            .setDuration(dur(if (target == IslandMode.EXPANDED) 220 else 120))
-            .setStartDelay(if (target == IslandMode.EXPANDED) dur(70) else 0)
+        expandedRoot.animate().alpha(if (opened) 1f else 0f)
+            .setDuration(dur(if (opened) 220 else 120))
+            .setStartDelay(if (opened) dur(70) else 0)
             .start()
 
+        val growing = target.ordinal > previous.ordinal
+        val interpolator = if (growing) growInterpolator() else shrinkInterpolator()
         sizeAnimator?.cancel()
         sizeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
-            duration = dur(if (target == IslandMode.EXPANDED || previous == IslandMode.EXPANDED) 420 else 300)
-            interpolator = if (target == IslandMode.EXPANDED) spring else ease
+            duration = when {
+                settings.iosMode && interpolator is SpringInterpolator ->
+                    dur(interpolator.settleDurationMs)
+                target == IslandMode.EXPANDED || previous == IslandMode.EXPANDED -> dur(420)
+                else -> dur(300)
+            }
+            this.interpolator = interpolator
             addUpdateListener { a ->
                 val f = a.animatedValue as Float
                 val lp = layoutParams ?: return@addUpdateListener
@@ -415,6 +455,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     /** Applies the target size immediately, used when the island is first attached. */
     fun snapToMode(target: IslandMode) {
         mode = target
+        val opened = target == IslandMode.EXPANDED || target == IslandMode.MEDIUM
+        bodyContainer.visible(target == IslandMode.EXPANDED)
+        fauxCamera.visible(settings.showFauxCamera && !opened)
         val w = widthFor(target)
         val h = heightFor(target, w)
         // The island lives inside whatever container the controller built, so stay generic.
@@ -424,9 +467,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         layoutParams = lp
         bgDrawable.cornerRadius = radiusFor(target)
         compactRow.alpha = if (target == IslandMode.COMPACT) 1f else 0f
-        compactRow.visible(target != IslandMode.EXPANDED)
-        expandedRoot.alpha = if (target == IslandMode.EXPANDED) 1f else 0f
-        expandedRoot.visible(target == IslandMode.EXPANDED)
+        compactRow.visible(!opened)
+        expandedRoot.alpha = if (opened) 1f else 0f
+        expandedRoot.visible(opened)
         invalidateOutline()
     }
 
@@ -472,29 +515,46 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         IslandMode.HIDDEN -> settings.collapsedWidth.dp
         IslandMode.PILL -> settings.collapsedWidth.dp
         IslandMode.COMPACT -> settings.compactWidth.dp
+        IslandMode.MEDIUM -> settings.mediumWidth.dp
         IslandMode.EXPANDED -> settings.expandedWidth.dp
     }
 
     private fun heightFor(m: IslandMode, width: Int): Int = when (m) {
         IslandMode.HIDDEN, IslandMode.PILL -> settings.collapsedHeight.dp
         IslandMode.COMPACT -> (settings.collapsedHeight + 4).dp
-        IslandMode.EXPANDED -> measureExpandedHeight(width)
+        IslandMode.MEDIUM, IslandMode.EXPANDED -> measureExpandedHeight(width, m)
     }
 
-    private fun measureExpandedHeight(width: Int): Int {
-        val key = "$width|$bodySignature|${togglesRow.visibility}"
+    private fun measureExpandedHeight(width: Int, target: IslandMode): Int {
+        val key = "$width|$target|$bodySignature|${togglesRow.visibility}"
         if (key == cachedExpandedKey && cachedExpandedHeight > 0) return cachedExpandedHeight
+        // The medium card is the header alone, so measure it with the body folded away.
+        val bodyWas = bodyContainer.visibility
+        val togglesWas = togglesRow.visibility
+        if (target == IslandMode.MEDIUM) {
+            bodyContainer.visibility = View.GONE
+            togglesRow.visibility = View.GONE
+        }
         expandedRoot.measure(
             MeasureSpec.makeMeasureSpec(width, MeasureSpec.EXACTLY),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
         )
+        val measured = expandedRoot.measuredHeight
+        if (target == IslandMode.MEDIUM) {
+            bodyContainer.visibility = bodyWas
+            togglesRow.visibility = togglesWas
+        }
         cachedExpandedKey = key
-        cachedExpandedHeight = expandedRoot.measuredHeight.coerceAtLeast(96.dp)
+        cachedExpandedHeight = measured.coerceAtLeast(
+            if (target == IslandMode.MEDIUM) 64.dp else 96.dp
+        )
         return cachedExpandedHeight
     }
 
     private fun radiusFor(m: IslandMode): Float = when (m) {
-        IslandMode.EXPANDED -> 28f.dp
+        // iOS keeps a 44pt corner on the expanded island; ours follows when the preset does.
+        IslandMode.EXPANDED -> if (settings.iosMode) 44f.dp else 28f.dp
+        IslandMode.MEDIUM -> if (settings.iosMode) 32f.dp else 24f.dp
         IslandMode.COMPACT -> ((settings.collapsedHeight + 4) / 2f).dp
             .coerceAtMost(settings.cornerRadius.dp.toFloat() + 4f.dp)
         else -> settings.cornerRadius.dp.toFloat()
@@ -511,6 +571,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     )
 
     private fun resolvedBackground(): Int {
+        if (settings.iosMode) return Color.BLACK
         val base = when (settings.backgroundSource) {
             ColorSource.MATERIAL_YOU -> systemSurface
             else -> settings.backgroundColor
