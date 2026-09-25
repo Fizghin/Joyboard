@@ -59,6 +59,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val history = ArrayDeque<NotificationItem>()
     /** The size the user has asked for, or null when the island is deciding for itself. */
     private var userStage: IslandMode? = null
+    /** What the collapse timer was last armed for, so a busy activity cannot keep pushing it back. */
+    private var collapseArmedFor: IslandMode? = null
+    /** When an activity last genuinely changed, as opposed to refreshing its own contents. */
+    private var lastActivityChangeAt = 0L
     private var showingHistory = false
     private var lastNotification: NotificationItem? = null
 
@@ -78,6 +82,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private lateinit var privacyMonitor: PrivacyMonitor
 
     private val expiryRunnable = Runnable { render() }
+    private val settleRunnable = Runnable { render() }
     private val collapseRunnable = Runnable {
         if (island?.isReplying() == true) return@Runnable
         userStage = null
@@ -371,6 +376,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     // ------------------------------------------------------------------ activity feed
 
     fun push(activity: LiveActivity) {
+        markActivityChanged()
         activities.put(activity)
         if (activity.autoExpand) userStage = IslandMode.EXPANDED
         render()
@@ -386,6 +392,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (snapshot == null) {
             activities.remove(ActivityKind.MEDIA)
         } else {
+            val previous = activities.peek(ActivityKind.MEDIA)?.presentation
+            // A new track is worth surfacing; a moving playhead is not.
+            if (previous?.title != snapshot.title) markActivityChanged()
             activities.put(LiveActivity(
                 kind = ActivityKind.MEDIA,
                 presentation = mediaPresentation(snapshot),
@@ -429,6 +438,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private fun pushCall(item: NotificationItem) {
         lastNotification = item
+        if (activities.peek(ActivityKind.CALL)?.presentation?.notificationKey != item.key) {
+            markActivityChanged()
+        }
         activities.put(
             LiveActivity(
                 kind = ActivityKind.CALL,
@@ -455,6 +467,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private fun pushOngoing(item: NotificationItem) {
         if (!settings.featureOngoing) return
+        // A progress tick on the same notification is not news, so it must not reset the timer.
+        if (activities.peek(ActivityKind.ONGOING)?.presentation?.notificationKey != item.key) {
+            markActivityChanged()
+        }
         activities.put(
             LiveActivity(
                 kind = ActivityKind.ONGOING,
@@ -684,6 +700,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     fun startTimer(durationMs: Long) {
         if (!settings.featureTimer) return
+        markActivityChanged()
         timer.start(durationMs)
         userStage = IslandMode.EXPANDED
         render()
@@ -744,6 +761,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private fun currentTop(): LiveActivity? = activities.top()
 
+    private fun markActivityChanged() {
+        lastActivityChangeAt = SystemClock.elapsedRealtime()
+    }
+
     private fun idlePresentation(): Presentation = Presentation(
         kind = ActivityKind.IDLE,
         leadingIcon = drawable(R.drawable.ic_island),
@@ -770,15 +791,22 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
         view.setPresentation(presentation)
 
-        val target = when {
-            userStage != null -> userStage!!
-            top != null -> IslandMode.COMPACT
-            settings.alwaysShowPill -> IslandMode.PILL
-            else -> IslandMode.HIDDEN
-        }
+        val sinceChange = SystemClock.elapsedRealtime() - lastActivityChangeAt
+        val restMs = settings.compactRestSeconds * 1000L
+        val target = RestPolicy.target(
+            userStage = userStage,
+            hasActivity = top != null,
+            msSinceActivityChange = sinceChange,
+            stayCompact = settings.stayCompactForActivities,
+            compactRestMs = restMs,
+            alwaysShowPill = settings.alwaysShowPill,
+        )
         if (view.mode != target) {
             view.animateToMode(target)
             haptics.tick()
+        } else {
+            // Guards against a cancelled animation leaving the island stuck at the wrong size.
+            view.ensureSized(target)
         }
         updateWindowParams()
         updateVisibility()
@@ -794,9 +822,24 @@ class IslandController(private val context: Context) : IslandView.Listener {
             handler.postDelayed(expiryRunnable, delay.coerceAtLeast(60L))
         }
 
-        handler.removeCallbacks(collapseRunnable)
-        if (userStage != null && settings.autoCollapseSeconds > 0) {
-            handler.postDelayed(collapseRunnable, settings.autoCollapseSeconds * 1000L)
+        // and the moment the compact readout is due to settle back to the pill
+        handler.removeCallbacks(settleRunnable)
+        RestPolicy.millisUntilSettle(
+            userStage = userStage,
+            hasActivity = top != null,
+            msSinceActivityChange = sinceChange,
+            stayCompact = settings.stayCompactForActivities,
+            compactRestMs = restMs,
+        )?.let { handler.postDelayed(settleRunnable, it.coerceAtLeast(60L)) }
+
+        // Arm the collapse once per stage. Re-arming on every render let a chatty activity —
+        // a download ticking its progress, a track changing position — hold the island open.
+        if (userStage != collapseArmedFor) {
+            handler.removeCallbacks(collapseRunnable)
+            collapseArmedFor = userStage
+            if (userStage != null && settings.autoCollapseSeconds > 0) {
+                handler.postDelayed(collapseRunnable, settings.autoCollapseSeconds * 1000L)
+            }
         }
     }
 
@@ -1036,6 +1079,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     fun startStopwatch() {
         if (!settings.featureStopwatch) return
+        markActivityChanged()
         stopwatch.start()
         userStage = IslandMode.EXPANDED
         render()

@@ -45,6 +45,8 @@ object SettingsCodec {
         put("hapticsEnabled", settings.hapticsEnabled)
         put("hapticStrength", settings.hapticStrength)
         put("autoCollapseSeconds", settings.autoCollapseSeconds)
+        put("compactRestSeconds", settings.compactRestSeconds)
+        put("stayCompactForActivities", settings.stayCompactForActivities)
         put("hideInLandscape", settings.hideInLandscape)
         put("showOnLockScreen", settings.showOnLockScreen)
         put("dimBackgroundWhenExpanded", settings.dimBackgroundWhenExpanded)
@@ -127,6 +129,9 @@ object SettingsCodec {
             hapticsEnabled = o.optBoolean("hapticsEnabled", base.hapticsEnabled),
             hapticStrength = o.optInt("hapticStrength", base.hapticStrength),
             autoCollapseSeconds = o.optInt("autoCollapseSeconds", base.autoCollapseSeconds),
+            compactRestSeconds = o.optInt("compactRestSeconds", base.compactRestSeconds),
+            stayCompactForActivities =
+                o.optBoolean("stayCompactForActivities", base.stayCompactForActivities),
             hideInLandscape = o.optBoolean("hideInLandscape", base.hideInLandscape),
             showOnLockScreen = o.optBoolean("showOnLockScreen", base.showOnLockScreen),
             dimBackgroundWhenExpanded =

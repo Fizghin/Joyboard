@@ -461,6 +461,23 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         alpha = if (target == IslandMode.HIDDEN) 0f else 1f
     }
 
+    /**
+     * Re-asserts the size for the current mode if the view has drifted from it — a cancelled
+     * animation or an interrupted layout can otherwise leave the island stuck open.
+     */
+    fun ensureSized(target: IslandMode) {
+        if (sizeAnimator?.isRunning == true) return
+        val lp = layoutParams ?: return
+        val wantWidth = widthFor(target)
+        val wantHeight = heightFor(target, wantWidth)
+        if (lp.width == wantWidth && lp.height == wantHeight) return
+        lp.width = wantWidth
+        lp.height = wantHeight
+        layoutParams = lp
+        bgDrawable.cornerRadius = radiusFor(target)
+        invalidateOutline()
+    }
+
     /** Applies the target size immediately, used when the island is first attached. */
     fun snapToMode(target: IslandMode) {
         mode = target

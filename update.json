@@ -1,18 +1,16 @@
 {
-  "versionCode": 6,
-  "versionName": "2.2",
+  "versionCode": 7,
+  "versionName": "2.2.1",
   "mandatory": false,
   "notes": [
-    "Calibrate to my punch hole: a full-screen aligner that draws into the cutout area so you can drag the island onto your real camera, wherever it sits",
-    "The stand-in lens has its own size and position, for off-centre punch holes",
-    "Release builds are shrunk with R8 — the APK is now under 2 MB instead of 12.6 MB",
-    "A separate Play build with no in-app updater, for anyone publishing it",
-    "Crash log kept on device, with Share diagnostics and Clear in About",
-    "Settings now travel to a new phone through Android backup",
-    "Content descriptions on every icon-only control, for TalkBack"
+    "Fixed: the island stayed open instead of going back to its resting pill",
+    "The auto-collapse countdown was being reset by every refresh — a download's progress or a track's playhead kept pushing it back, so it never fired",
+    "A live activity no longer pins the island at the compact size forever; it settles back to the pill once nothing new has happened",
+    "Gestures → Going back to rest sets how long that takes, or restores the always-compact behaviour",
+    "Added a guard that re-asserts the size if an interrupted animation leaves the island stuck"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 1964889,
+  "sizeBytes": 1964897,
   "debugSizeBytes": 18928173
 }

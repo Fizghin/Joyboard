@@ -1,5 +1,20 @@
 # Changelog
 
+## 2.2.1
+
+Fixes the island not going back to its resting size once opened. Two separate causes:
+
+- The auto-collapse countdown was cancelled and re-posted on *every* render. Anything that
+  refreshes — a track's playhead, a download's progress — pushed it back, so with something live
+  it never fired. It is now armed once per stage.
+- Any sticky activity pinned the island at the compact size permanently, because the target was
+  simply "an activity exists, so stay compact". A live activity now earns the compact readout for
+  a while after something genuinely happens, then the island settles back to the pill. A progress
+  tick on the same notification does not count as something happening. *Gestures → Going back to
+  rest* sets the delay, or restores the old always-compact behaviour.
+
+Also adds a guard that re-asserts the size if a cancelled animation leaves the island stuck.
+
 ## 2.2
 
 - Punch-hole calibration: a full-screen aligner that draws into the cutout area with the system

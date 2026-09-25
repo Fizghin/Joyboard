@@ -108,7 +108,7 @@ fun GesturesScreen(viewModel: MainViewModel) {
                 )
             }
             SliderRow(
-                title = "Collapse after",
+                title = "Close again after",
                 value = settings.autoCollapseSeconds.toFloat(),
                 range = 0f..20f,
                 valueLabel = if (settings.autoCollapseSeconds == 0) "Never"
@@ -117,6 +117,40 @@ fun GesturesScreen(viewModel: MainViewModel) {
                     viewModel.update { it.copy(autoCollapseSeconds = value.roundToInt()) }
                 }
             )
+        }
+
+        SectionCard(
+            title = "Going back to rest",
+            subtitle = "What the island does when you stop touching it."
+        ) {
+            SwitchRow(
+                title = "Stay compact while something is live",
+                subtitle = "Keeps the readout up for as long as music, a call or an ongoing " +
+                    "notification exists, the way iOS does. Off means it settles back to the pill.",
+                checked = settings.stayCompactForActivities,
+                onCheckedChange = { value ->
+                    viewModel.update { it.copy(stayCompactForActivities = value) }
+                }
+            )
+            if (!settings.stayCompactForActivities) {
+                SliderRow(
+                    title = "Settle back after",
+                    value = settings.compactRestSeconds.toFloat(),
+                    range = 0f..60f,
+                    valueLabel = if (settings.compactRestSeconds == 0) "Straight away"
+                    else "${settings.compactRestSeconds}s",
+                    onValueChange = { value ->
+                        viewModel.update { it.copy(compactRestSeconds = value.roundToInt()) }
+                    }
+                )
+                Text(
+                    "Measured from the last time something actually happened, not from a " +
+                        "download ticking its progress or a track's playhead moving.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
+                )
+            }
         }
     }
 }

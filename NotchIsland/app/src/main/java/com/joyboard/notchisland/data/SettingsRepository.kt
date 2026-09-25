@@ -89,6 +89,8 @@ class SettingsRepository(private val context: Context) {
         val hapticsEnabled = booleanPreferencesKey("haptics_enabled")
         val hapticStrength = intPreferencesKey("haptic_strength")
         val autoCollapse = intPreferencesKey("auto_collapse")
+        val compactRestSeconds = intPreferencesKey("compact_rest_seconds")
+        val stayCompactForActivities = booleanPreferencesKey("stay_compact_for_activities")
         val hideInLandscape = booleanPreferencesKey("hide_in_landscape")
         val showOnLockScreen = booleanPreferencesKey("show_on_lock_screen")
         val dimBackground = booleanPreferencesKey("dim_background")
@@ -174,6 +176,9 @@ class SettingsRepository(private val context: Context) {
             hapticsEnabled = this[K.hapticsEnabled] ?: d.hapticsEnabled,
             hapticStrength = this[K.hapticStrength] ?: d.hapticStrength,
             autoCollapseSeconds = this[K.autoCollapse] ?: d.autoCollapseSeconds,
+            compactRestSeconds = this[K.compactRestSeconds] ?: d.compactRestSeconds,
+            stayCompactForActivities = this[K.stayCompactForActivities]
+                ?: d.stayCompactForActivities,
             hideInLandscape = this[K.hideInLandscape] ?: d.hideInLandscape,
             showOnLockScreen = this[K.showOnLockScreen] ?: d.showOnLockScreen,
             dimBackgroundWhenExpanded = this[K.dimBackground] ?: d.dimBackgroundWhenExpanded,
@@ -257,6 +262,8 @@ class SettingsRepository(private val context: Context) {
         this[K.hapticsEnabled] = s.hapticsEnabled
         this[K.hapticStrength] = s.hapticStrength
         this[K.autoCollapse] = s.autoCollapseSeconds
+        this[K.compactRestSeconds] = s.compactRestSeconds
+        this[K.stayCompactForActivities] = s.stayCompactForActivities
         this[K.hideInLandscape] = s.hideInLandscape
         this[K.showOnLockScreen] = s.showOnLockScreen
         this[K.dimBackground] = s.dimBackgroundWhenExpanded

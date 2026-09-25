@@ -59,6 +59,13 @@ data class IslandSettings(
     val hapticsEnabled: Boolean = true,
     val hapticStrength: Int = 2,           // 1..3
     val autoCollapseSeconds: Int = 6,
+    /**
+     * How long the compact readout stays up after something happens, before the island settles
+     * back to its resting pill. Without this a long-running notification would hold it open.
+     */
+    val compactRestSeconds: Int = 10,
+    /** Keep the compact readout for as long as an activity is alive, the way iOS does. */
+    val stayCompactForActivities: Boolean = false,
     val hideInLandscape: Boolean = true,
     val showOnLockScreen: Boolean = true,
     val dimBackgroundWhenExpanded: Boolean = true,
