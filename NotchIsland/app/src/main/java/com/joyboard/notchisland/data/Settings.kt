@@ -32,7 +32,15 @@ data class IslandSettings(
      * regardless of what the colour and motion settings say.
      */
     val iosMode: Boolean = false,
+
+    // ---- the phone's own camera cutout ----
+    /** Draw a stand-in lens inside the pill, for phones where the island hides the real one. */
     val showFauxCamera: Boolean = false,
+    /** Diameter of the lens, in dp — measure your own punch hole and match it. */
+    val cameraSize: Int = 11,
+    /** Lens position measured from the island's centre, so off-centre punch holes line up. */
+    val cameraOffsetX: Int = 46,
+    val cameraOffsetY: Int = 0,
 
     // ---- appearance ----
     val backgroundColor: Int = Color.BLACK,

@@ -8,6 +8,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
+import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -31,7 +32,7 @@ fun AboutScreen(viewModel: MainViewModel) {
     ) {
         SectionCard(title = "Notch Island") {
             Body("Version ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE})")
-            OutlinedButton(
+            if (viewModel.updaterEnabled) OutlinedButton(
                 onClick = { viewModel.checkForUpdatesNow() },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,6 +107,34 @@ fun AboutScreen(viewModel: MainViewModel) {
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 2.dp)
             ) { Text("Restore from a backup") }
+        }
+
+        SectionCard(
+            title = "Diagnostics",
+            subtitle = "Device, display, cutout and anything that has crashed."
+        ) {
+            OutlinedButton(
+                onClick = {
+                    val share = Intent(Intent.ACTION_SEND)
+                        .setType("text/plain")
+                        .putExtra(Intent.EXTRA_SUBJECT, "Notch Island diagnostics")
+                        .putExtra(Intent.EXTRA_TEXT, viewModel.diagnosticsText())
+                    context.startActivity(Intent.createChooser(share, "Share diagnostics"))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
+            ) { Text("Share diagnostics") }
+            OutlinedButton(
+                onClick = { viewModel.clearCrashLog() },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 2.dp)
+            ) { Text("Clear the crash log") }
+            Body(
+                "Crashes are written to the app's own storage and stay there. Nothing is sent " +
+                    "anywhere unless you share it yourself."
+            )
         }
 
         SectionCard(title = "Privacy") {

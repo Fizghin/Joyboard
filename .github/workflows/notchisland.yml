@@ -28,25 +28,27 @@ jobs:
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests
-        run: gradle --no-daemon testDebugUnitTest
+        run: gradle --no-daemon testSideloadDebugUnitTest
 
-      - name: Lint
-        run: gradle --no-daemon lintDebug
+      - name: Lint the release build
+        run: gradle --no-daemon lintVitalSideloadRelease
 
-      - name: Build APKs
-        run: gradle --no-daemon assembleDebug assembleRelease
+      - name: Build the shipping artifacts
+        run: >
+          gradle --no-daemon assembleSideloadDebug assembleSideloadRelease bundlePlayRelease
 
-      - name: Upload APKs
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: notch-island-apks
+          name: notch-island
           path: |
-            NotchIsland/app/build/outputs/apk/debug/app-debug.apk
-            NotchIsland/app/build/outputs/apk/release/app-release.apk
+            NotchIsland/app/build/outputs/apk/sideload/debug/app-sideload-debug.apk
+            NotchIsland/app/build/outputs/apk/sideload/release/app-sideload-release.apk
+            NotchIsland/app/build/outputs/bundle/playRelease/app-play-release.aab
 
       - name: Upload test report
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: test-report
-          path: NotchIsland/app/build/reports/tests/testDebugUnitTest
+          path: NotchIsland/app/build/reports/tests/testSideloadDebugUnitTest

@@ -15,6 +15,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import android.content.Intent
+import androidx.compose.ui.platform.LocalContext
+import com.joyboard.notchisland.CalibrationActivity
 import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.IslandPreset
 import com.joyboard.notchisland.data.PositionMode
@@ -33,6 +36,7 @@ import kotlin.math.roundToInt
 @Composable
 fun AppearanceScreen(viewModel: MainViewModel) {
     val settings by viewModel.settings.collectAsStateLifecycle()
+    val context = LocalContext.current
     var previewMode by remember { mutableStateOf(IslandMode.COMPACT) }
 
     Column(
@@ -71,6 +75,22 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 subtitle = "A small dark circle inside the pill, so it reads as hardware",
                 checked = settings.showFauxCamera,
                 onCheckedChange = { value -> viewModel.update { it.copy(showFauxCamera = value) } }
+            )
+            OutlinedButton(
+                onClick = {
+                    context.startActivity(Intent(context, CalibrationActivity::class.java))
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 6.dp)
+            ) { Text("Calibrate to my punch hole") }
+            Text(
+                "Opens a full-screen aligner that draws into the cutout area with the status " +
+                    "bar hidden, so you can drag the pill straight onto your camera instead of " +
+                    "guessing at numbers. Works on any cutout, centred or not.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
             )
         }
 

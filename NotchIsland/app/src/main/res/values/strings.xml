@@ -15,4 +15,5 @@
     <string name="shortcut_stopwatch_long">Start the stopwatch</string>
     <string name="shortcut_history_short">Recent</string>
     <string name="shortcut_history_long">Show recent notifications</string>
+    <string name="calibrate_title">Calibrate</string>
 </resources>

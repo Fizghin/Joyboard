@@ -18,6 +18,7 @@ import com.joyboard.notchisland.data.SettingsCodec
 import com.joyboard.notchisland.data.SettingsRepository
 import com.joyboard.notchisland.service.IslandBus
 import com.joyboard.notchisland.service.NotchOverlayService
+import com.joyboard.notchisland.util.CrashReporter
 import com.joyboard.notchisland.util.CutoutDetector
 import com.joyboard.notchisland.util.canDrawOverlays
 import com.joyboard.notchisland.util.canWriteSettings
@@ -132,7 +133,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     // ------------------------------------------------------------------ updates
 
     /** Called on launch: quiet, throttled, and silent when there is nothing new. */
+    val updaterEnabled: Boolean = BuildConfig.UPDATER_ENABLED
+
     fun maybeCheckForUpdates() {
+        if (!updaterEnabled) return
         val current = settings.value
         if (!current.autoCheckUpdates) return
         if (_updateState.value !is UpdateState.Idle) return
@@ -143,6 +147,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Called from a button: always reports back, even when there is nothing to do. */
     fun checkForUpdatesNow() {
+        if (!updaterEnabled) return
         if (_updateState.value is UpdateState.Checking) return
         runCheck(announce = true)
     }
@@ -294,6 +299,31 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             _status.value =
                 "Matched a ${cutout.widthDp}×${cutout.heightDp} dp cutout"
         }
+    }
+
+    /** Everything worth pasting into a bug report, including any crash since the last clear. */
+    fun diagnosticsText(): String {
+        val context = getApplication<Application>()
+        val crash = CrashReporter.log(context)
+        return buildString {
+            appendLine(CrashReporter.diagnostics(context))
+            appendLine("Anchor: ${settings.value.positionMode}")
+            appendLine("Preset: ${settings.value.preset} (iOS mode ${settings.value.iosMode})")
+            appendLine("Island: ${settings.value.collapsedWidth}x${settings.value.collapsedHeight} dp")
+            appendLine("Service running: ${IslandBus.serviceRunning}")
+            if (crash != null) {
+                appendLine()
+                appendLine("Recent crashes:")
+                appendLine(crash)
+            } else {
+                appendLine("No crashes recorded.")
+            }
+        }
+    }
+
+    fun clearCrashLog() {
+        CrashReporter.clear(getApplication())
+        _status.value = "Crash log cleared"
     }
 
     fun exportSettings(uri: Uri) {

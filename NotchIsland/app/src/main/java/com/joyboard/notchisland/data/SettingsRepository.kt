@@ -71,6 +71,9 @@ class SettingsRepository(private val context: Context) {
         val preset = stringPreferencesKey("preset")
         val iosMode = booleanPreferencesKey("ios_mode")
         val showFauxCamera = booleanPreferencesKey("show_faux_camera")
+        val cameraSize = intPreferencesKey("camera_size")
+        val cameraOffsetX = intPreferencesKey("camera_offset_x")
+        val cameraOffsetY = intPreferencesKey("camera_offset_y")
         val tapExpansion = stringPreferencesKey("tap_expansion")
         val backgroundColor = intPreferencesKey("background_color")
         val opacity = floatPreferencesKey("opacity")
@@ -153,6 +156,9 @@ class SettingsRepository(private val context: Context) {
             preset = this[K.preset]?.toEnum<IslandPreset>() ?: d.preset,
             iosMode = this[K.iosMode] ?: d.iosMode,
             showFauxCamera = this[K.showFauxCamera] ?: d.showFauxCamera,
+            cameraSize = this[K.cameraSize] ?: d.cameraSize,
+            cameraOffsetX = this[K.cameraOffsetX] ?: d.cameraOffsetX,
+            cameraOffsetY = this[K.cameraOffsetY] ?: d.cameraOffsetY,
             tapExpansion = this[K.tapExpansion]?.toEnum<TapExpansion>() ?: d.tapExpansion,
             backgroundColor = this[K.backgroundColor] ?: d.backgroundColor,
             opacity = this[K.opacity] ?: d.opacity,
@@ -233,6 +239,9 @@ class SettingsRepository(private val context: Context) {
         this[K.preset] = s.preset.name
         this[K.iosMode] = s.iosMode
         this[K.showFauxCamera] = s.showFauxCamera
+        this[K.cameraSize] = s.cameraSize
+        this[K.cameraOffsetX] = s.cameraOffsetX
+        this[K.cameraOffsetY] = s.cameraOffsetY
         this[K.tapExpansion] = s.tapExpansion.name
         this[K.backgroundColor] = s.backgroundColor
         this[K.opacity] = s.opacity

@@ -1,17 +1,18 @@
 {
-  "versionCode": 5,
-  "versionName": "2.1",
+  "versionCode": 6,
+  "versionName": "2.2",
   "mandatory": false,
   "notes": [
-    "Device presets with the real iPhone Dynamic Island measurements — 14/15 Pro, both Pro Max sizes, 16 Pro and 16 Pro Max",
-    "iOS mode: pure black, fully rounded, a 44 dp corner when open, an optional camera lens, and SwiftUI's own damped-spring motion rather than an ease curve",
-    "A tap now steps the island up one size at a time: pill, compact preview, small card, everything, then back to rest",
-    "Swipe down skips the steps and opens everything at once",
-    "Tap behaviour is a setting, so a single tap can still open the full panel outright",
-    "The in-app preview steps the same way, with a Small stage between Preview and Full"
+    "Calibrate to my punch hole: a full-screen aligner that draws into the cutout area so you can drag the island onto your real camera, wherever it sits",
+    "The stand-in lens has its own size and position, for off-centre punch holes",
+    "Release builds are shrunk with R8 — the APK is now under 2 MB instead of 12.6 MB",
+    "A separate Play build with no in-app updater, for anyone publishing it",
+    "Crash log kept on device, with Share diagnostics and Clear in About",
+    "Settings now travel to a new phone through Android backup",
+    "Content descriptions on every icon-only control, for TalkBack"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 12598268,
-  "debugSizeBytes": 18894068
+  "sizeBytes": 1964889,
+  "debugSizeBytes": 18928173
 }

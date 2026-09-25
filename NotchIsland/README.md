@@ -14,6 +14,11 @@ down to skip the steps and open everything at once. If you would rather a tap ju
 *Gestures → Tap behaviour → Open everything at once* does that. Sizes, corners, colour and motion
 are all yours to set.
 
+**Shaped to your phone, not a guess.** *Look → Shape → Calibrate to my punch hole* opens a
+full-screen aligner that draws into the cutout area with the system bars hidden. Drag the pill
+straight onto your real camera — centred, left, right, wherever the maker put it — size it with
+sliders, and place the stand-in lens to match. What you see there is what the overlay does.
+
 **An iOS replica, if you want one.** *Look → Shape → Preset* carries the real housing
 measurements for the iPhone 14/15 Pro, both Pro Max sizes and the 16 Pro pair — 126 × 37 pt at
 11 pt from the top edge, and so on. Picking an Apple preset also switches on **iOS mode**: pure
@@ -160,6 +165,24 @@ elevated privileges.
 Nothing leaves the device. Notification content is rendered straight into the overlay and is
 never stored, logged or uploaded.
 
+## Builds
+
+| Flavour | Who it is for | Updater | Size |
+| --- | --- | --- | --- |
+| `sideload` | downloaded from here | yes, in-app | ~2 MB release |
+| `play` | the Play Store | no — Play forbids the permission | ~2 MB |
+
+The release build runs R8 with resource shrinking, which takes it from 12.6 MB to under 2 MB. The
+app's own classes are deliberately kept whole: nearly all the shrinking comes from dead library
+code, so keeping them costs about 65 kB and removes a whole class of release-only crash, while
+leaving stack traces readable.
+
+```bash
+gradle assembleSideloadRelease     # the APK published here
+gradle bundlePlayRelease           # the AAB for the Play Store
+./publish.sh                       # tests, lint, every artifact, and update.json
+```
+
 ## Install
 
 Download **`apks/NotchIsland-release.apk`** and install it. Open the app, grant *Display over
@@ -291,6 +314,10 @@ progress rings skip no-op updates instead of starting an animator each time.
   can only be opened, not answered.
 - There is no per-app *hiding by foreground app* — that needs an accessibility service, which is
   a heavier permission than this app currently asks for.
+- The user-facing copy is English only. Strings live in Kotlin rather than `strings.xml`, so a
+  translation pass means extracting them first.
+- Everything here is verified by compilation and the unit suite. There is no instrumented or
+  on-device test coverage, and no screenshot tests.
 - Brightness and auto-rotate need *Modify system settings*, which Android grants per app.
 - Aggressive battery managers on some OEM skins can stop the overlay service; exclude the app
   from battery optimisation (there is a button in About).

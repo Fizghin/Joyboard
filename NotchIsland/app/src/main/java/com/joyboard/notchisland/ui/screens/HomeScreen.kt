@@ -171,7 +171,7 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             )
         }
 
-        SectionCard(title = "Updates") {
+        if (viewModel.updaterEnabled) SectionCard(title = "Updates") {
             val updateState by viewModel.updateState.collectAsStateLifecycle()
             Row(
                 modifier = Modifier

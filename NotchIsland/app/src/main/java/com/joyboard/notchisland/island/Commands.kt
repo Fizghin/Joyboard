@@ -6,4 +6,13 @@ enum class TimerCommand { PAUSE, RESUME, ADD_MINUTE, CANCEL }
 
 enum class StopwatchCommand { START_PAUSE, LAP, RESET }
 
-enum class QuickToggle { TORCH, WIFI, BLUETOOTH, DND, ROTATION, RINGER, SETTINGS, APP_SETTINGS }
+enum class QuickToggle(val label: String) {
+    TORCH("Flashlight"),
+    WIFI("Wi-Fi"),
+    BLUETOOTH("Bluetooth"),
+    DND("Do Not Disturb"),
+    ROTATION("Auto-rotate"),
+    RINGER("Ringer mode"),
+    SETTINGS("System settings"),
+    APP_SETTINGS("Notch Island settings"),
+}

@@ -27,6 +27,9 @@ object SettingsCodec {
         put("preset", settings.preset.name)
         put("iosMode", settings.iosMode)
         put("showFauxCamera", settings.showFauxCamera)
+        put("cameraSize", settings.cameraSize)
+        put("cameraOffsetX", settings.cameraOffsetX)
+        put("cameraOffsetY", settings.cameraOffsetY)
         put("tapExpansion", settings.tapExpansion.name)
         put("backgroundColor", settings.backgroundColor)
         put("opacity", settings.opacity.toDouble())
@@ -106,6 +109,9 @@ object SettingsCodec {
             preset = o.enum("preset", base.preset),
             iosMode = o.optBoolean("iosMode", base.iosMode),
             showFauxCamera = o.optBoolean("showFauxCamera", base.showFauxCamera),
+            cameraSize = o.optInt("cameraSize", base.cameraSize),
+            cameraOffsetX = o.optInt("cameraOffsetX", base.cameraOffsetX),
+            cameraOffsetY = o.optInt("cameraOffsetY", base.cameraOffsetY),
             tapExpansion = o.enum("tapExpansion", base.tapExpansion),
             backgroundColor = o.optInt("backgroundColor", base.backgroundColor),
             opacity = o.optDouble("opacity", base.opacity.toDouble()).toFloat(),

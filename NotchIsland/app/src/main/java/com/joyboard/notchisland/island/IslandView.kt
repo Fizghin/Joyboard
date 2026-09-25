@@ -234,9 +234,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         )
         addView(
             fauxCamera,
-            LayoutParams(11.dp, 11.dp, Gravity.CENTER_VERTICAL or Gravity.END).apply {
-                marginEnd = 13.dp
-            }
+            LayoutParams(11.dp, 11.dp, Gravity.CENTER_VERTICAL or Gravity.CENTER_HORIZONTAL)
         )
 
         val titleColumn = LinearLayout(context).apply {
@@ -287,6 +285,17 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         systemSurface = DynamicColors.surface(context, dark = true)
         bgDrawable.setColor(resolvedBackground())
         fauxCamera.visible(s.showFauxCamera && mode != IslandMode.EXPANDED)
+        // Punch holes sit wherever the maker put them, so the lens is positioned by hand.
+        (fauxCamera.layoutParams as? LayoutParams)?.let { lp ->
+            lp.width = s.cameraSize.dp
+            lp.height = s.cameraSize.dp
+            // FrameLayout shifts a centred child by exactly (leftMargin - rightMargin).
+            lp.leftMargin = s.cameraOffsetX.dp
+            lp.rightMargin = 0
+            lp.topMargin = s.cameraOffsetY.dp
+            lp.bottomMargin = 0
+            fauxCamera.layoutParams = lp
+        }
         if (s.iosMode) {
             // The real thing is pure black with no outline and no shadow behind it.
             bgDrawable.setColor(Color.BLACK)
@@ -718,15 +727,21 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
             ).apply { topMargin = 6.dp }
         }
-        val prev = circleButton(R.drawable.ic_prev, 44.dp) { listener.onMediaCommand(MediaCommand.PREVIOUS) }
+        val prev = circleButton(R.drawable.ic_prev, 44.dp, "Previous track") {
+            listener.onMediaCommand(MediaCommand.PREVIOUS)
+        }
         prev.isEnabled = media.canSkipPrev
         val play = circleButton(
-            if (media.playing) R.drawable.ic_pause else R.drawable.ic_play, 54.dp
+            if (media.playing) R.drawable.ic_pause else R.drawable.ic_play,
+            54.dp,
+            if (media.playing) "Pause" else "Play",
         ) { listener.onMediaCommand(MediaCommand.PLAY_PAUSE) }
         (play.background as? GradientDrawable)?.setColor(accent)
         play.setColorFilter(Color.BLACK)
         playPause = play
-        val next = circleButton(R.drawable.ic_next, 44.dp) { listener.onMediaCommand(MediaCommand.NEXT) }
+        val next = circleButton(R.drawable.ic_next, 44.dp, "Next track") {
+            listener.onMediaCommand(MediaCommand.NEXT)
+        }
         next.isEnabled = media.canSkipNext
         controls.addView(prev)
         controls.addView(spacer(18.dp))
@@ -1058,7 +1073,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         row.addView(field)
         row.addView(spacer(8.dp))
         row.addView(
-            circleButton(R.drawable.ic_next, 40.dp) { sendReply(item, field.text) }.apply {
+            circleButton(R.drawable.ic_next, 40.dp, "Send reply") {
+                sendReply(item, field.text)
+            }.apply {
                 (background as? GradientDrawable)?.setColor(accent)
                 setColorFilter(Color.BLACK)
             }
@@ -1160,7 +1177,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         )
         entries.forEachIndexed { index, (toggle, iconRes) ->
             if (index > 0) togglesRow.addView(spacer(8.dp))
-            val button = circleButton(iconRes, 38.dp) { listener.onQuickToggle(toggle) }
+            val button = circleButton(iconRes, 38.dp, toggle.label) {
+                listener.onQuickToggle(toggle)
+            }
             toggleButtons[toggle] = button
             togglesRow.addView(button)
         }
@@ -1180,10 +1199,16 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         layoutParams = LinearLayout.LayoutParams(size, 1)
     }
 
-    private fun circleButton(iconRes: Int, size: Int, onClick: () -> Unit): ImageView =
+    private fun circleButton(
+        iconRes: Int,
+        size: Int,
+        label: String? = null,
+        onClick: () -> Unit,
+    ): ImageView =
         ImageView(context).apply {
             layoutParams = LinearLayout.LayoutParams(size, size)
             setImageDrawable(icon(iconRes))
+            contentDescription = label
             setColorFilter(Color.WHITE)
             val pad = size / 4
             setPadding(pad, pad, pad, pad)
