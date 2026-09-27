@@ -28,6 +28,8 @@ import com.joyboard.notchisland.data.isQuietAt
 import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.util.PendingIntents
 import com.joyboard.notchisland.util.readableAccent
+import android.content.BroadcastReceiver
+import android.content.IntentFilter
 
 /**
  * Owns the overlay window and decides what the island shows. Live activities compete by
@@ -78,6 +80,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val quickActions = QuickActions(context)
     private val mediaMonitor = MediaMonitor(context) { snapshot -> onMediaSnapshot(snapshot) }
     private val calendarMonitor = CalendarMonitor(context) { event -> onCalendar(event) }
+    private val automationReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) = onAutomation(intent)
+    }
+    private var automationRegistered = false
     /** The event on the island, and whether its start has been announced, so each surfaces once. */
     private var calendarShownId: Long? = null
     private var calendarStartAnnounced = false
@@ -156,6 +162,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { privacyMonitor.stop() }
         mediaMonitor.stop()
         calendarMonitor.release()
+        setAutomationListening(false)
         quickActions.release()
         window.detach()
     }
@@ -174,6 +181,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 activities.remove(ActivityKind.MEDIA)
             }
         }
+        setAutomationListening(next.externalApiEnabled)
+        if (!next.externalApiEnabled) activities.remove(ActivityKind.EXTERNAL)
         if (next.featureCalendar) {
             // Also picks up a new lead time, and calendar access granted since the last start.
             calendarMonitor.start(next.calendarLeadMinutes)
@@ -276,6 +285,50 @@ class IslandController(private val context: Context) : IslandView.Listener {
             ))
         }
         render()
+    }
+
+    /**
+     * Listens for automation intents only while the setting is on and the island is running:
+     * nothing is registered — and nothing can reach the island this way — the rest of the time.
+     */
+    private fun setAutomationListening(listen: Boolean) {
+        if (listen == automationRegistered) return
+        if (listen) {
+            val filter = IntentFilter().apply {
+                addAction(AutomationRequest.ACTION_SHOW)
+                addAction(AutomationRequest.ACTION_DISMISS)
+            }
+            runCatching {
+                ContextCompat.registerReceiver(
+                    context, automationReceiver, filter, ContextCompat.RECEIVER_EXPORTED
+                )
+                automationRegistered = true
+            }
+        } else {
+            runCatching { context.unregisterReceiver(automationReceiver) }
+            automationRegistered = false
+        }
+    }
+
+    @VisibleForTesting
+    internal fun onAutomation(intent: Intent) {
+        if (!settings.externalApiEnabled) return
+        when (intent.action) {
+            AutomationRequest.ACTION_DISMISS -> drop(ActivityKind.EXTERNAL)
+            AutomationRequest.ACTION_SHOW -> {
+                val extras = intent.extras ?: return
+                @Suppress("DEPRECATION")
+                val request = AutomationRequest.parse { key -> extras.get(key) } ?: return
+                push(
+                    LiveActivity(
+                        kind = ActivityKind.EXTERNAL,
+                        presentation = presentations.external(request),
+                        expiresAt = SystemClock.elapsedRealtime() + request.durationMs,
+                        autoExpand = request.expand,
+                    )
+                )
+            }
+        }
     }
 
     private fun onCalendar(event: CalendarEvent?) {

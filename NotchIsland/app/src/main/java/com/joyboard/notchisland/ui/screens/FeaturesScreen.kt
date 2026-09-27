@@ -24,6 +24,12 @@ import com.joyboard.notchisland.BuildConfig
 import android.Manifest
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import android.content.Intent
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
+import androidx.compose.ui.platform.LocalContext
+import com.joyboard.notchisland.island.AutomationRequest
 
 private fun formatMinutes(minuteOfDay: Int): String {
     val hours = (minuteOfDay / 60) % 24
@@ -342,6 +348,41 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.startOnBoot,
                 onCheckedChange = { value -> viewModel.update { it.copy(startOnBoot = value) } }
             )
+        }
+
+        SectionCard(
+            title = stringResource(R.string.automation),
+            subtitle = stringResource(R.string.automation_desc)
+        ) {
+            SwitchRow(
+                title = stringResource(R.string.allow_other_apps),
+                subtitle = stringResource(R.string.allow_other_apps_desc),
+                checked = settings.externalApiEnabled,
+                onCheckedChange = { value -> viewModel.update { it.copy(externalApiEnabled = value) } }
+            )
+            if (settings.externalApiEnabled) {
+                Text(
+                    stringResource(R.string.automation_how),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+                )
+                val context = LocalContext.current
+                val testTitle = stringResource(R.string.test_message_title)
+                val testText = stringResource(R.string.test_message_text)
+                OutlinedButton(
+                    onClick = {
+                        context.sendBroadcast(
+                            Intent(AutomationRequest.ACTION_SHOW)
+                                .setPackage(context.packageName)
+                                .putExtra(AutomationRequest.EXTRA_TITLE, testTitle)
+                                .putExtra(AutomationRequest.EXTRA_TEXT, testText)
+                                .putExtra(AutomationRequest.EXTRA_ICON, "island")
+                        )
+                    },
+                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+                ) { Text(stringResource(R.string.send_test_message)) }
+            }
         }
     }
 }

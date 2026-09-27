@@ -434,6 +434,14 @@
         <item quantity="one">In %1$d minute</item>
         <item quantity="other">In %1$d minutes</item>
     </plurals>
+    <string name="automation">Automation</string>
+    <string name="automation_desc">For Tasker, Automate, MacroDroid and the like.</string>
+    <string name="allow_other_apps">Let other apps post to the island</string>
+    <string name="allow_other_apps_desc">Off unless you turn it on. Messages are text only — they cannot open anything.</string>
+    <string name="automation_how">Broadcast com.joyboard.notchisland.action.SHOW with a title extra, plus text, duration (seconds), color (#RRGGBB), icon and expand if you like. action.DISMISS takes it away. The README has the details.</string>
+    <string name="send_test_message">Send a test message</string>
+    <string name="test_message_title">Hello from automation</string>
+    <string name="test_message_text">This is what another app’s message looks like.</string>
     <plurals name="blocked_apps">
         <item quantity="one">%1$d app blocked</item>
         <item quantity="other">%1$d apps blocked</item>

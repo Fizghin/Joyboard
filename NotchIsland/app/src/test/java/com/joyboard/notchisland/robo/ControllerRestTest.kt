@@ -21,6 +21,8 @@ import java.time.Duration
 import com.joyboard.notchisland.service.IslandBus
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
+import android.content.Intent
+import com.joyboard.notchisland.island.AutomationRequest
 
 /**
  * The whole controller — overlay window, activity queue, timers — under Robolectric's clock.
@@ -109,6 +111,30 @@ class ControllerRestTest {
         controller.applySettings(settings.copy(hideWhileTyping = true))
         idle(50)
         assertFalse(controller.islandShowing)
+    }
+
+    @Test
+    fun `automation messages get through only while switched on, then time out`() {
+        fun send() = context.sendBroadcast(
+            Intent(AutomationRequest.ACTION_SHOW).putExtra("title", "Laundry done").putExtra("duration", 3)
+        )
+        send()
+        idle(100)
+        assertEquals(IslandMode.PILL, controller.currentMode)
+
+        controller.applySettings(settings.copy(externalApiEnabled = true))
+        send()
+        idle(100)
+        assertEquals(IslandMode.COMPACT, controller.currentMode)
+
+        idle(3_200)
+        assertEquals(IslandMode.PILL, controller.currentMode)
+
+        // Switching it off unregisters the receiver, so nothing more gets in.
+        controller.applySettings(settings.copy(externalApiEnabled = false))
+        send()
+        idle(100)
+        assertEquals(IslandMode.PILL, controller.currentMode)
     }
 
     @Test

@@ -236,6 +236,21 @@ internal class Presentations(
         body = ExpandedBody.History(items),
     )
 
+    /** A message from another app. It has no tap target: automation may speak, not launch. */
+    fun external(request: AutomationRequest): Presentation {
+        val tint = request.color ?: accent()
+        return Presentation(
+            kind = ActivityKind.EXTERNAL,
+            leadingIcon = drawable(request.iconRes),
+            leadingTint = tint,
+            trailing = Trailing.Icon(drawable(request.iconRes), tint),
+            accent = tint,
+            title = request.title,
+            subtitle = request.text,
+            body = ExpandedBody.Message(request.title, request.text),
+        )
+    }
+
     /** The next calendar event, counting down to its start. Tapping opens it. */
     fun calendar(event: CalendarEvent, nowMs: Long): Presentation {
         val minutes = CalendarPicker.minutesUntil(event, nowMs)

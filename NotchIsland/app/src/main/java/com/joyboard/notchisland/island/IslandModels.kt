@@ -30,6 +30,8 @@ enum class ActivityKind(val priority: Int) {
     VOLUME(55),
     PRIVACY(60),
     UNLOCK(65),
+    /** A message another app asked the island to show, through the automation intents. */
+    EXTERNAL(68),
     NOTIFICATION(70),
     /** A ringing or connected call always wins, and stays until it ends. */
     CALL(90),
