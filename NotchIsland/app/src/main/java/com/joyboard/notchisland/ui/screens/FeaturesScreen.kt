@@ -82,6 +82,7 @@ import androidx.compose.material.icons.rounded.NoteAlt
 import androidx.compose.material.icons.rounded.Speed
 import androidx.compose.material.icons.rounded.Thermostat
 import androidx.compose.material.icons.rounded.ViewColumn
+import androidx.compose.material.icons.rounded.WifiOff
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -208,6 +209,14 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
             AnimatedVisibility(visible = settings.featureTimer) {
                 Column {
                     SwitchRow(
+                        title = stringResource(R.string.timer_alarm),
+                        icon = Icons.Rounded.Alarm,
+                        tint = Tint.Orange,
+                        subtitle = stringResource(R.string.timer_alarm_desc),
+                        checked = settings.timerAlarm,
+                        onCheckedChange = { value -> viewModel.update { it.copy(timerAlarm = value) } }
+                    )
+                    SwitchRow(
                         title = stringResource(R.string.quick_timers),
                         icon = Icons.Rounded.MoreTime,
                         tint = Tint.Orange,
@@ -252,6 +261,14 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.featureNavigation,
                 enabled = permissions.notificationAccess,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureNavigation = value) } }
+            )
+            SwitchRow(
+                title = stringResource(R.string.connectivity),
+                icon = Icons.Rounded.WifiOff,
+                tint = Tint.Red,
+                subtitle = stringResource(R.string.connectivity_desc),
+                checked = settings.featureConnectivity,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureConnectivity = value) } }
             )
             SwitchRow(
                 title = stringResource(R.string.network_speed),

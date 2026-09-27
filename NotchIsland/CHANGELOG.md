@@ -1,5 +1,40 @@
 # Changelog
 
+## 2.9
+
+Fixes, found by a new sweep that presses every button the island and the app have, and four new
+things the island does.
+
+Fixed
+- A music player's own notification became an "ongoing" card that outranked now playing, so
+  the island showed plain text instead of the music controls.
+- Any app with a permanent notification — a VPN, a fitness tracker, a sync service — held the
+  island for as long as it ran. Only notifications with something live in them (progress, a
+  running clock, directions, Android 16 live updates) are ongoing activities now.
+- A notification an app updates in place — a chat thread, a sync counter — made the island pop,
+  buzz and glow again on every update. It is announced once, and again only when its words change
+  (never, if the app asked to alert once).
+- A finished download stayed on the island until its notification was cleared.
+- *Open the island for calls* never worked: a ringing call only showed compact. It opens now,
+  with the arrival glow, and buzzes once rather than on every update of the call.
+- Low battery was announced again on every battery broadcast — which Android sends whenever the
+  temperature or voltage moves. It warns at 15 %, 10 % and 5 %, once each.
+- Moving the volume slider in the music or resting panel, or pressing the volume keys while one
+  was open, swapped the panel for the volume readout mid-drag. The open slider moves instead.
+- A running stopwatch or timer redrew the whole island up to sixteen times a second, even while
+  it rested as a bare pill. Only what is on screen is redrawn now.
+- Lock screen and screenshot gestures are offered only on Android 9 and later, where they exist.
+
+New
+- **Timer alarm.** A finished timer rings on the alarm sound — heard with the ringer on silent —
+  and vibrates, opens the island, and stays with *Stop* and *Repeat* until you choose, for up to
+  a minute. *Timers → Ring when a timer ends* switches it off.
+- **Connection.** "No internet connection" when it has been gone a few seconds (a moment's drop
+  while switching networks is not news), "Back online" when it returns, and airplane mode on or off.
+- **Sleep timer** in the music panel: tap for 15, 30, 45 or 60 minutes, and the music pauses then.
+- **More gestures:** open the camera; and, with the helper, lock the screen, take a screenshot,
+  or open the notification shade or quick settings.
+
 ## 2.8
 
 New live activities and a split island.

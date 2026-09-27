@@ -1,5 +1,7 @@
 package com.joyboard.notchisland.ui.screens
 
+import com.joyboard.notchisland.BuildConfig
+
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -40,7 +42,11 @@ import androidx.compose.material.icons.rounded.Waves
 @Composable
 fun GesturesScreen(viewModel: MainViewModel) {
     val settings by viewModel.settings.collectAsStateLifecycle()
-    val actions = GestureAction.entries.toList()
+    // Locking, screenshots and the shade are done by the helper service, which the Play build
+    // does not have; there they would be choices that do nothing.
+    val actions = GestureAction.entries.filter {
+        (BuildConfig.HELPER_AVAILABLE || !it.needsHelper) && android.os.Build.VERSION.SDK_INT >= it.minSdk
+    }
 
     Column(
         modifier = Modifier

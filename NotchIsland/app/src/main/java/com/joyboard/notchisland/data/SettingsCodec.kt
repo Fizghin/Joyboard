@@ -72,6 +72,8 @@ object SettingsCodec {
         put("featureBatteryHeat", settings.featureBatteryHeat)
         put("featureNetworkSpeed", settings.featureNetworkSpeed)
         put("pinnedNote", settings.pinnedNote)
+        put("timerAlarm", settings.timerAlarm)
+        put("featureConnectivity", settings.featureConnectivity)
         put("showNextAlarm", settings.showNextAlarm)
         put("featureWeather", settings.featureWeather)
         put("rainAlerts", settings.rainAlerts)
@@ -188,6 +190,8 @@ object SettingsCodec {
             featureBatteryHeat = o.optBoolean("featureBatteryHeat", base.featureBatteryHeat),
             featureNetworkSpeed = o.optBoolean("featureNetworkSpeed", base.featureNetworkSpeed),
             pinnedNote = o.optString("pinnedNote", base.pinnedNote).take(PINNED_NOTE_MAX),
+            timerAlarm = o.optBoolean("timerAlarm", base.timerAlarm),
+            featureConnectivity = o.optBoolean("featureConnectivity", base.featureConnectivity),
             showNextAlarm = o.optBoolean("showNextAlarm", base.showNextAlarm),
             featureWeather = o.optBoolean("featureWeather", base.featureWeather),
             rainAlerts = o.optBoolean("rainAlerts", base.rainAlerts),

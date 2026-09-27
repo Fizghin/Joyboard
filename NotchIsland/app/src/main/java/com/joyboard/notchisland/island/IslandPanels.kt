@@ -29,6 +29,7 @@ import com.joyboard.notchisland.util.formatDuration
 import java.util.Locale
 import kotlin.math.roundToInt
 import androidx.core.view.isNotEmpty
+import androidx.core.view.children
 
 /** The live views a built panel keeps, so they can be refreshed in place rather than rebuilt. */
 internal class PanelRefs {
@@ -43,6 +44,7 @@ internal class PanelRefs {
     var lyrics: List<LyricLine>? = null
     var lyricNow: TextView? = null
     var lyricNext: TextView? = null
+    var volumeSeek: SeekBar? = null
 
     /** Moves the lyrics to the line being sung, touching the views only when the line changes. */
     fun showLyricAt(positionMs: Long) {
@@ -94,7 +96,8 @@ internal class IslandPanels(
             is ExpandedBody.Stopwatch -> buildStopwatchBody(body, accent, into, refs)
             is ExpandedBody.History -> buildHistoryBody(body.items, into)
             is ExpandedBody.Navigation -> buildNavigationBody(body, accent, into)
-            ExpandedBody.QuickPanel -> buildQuickPanelBody(accent, into)
+            is ExpandedBody.TimerDone -> buildTimerDoneBody(body, accent, into)
+            ExpandedBody.QuickPanel -> buildQuickPanelBody(accent, into, refs)
         }
         return refs
     }
@@ -204,7 +207,33 @@ internal class IslandPanels(
             })
         }
 
-        into.addView(buildVolumeRow(accent, withOutput = true))
+        into.addView(buildVolumeRow(accent, refs, withOutput = true))
+        into.addView(buildSleepTimer(accent))
+    }
+
+    /** Stops the music after a while: each tap moves it on — off, 15, 30, 45, 60 minutes, off. */
+    private fun buildSleepTimer(accent: Int): View {
+        val endsAt = host.listener.sleepEndsAt()
+        val label = endsAt?.let {
+            context.getString(R.string.sleep_until, DateFormat.getTimeFormat(context).format(Date(it)))
+        } ?: context.getString(R.string.sleep_timer)
+        val row = row(topMargin = 10.dp)
+        row.addView(
+            widgets.pillButton(label, accent, if (endsAt != null) Emphasis.TINTED else Emphasis.PLAIN) {
+                host.listener.onSleepTimer()
+            }.apply {
+                // The plain setter, since the icon is sized here rather than at its own 24 dp.
+                setCompoundDrawablesRelative(
+                    widgets.icon(R.drawable.ic_bedtime)?.mutate()?.apply {
+                        setTint(if (endsAt != null) accent else IslandColors.SECONDARY)
+                        setBounds(0, 0, 16.dp, 16.dp)
+                    }, null, null, null,
+                )
+                compoundDrawablePadding = 6.dp
+                contentDescription = context.getString(R.string.sleep_timer_desc)
+            }
+        )
+        return row
     }
 
     // ------------------------------------------------------------------ notifications
@@ -485,6 +514,30 @@ internal class IslandPanels(
         into.addView(row)
     }
 
+    /** A timer that has run out: run it again, or stop it — the ringing with it. */
+    private fun buildTimerDoneBody(body: ExpandedBody.TimerDone, accent: Int, into: LinearLayout) {
+        val row = row()
+        row.addView(
+            widgets.circleButton(
+                R.drawable.ic_reset, 50.dp, context.getString(R.string.repeat_timer), Color.WHITE, IslandColors.FILL,
+            ) { host.listener.onTimerCommand(TimerCommand.REPEAT) }
+        )
+        row.addView(widgets.spacer(10.dp))
+        row.addView(
+            widgets.circleButton(
+                R.drawable.ic_close, 50.dp, context.getString(R.string.stop), Color.BLACK, accent,
+            ) { host.listener.onTimerCommand(TimerCommand.STOP_ALARM) }
+        )
+        row.addView(widgets.flex())
+        row.addView(
+            clockColumn(
+                context.getString(R.string.timer_finished), accent,
+                bigClock(formatDuration(body.totalMs, forceMinutes = true), accent),
+            )
+        )
+        into.addView(row)
+    }
+
     /** The stopwatch: lap or reset and start or stop on the left, the time on the right. */
     private fun buildStopwatchBody(body: ExpandedBody.Stopwatch, accent: Int, into: LinearLayout, refs: PanelRefs) {
         val row = row()
@@ -554,7 +607,7 @@ internal class IslandPanels(
     }
 
     /** The resting island: the time and date, what is coming, and the controls people reach for. */
-    private fun buildQuickPanelBody(accent: Int, into: LinearLayout) {
+    private fun buildQuickPanelBody(accent: Int, into: LinearLayout, refs: PanelRefs) {
         val now = Date()
         val top = row()
         val left = LinearLayout(context).apply {
@@ -624,7 +677,7 @@ internal class IslandPanels(
         into.addView(buildBrightnessRow(accent).also {
             (it.layoutParams as LinearLayout.LayoutParams).topMargin = 10.dp
         })
-        into.addView(buildVolumeRow(accent))
+        into.addView(buildVolumeRow(accent, refs))
     }
 
     /** One tap to a countdown, the lengths people reach for most, and the stopwatch beside them. */
@@ -711,7 +764,7 @@ internal class IslandPanels(
         into.addView(actions)
     }
 
-    private fun buildVolumeRow(accent: Int, withOutput: Boolean = false): View {
+    private fun buildVolumeRow(accent: Int, refs: PanelRefs, withOutput: Boolean = false): View {
         val (current, max) = host.listener.currentVolume()
         // Next to the volume, the way iOS puts AirPlay: where the sound goes, beside how loud.
         val output = if (!withOutput) null else {
@@ -723,7 +776,9 @@ internal class IslandPanels(
         }
         return widgets.sliderRow(
             R.drawable.ic_volume_up, current, max, accent, output, context.getString(R.string.volume),
-        ) { host.listener.onVolumeChange(it) }
+        ) { host.listener.onVolumeChange(it) }.also { row ->
+            refs.volumeSeek = (row as ViewGroup).children.filterIsInstance<SeekBar>().firstOrNull()
+        }
     }
 
     private fun buildBrightnessRow(accent: Int): View =

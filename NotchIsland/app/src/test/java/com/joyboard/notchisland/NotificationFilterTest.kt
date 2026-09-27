@@ -62,4 +62,27 @@ class NotificationFilterTest {
         // Importance -1000 is IMPORTANCE_UNSPECIFIED: no ranking, so do not hide it.
         assertTrue(show(importance = -1000))
     }
+
+    private fun live(
+        category: String? = null, progress: Boolean = false, indeterminate: Boolean = false,
+        chronometer: Boolean = false, promoted: Boolean = false, navigation: Boolean = false,
+    ) = NotificationFilter.ongoingIsLive(category, progress, indeterminate, chronometer, promoted, navigation)
+
+    @Test
+    fun `an app saying it is running is not a live activity`() {
+        assertFalse(live())
+        assertFalse(live(category = "service"))
+        assertFalse(live(category = "transport"))
+    }
+
+    @Test
+    fun `progress, a running clock, a promoted update or a live category is`() {
+        assertTrue(live(progress = true))
+        assertTrue(live(indeterminate = true))
+        assertTrue(live(chronometer = true))
+        assertTrue(live(promoted = true))
+        assertTrue(live(navigation = true))
+        assertTrue(live(category = "stopwatch"))
+        assertTrue(live(category = "workout"))
+    }
 }

@@ -87,6 +87,10 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         fun onStartStopwatch() = Unit
         /** The bubble beside the island, holding a second activity, was tapped. */
         fun onSecondaryTap() = Unit
+        /** The music panel's sleep timer was tapped: on to its next length, or off. */
+        fun onSleepTimer() = Unit
+        /** When the sleep timer will stop the music, in epoch ms, or null when it is off. */
+        fun sleepEndsAt(): Long? = null
     }
 
     // ------------------------------------------------------------------ state
@@ -457,7 +461,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
      */
     private fun selfContained(p: Presentation): Boolean = when (p.body) {
         is ExpandedBody.Timer, is ExpandedBody.Stopwatch, is ExpandedBody.Charging, is ExpandedBody.Call,
-        is ExpandedBody.Navigation -> true
+        is ExpandedBody.Navigation, is ExpandedBody.TimerDone -> true
         ExpandedBody.QuickPanel -> p.kind == ActivityKind.IDLE
         else -> false
     }
@@ -720,6 +724,18 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         refs.timerRing?.progress = if (totalMs <= 0) 0f else remainingMs.toFloat() / totalMs
     }
 
+    /**
+     * Moves the open panel's volume slider to a level set elsewhere — the volume keys. Returns
+     * false when no volume slider is showing, so the caller can announce the change instead.
+     */
+    fun refreshVolume(level: Int, max: Int): Boolean {
+        val seek = refs.volumeSeek ?: return false
+        if (!seek.isShown) return false
+        if (seek.max != max) seek.max = max
+        seek.progress = level.coerceIn(0, max)
+        return true
+    }
+
     fun refreshStopwatch(elapsedMs: Long) {
         refs.stopwatchText?.text = formatStopwatch(elapsedMs)
     }
@@ -849,7 +865,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
      */
     private fun bodyKey(p: Presentation, accent: Int): String = when (val body = p.body) {
         is ExpandedBody.Media -> with(body.media) {
-            "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$upNext|${lyrics?.size}|$accent"
+            "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$upNext|${lyrics?.size}|$accent|" +
+                listener.sleepEndsAt()
         }
         is ExpandedBody.Notification -> with(body.item) {
             // The text is in it too: a chat updates one notification as each message arrives.
@@ -869,6 +886,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         is ExpandedBody.History ->
             "history|${body.items.joinToString(",") { it.key }}|$accent"
         // The quick panel shows a clock, so it is allowed to go stale for at most a minute.
+        is ExpandedBody.TimerDone -> "timerdone|${body.totalMs}|$accent"
         is ExpandedBody.Navigation -> with(body) {
             "navigation|${item.key}|$info|${item.actions.size}|${item.largeIcon?.generationId}|$accent"
         }

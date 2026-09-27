@@ -120,10 +120,21 @@ class NotchNotificationListener : NotificationListenerService() {
             passesDoNotDisturb = !ranked || ranking.matchesInterruptionFilter(),
             ambient = ranked && ranking.isAmbient,
             subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString().orEmpty(),
+            media = extras.containsKey(Notification.EXTRA_MEDIA_SESSION) ||
+                notification.category == Notification.CATEGORY_TRANSPORT,
+            chronometer = extras.getBoolean(Notification.EXTRA_SHOW_CHRONOMETER, false),
+            promoted = flags and FLAG_PROMOTED_ONGOING != 0 ||
+                extras.getBoolean(EXTRA_REQUEST_PROMOTED_ONGOING, false),
+            alertOnce = flags and Notification.FLAG_ONLY_ALERT_ONCE != 0,
         )
     }
 
     companion object {
+        /** Notification.FLAG_PROMOTED_ONGOING, Android 16's live updates; spelled out for older SDKs. */
+        private const val FLAG_PROMOTED_ONGOING = 0x00040000
+        /** Notification.EXTRA_REQUEST_PROMOTED_ONGOING, set by apps asking for a live update. */
+        private const val EXTRA_REQUEST_PROMOTED_ONGOING = "android.requestPromotedOngoing"
+
         @Volatile
         var instance: NotchNotificationListener? = null
             private set

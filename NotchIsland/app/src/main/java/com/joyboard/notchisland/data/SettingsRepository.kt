@@ -130,6 +130,8 @@ class SettingsRepository private constructor(context: Context) {
         val featureBatteryHeat = booleanPreferencesKey("feature_battery_heat")
         val featureNetworkSpeed = booleanPreferencesKey("feature_network_speed")
         val pinnedNote = stringPreferencesKey("pinned_note")
+        val timerAlarm = booleanPreferencesKey("timer_alarm")
+        val featureConnectivity = booleanPreferencesKey("feature_connectivity")
         val showNextAlarm = booleanPreferencesKey("show_next_alarm")
         val featureWeather = booleanPreferencesKey("feature_weather")
         val rainAlerts = booleanPreferencesKey("rain_alerts")
@@ -259,6 +261,8 @@ class SettingsRepository private constructor(context: Context) {
             featureBatteryHeat = this[K.featureBatteryHeat] ?: d.featureBatteryHeat,
             featureNetworkSpeed = this[K.featureNetworkSpeed] ?: d.featureNetworkSpeed,
             pinnedNote = this[K.pinnedNote] ?: d.pinnedNote,
+            timerAlarm = this[K.timerAlarm] ?: d.timerAlarm,
+            featureConnectivity = this[K.featureConnectivity] ?: d.featureConnectivity,
             showNextAlarm = this[K.showNextAlarm] ?: d.showNextAlarm,
             featureWeather = this[K.featureWeather] ?: d.featureWeather,
             rainAlerts = this[K.rainAlerts] ?: d.rainAlerts,
@@ -413,6 +417,8 @@ class SettingsRepository private constructor(context: Context) {
         this[K.featureBatteryHeat] = s.featureBatteryHeat
         this[K.featureNetworkSpeed] = s.featureNetworkSpeed
         this[K.pinnedNote] = s.pinnedNote
+        this[K.timerAlarm] = s.timerAlarm
+        this[K.featureConnectivity] = s.featureConnectivity
         this[K.showNextAlarm] = s.showNextAlarm
         this[K.featureWeather] = s.featureWeather
         this[K.rainAlerts] = s.rainAlerts

@@ -13,6 +13,9 @@ import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.net.TrafficStats
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
 import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.ContextCompat
@@ -132,6 +135,72 @@ class NetworkSpeedMonitor(private val onReading: (SpeedReading) -> Unit) {
 
     private companion object {
         const val INTERVAL_MS = 1_500L
+    }
+}
+
+/**
+ * Whether the phone can reach the internet, and whether that is over Wi-Fi, from the default
+ * network's callbacks — which arrive on a binder thread and are handed to the main thread here.
+ * Also airplane mode, from its broadcast.
+ */
+class ConnectivityMonitor(
+    private val context: Context,
+    private val onNetwork: (online: Boolean, wifi: Boolean) -> Unit,
+    private val onAirplane: (on: Boolean) -> Unit,
+) {
+    private val manager = context.getSystemService(ConnectivityManager::class.java)
+    private val handler = Handler(Looper.getMainLooper())
+    private var registered = false
+    private val report = Runnable { onNetwork(isOnline(), isWifi()) }
+
+    private val callback = object : ConnectivityManager.NetworkCallback() {
+        override fun onAvailable(network: Network) = post()
+        override fun onLost(network: Network) = post()
+        override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) = post()
+    }
+
+    private val airplaneReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            onAirplane(intent.getBooleanExtra("state", airplaneOn()))
+        }
+    }
+
+    private fun post() {
+        // A burst of callbacks — lost, available, capabilities — becomes one report.
+        handler.removeCallbacks(report)
+        handler.post(report)
+    }
+
+    fun isOnline(): Boolean = runCatching {
+        val m = manager ?: return@runCatching true
+        m.getNetworkCapabilities(m.activeNetwork)
+            ?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
+    }.getOrDefault(true)
+
+    private fun isWifi(): Boolean = runCatching {
+        val m = manager ?: return@runCatching false
+        m.getNetworkCapabilities(m.activeNetwork)?.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) == true
+    }.getOrDefault(false)
+
+    fun airplaneOn(): Boolean =
+        Settings.Global.getInt(context.contentResolver, Settings.Global.AIRPLANE_MODE_ON, 0) != 0
+
+    fun start() {
+        if (registered) return
+        registered = true
+        runCatching { manager?.registerDefaultNetworkCallback(callback) }
+        ContextCompat.registerReceiver(
+            context, airplaneReceiver, IntentFilter(Intent.ACTION_AIRPLANE_MODE_CHANGED),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
+
+    fun stop() {
+        if (!registered) return
+        registered = false
+        handler.removeCallbacks(report)
+        runCatching { manager?.unregisterNetworkCallback(callback) }
+        runCatching { context.unregisterReceiver(airplaneReceiver) }
     }
 }
 

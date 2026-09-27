@@ -150,6 +150,10 @@ class IslandGalleryTest {
         both("y_network", presentations.network(SpeedReading(2_516_582, 131_072, active = true)))
         both("z_battery_hot", presentations.batteryHot(BatteryState(64, plugged = true, fast = false, full = false, temperatureC = 46f)))
         both("za_note", presentations.note("Buy milk and bread on the way home"))
+        both("zc_timer_done", presentations.timerFinished(5 * 60_000L, ringing = true))
+        both("zd_offline", presentations.offline())
+        both("ze_back_online", presentations.online(wifi = true))
+        both("zf_airplane", presentations.airplane(on = true))
     }
 
     /** Two at once: the timer in front and the torch in the bubble beside it, through the real window. */

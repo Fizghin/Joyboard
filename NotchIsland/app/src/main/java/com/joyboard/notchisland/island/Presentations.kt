@@ -216,8 +216,9 @@ internal class Presentations(
     )
 
     /** A countdown reaching zero. */
-    fun timerFinished() = Presentation(
-        kind = ActivityKind.NOTIFICATION,
+    fun timerFinished(totalMs: Long, ringing: Boolean) = Presentation(
+        // Ringing, it holds the island until stopped; silent, it passes like a notification.
+        kind = if (ringing) ActivityKind.ALARM else ActivityKind.NOTIFICATION,
         leadingIcon = drawable(R.drawable.ic_timer),
         leadingTint = IslandColors.ORANGE,
         trailing = Trailing.Text(context.getString(R.string.done), IslandColors.ORANGE),
@@ -225,8 +226,51 @@ internal class Presentations(
         fixedAccent = IslandColors.ORANGE,
         title = context.getString(R.string.timer_finished),
         subtitle = null,
+        body = ExpandedBody.TimerDone(totalMs),
+    )
+
+    /** The internet has gone, and has stayed gone for a few seconds. */
+    fun offline() = Presentation(
+        kind = ActivityKind.CONNECTIVITY,
+        leadingIcon = drawable(R.drawable.ic_wifi_off),
+        leadingTint = IslandColors.RED,
+        trailing = Trailing.Text(context.getString(R.string.offline_short), IslandColors.RED),
+        accent = IslandColors.RED,
+        fixedAccent = IslandColors.RED,
+        title = context.getString(R.string.no_internet),
+        subtitle = context.getString(R.string.no_internet_detail),
         body = NOTHING_MORE,
     )
+
+    /** The internet is back after going. */
+    fun online(wifi: Boolean) = Presentation(
+        kind = ActivityKind.CONNECTIVITY,
+        leadingIcon = drawable(if (wifi) R.drawable.ic_wifi else R.drawable.ic_cellular),
+        leadingTint = IslandColors.GREEN,
+        trailing = Trailing.Text(context.getString(R.string.online_short), IslandColors.GREEN),
+        accent = IslandColors.GREEN,
+        fixedAccent = IslandColors.GREEN,
+        title = context.getString(R.string.back_online),
+        subtitle = context.getString(if (wifi) R.string.wi_fi else R.string.mobile_data),
+        body = NOTHING_MORE,
+    )
+
+    /** Airplane mode going on or off. */
+    fun airplane(on: Boolean): Presentation {
+        val tint = if (on) IslandColors.ORANGE else IslandColors.GRAY
+        val state = context.getString(if (on) R.string.torch_state_on else R.string.off_short)
+        return Presentation(
+            kind = ActivityKind.CONNECTIVITY,
+            leadingIcon = drawable(R.drawable.ic_airplane),
+            leadingTint = tint,
+            trailing = Trailing.Text(state, tint),
+            accent = tint,
+            fixedAccent = tint,
+            title = context.getString(R.string.airplane_mode),
+            subtitle = state,
+            body = NOTHING_MORE,
+        )
+    }
 
     /** Nothing happening: the resting island. */
     fun idle() = Presentation(

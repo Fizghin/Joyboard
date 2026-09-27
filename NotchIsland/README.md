@@ -79,10 +79,12 @@ priority queue and shows the winner:
 | Activity | Priority | Lives for |
 | --- | --- | --- |
 | Call | highest | until the call ends |
+| Timer ringing | | until stopped, at most a minute |
 | Notification preview | | 1.5–12 s (configurable) |
 | Automation message | | 1–600 s, as sent |
 | Unlock confirmation | | 1.4 s |
 | Privacy indicator (mic / camera) | | while the sensor is live |
+| Internet gone / back, airplane mode | | 2–4 s |
 | Volume change | | 1.6 s |
 | Do Not Disturb on / off | | 2 s |
 | Ringer mode change | | 1.5 s |
@@ -95,7 +97,7 @@ priority queue and shows the winner:
 | Stopwatch | | until reset |
 | Timer countdown | | until it finishes |
 | Flashlight | | while the torch is on |
-| Ongoing activity (download, delivery, recording) | | until its notification goes |
+| Ongoing activity (download, delivery, recording, Android 16 live update) | | while it is live |
 | Network speed | | while a transfer stays fast |
 | Next calendar event | | from the lead time until 5 min in |
 | Now playing | | while a media session exists |
@@ -121,6 +123,12 @@ balances it on the other side.
 as a notification; the island turns it into the next turn — the app's own arrow, how far, what to
 do there — and the arrival time, with the app's buttons (*Exit navigation*) underneath. A new turn
 brings the compact readout back up; the distance counting down does not.
+
+**Connection.** When the internet has been gone for a few seconds the island says so, and says
+when it is back; a moment's drop while the phone switches from Wi-Fi to mobile data is not news.
+Airplane mode going on or off is shown too, and explains the silence rather than adding to it.
+
+<img src="docs/screenshots/island_alerts.png" width="620" alt="A finished timer with Repeat and Stop buttons beside 05:00 in orange, and a No internet connection card" />
 
 **Battery heat, network speed and a pinned note.** The charging panel shows the battery's
 temperature, and the island warns once when it passes 45 °C — again only after it has cooled
@@ -196,7 +204,8 @@ auto-rotate and app settings. Toggles that Android reserves for the system open 
 settings panel instead of failing silently.
 
 **Timers and a stopwatch.** A countdown with round pause, cancel and +1 minute buttons beside the
-time in large orange figures, and a stopwatch whose left button takes a lap while running and
+time in large orange figures — and when it runs out it rings on the alarm sound (heard on silent)
+and vibrates until you tap *Stop* or *Repeat*, for up to a minute; and a stopwatch whose left button takes a lap while running and
 resets once stopped, with the last three laps listed. Both live in the island until they are done.
 
 **Quiet hours and rest.** The island can step aside for a stretch of the day (the window wraps
@@ -433,7 +442,7 @@ every push to `notch`.
 
 ### Tests
 
-227 tests in two layers.
+266 tests in two layers, two of them sweeps that press everything.
 
 **Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
 policy, when the island hides, tap stepping, camera clearance geometry, which screen a camera
@@ -452,6 +461,11 @@ the open panels saying each thing once, with their own layouts and colours (incl
 ring that drew black on black, which a test caught); two activities at once, the bubble and the
 swap, directions, network speed, the heat warning and the pinned note through the whole controller; and screenshot tests that render `IslandView`
 in every size, plus every kind of activity, with native graphics. CI uploads those renders on every push.
+
+**Sweeps** — one puts every kind of activity on the island through the real controller and
+window, opens it to each size, and presses every button in turn, bringing the activity back
+before each press; nothing may throw, and no redraw may fail quietly. The other presses every
+control on every settings screen. Between them they found most of 2.9's fixes.
 
 What still needs a phone: real window layering against the system status bar, touch delivery,
 and anything that depends on another app's notifications.
@@ -488,7 +502,10 @@ NotchIsland/app/src/main/java/com/joyboard/notchisland/
 │   ├── SecondaryBubble.kt    the second activity's bubble beside the island
 │   ├── NavigationText.kt     directions out of a maps notification (tested)
 │   ├── SpeedMeter.kt         transfer rates and when they count (tested)
-│   └── HeatWatch.kt          when a hot battery is worth a warning (tested)
+│   ├── HeatWatch.kt          when a hot battery is worth a warning (tested)
+│   ├── LowBatteryWatch.kt    warning at 15, 10 and 5 %, once each (tested)
+│   ├── SeenNotifications.kt  an update in place is not announced again (tested)
+│   └── TimerAlarm.kt         a finished timer's sound and vibration
 ├── service/
 │   ├── NotchOverlayService.kt     foreground service that hosts the overlay
 │   ├── NotchNotificationListener.kt

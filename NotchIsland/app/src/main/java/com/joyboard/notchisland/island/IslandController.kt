@@ -33,6 +33,8 @@ import android.content.IntentFilter
 import android.view.WindowManager
 import com.joyboard.notchisland.BuildConfig
 import com.joyboard.notchisland.data.SettingsRepository
+import android.accessibilityservice.AccessibilityService
+import android.provider.MediaStore
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -115,6 +117,30 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val focusMonitor = FocusMonitor(context) { on -> onFocus(on) }
     private val networkMonitor = NetworkSpeedMonitor { reading -> onNetworkSpeed(reading) }
     private val heatWatch = HeatWatch()
+    private val lowBattery = LowBatteryWatch()
+    private val seenNotifications = SeenNotifications()
+    private val alarm = TimerAlarm(context)
+    private val connectivity = ConnectivityMonitor(
+        context,
+        onNetwork = { online, wifi -> onConnectivity(online, wifi) },
+        onAirplane = { on -> onAirplane(on) },
+    )
+    /** Whether the phone was online at the last report; null until the first one. */
+    private var online: Boolean? = null
+    /** "No internet" was said, so "back online" is owed when it returns. */
+    private var offlineAnnounced = false
+    private val offlineCheck = Runnable {
+        // Still offline after the grace period, and not because airplane mode was switched on.
+        if (online == false && !connectivity.airplaneOn()) {
+            offlineAnnounced = true
+            push(LiveActivity(ActivityKind.CONNECTIVITY, presentations.offline(), SystemClock.elapsedRealtime() + 4_000))
+        }
+    }
+    /** When the sleep timer stops the music, in epoch ms; null when it is off. */
+    private var sleepAt: Long? = null
+    private val sleepRunnable = Runnable { onSleepTimerDone() }
+    /** When the island's own slider last moved the volume, so that is not announced back to it. */
+    private var ownVolumeChangeAt: Long? = null
     /** For writing back a note ticked off on the island; cancelled when the island stops. */
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     /** A pinned note ticked off on the island, kept out until the setting catches up. */
@@ -192,6 +218,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
         headphoneMonitor.stop()
         focusMonitor.stop()
         networkMonitor.stop()
+        alarm.stop()
+        connectivity.stop()
         scope.cancel()
         quickActions.onTorchChanged = null
         lyrics.release()
@@ -232,6 +260,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (!next.featureNavigation) activities.remove(ActivityKind.NAVIGATION)
         updateNetworkWatch()
         applyNote()
+        if (next.featureConnectivity) {
+            connectivity.start()
+        } else {
+            connectivity.stop()
+            online = null
+            offlineAnnounced = false
+            handler.removeCallbacks(offlineCheck)
+            activities.remove(ActivityKind.CONNECTIVITY)
+        }
         if (!next.featureFlashlight) activities.remove(ActivityKind.FLASHLIGHT)
         else if (quickActions.torchOn && activities.peek(ActivityKind.FLASHLIGHT) == null) onTorch(true)
         if (before.featureLyrics != next.featureLyrics && next.featureMedia) {
@@ -326,6 +363,18 @@ class IslandController(private val context: Context) : IslandView.Listener {
     internal fun networkSpeed(reading: SpeedReading) = onNetworkSpeed(reading)
 
     @VisibleForTesting
+    internal fun connectivityChanged(online: Boolean, wifi: Boolean) = onConnectivity(online, wifi)
+
+    @VisibleForTesting
+    internal fun airplaneChanged(on: Boolean) = onAirplane(on)
+
+    @VisibleForTesting
+    internal val alarmRinging: Boolean get() = alarm.ringing
+
+    @VisibleForTesting
+    internal fun volumeChanged(stream: Int, level: Int, max: Int) = onVolume(stream, level, max)
+
+    @VisibleForTesting
     internal fun batteryChanged(state: BatteryState, plugChanged: Boolean) = onBattery(state, plugChanged)
 
     @VisibleForTesting
@@ -354,7 +403,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 replying = island?.isReplying() == true,
                 foregroundPackage = IslandBus.foregroundPackage,
                 hiddenInPackages = settings.hiddenInPackages,
-                urgent = currentTop()?.kind == ActivityKind.CALL,
+                // A call, or a timer ringing: both need seeing wherever you are.
+                urgent = currentTop()?.kind.let { it == ActivityKind.CALL || it == ActivityKind.ALARM },
                 shadeOpen = IslandBus.shadeOpen,
                 aboveStatusBar = window.aboveStatusBar,
             )
@@ -367,6 +417,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     // ------------------------------------------------------------------ activity feed
 
     fun push(activity: LiveActivity) {
+        arrivals++
         markActivityChanged()
         activities.put(activity)
         if (activity.autoExpand) userStage = IslandMode.EXPANDED
@@ -565,11 +616,23 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     fun onNotification(item: NotificationItem) {
+        // A player's own notification: its media session already puts it on the island, with
+        // controls. Letting it through as well made it outrank now playing as a plain card.
+        if (item.media) return
         val kind = when {
             item.isCall && settings.featureCalls -> NotificationKind.CALL
-            item.ongoing || item.isNavigation -> NotificationKind.ONGOING
+            (item.ongoing || item.isNavigation) && item.isLiveOngoing -> NotificationKind.ONGOING
+            // An app saying it is running — a VPN, a tracker, a sync — is not news, and would
+            // otherwise hold the island for as long as the app runs.
+            item.ongoing -> {
+                dropOngoing(item.key)
+                return
+            }
             else -> NotificationKind.PREVIEW
         }
+        // An ongoing notification updated into something else — a download that finished —
+        // takes its live activity with it.
+        if (kind != NotificationKind.ONGOING) dropOngoing(item.key)
         val allowed = NotificationFilter.shouldShow(
             kind = kind,
             packageBlocked = item.packageName in settings.blockedPackages,
@@ -589,6 +652,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     /** An ongoing or call notification going away takes its activity with it. */
     fun onNotificationRemoved(key: String) {
+        seenNotifications.forget(key)
         var changed = false
         if (activities.peek(ActivityKind.CALL)?.presentation?.notificationKey == key) {
             changed = activities.remove(ActivityKind.CALL)
@@ -602,11 +666,20 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (changed) render()
     }
 
+    /** Removes a live activity backed by [key], when the notification stops being one. */
+    private fun dropOngoing(key: String) {
+        var changed = false
+        for (kind in listOf(ActivityKind.ONGOING, ActivityKind.NAVIGATION)) {
+            if (activities.peek(kind)?.presentation?.notificationKey == key) changed = activities.remove(kind) || changed
+        }
+        if (changed) render()
+    }
+
     private fun pushCall(item: NotificationItem) {
         lastNotification = item
-        if (activities.peek(ActivityKind.CALL)?.presentation?.notificationKey != item.key) {
-            markActivityChanged()
-        }
+        // The dialer re-posts its notification as the call goes on; only a new call is news.
+        val newCall = activities.peek(ActivityKind.CALL)?.presentation?.notificationKey != item.key
+        if (newCall) markActivityChanged()
         activities.put(
             LiveActivity(
                 kind = ActivityKind.CALL,
@@ -616,8 +689,17 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 autoExpand = settings.autoExpandCalls,
             )
         )
+        // Placed straight in the queue rather than pushed, so the arrival is handled here: before,
+        // "open the island for calls" was never applied and a ringing call only showed compact.
+        if (newCall) {
+            arrivals++
+            if (settings.autoExpandCalls) userStage = IslandMode.EXPANDED
+        }
         render()
-        haptics.pop()
+        if (newCall) {
+            haptics.pop()
+            island?.announce(presentations.call(item).accent)
+        }
     }
 
     private fun pushOngoing(item: NotificationItem) {
@@ -652,6 +734,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun pushNotification(item: NotificationItem) {
         lastNotification = item
         if (settings.featureHistory) remember(item)
+        if (!seenNotifications.shouldAnnounce(item.key, item.title, item.text, item.alertOnce)) {
+            // Updated in place with nothing new: refresh it if it is on screen, quietly.
+            activities.peek(ActivityKind.NOTIFICATION)
+                ?.takeIf { it.presentation.notificationKey == item.key }
+                ?.let {
+                    activities.put(it.copy(presentation = presentations.notification(item)))
+                    render()
+                }
+            return
+        }
         val presentation = presentations.notification(item)
         // A passcode or a reply box is worth opening for; a plain alert is not.
         val worthExpanding = (item.otp != null && settings.autoExpandOtp) ||
@@ -682,7 +774,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 )
             )
         }
-        if (state.level <= 15 && !state.plugged && settings.featureBatteryLow) {
+        if (lowBattery.update(state.level, state.plugged) && settings.featureBatteryLow) {
             push(
                 LiveActivity(
                     ActivityKind.BATTERY_LOW,
@@ -711,6 +803,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private fun onVolume(stream: Int, level: Int, max: Int) {
         if (!settings.featureVolume) return
+        if (stream == AudioManager.STREAM_MUSIC) {
+            // The island's own slider moved it, and the slider already shows where it is.
+            val own = ownVolumeChangeAt
+            if (own != null && SystemClock.elapsedRealtime() - own < OWN_VOLUME_WINDOW_MS) return
+            // An open panel with a volume slider — music, the resting panel — moves its slider
+            // rather than being swapped for the volume readout.
+            val view = island
+            if (view != null && view.mode == IslandMode.EXPANDED && view.refreshVolume(level, max)) return
+        }
         val fraction = level.toFloat() / max.coerceAtLeast(1)
         push(
             LiveActivity(
@@ -836,30 +937,113 @@ class IslandController(private val context: Context) : IslandView.Listener {
             render()
             return
         }
-        activities.put(LiveActivity(
-            ActivityKind.TIMER,
-            presentations.timer(remaining, total, running),
-            expiresAt = Long.MAX_VALUE,
-        ))
+        val before = activities.peek(ActivityKind.TIMER)?.presentation?.body as? ExpandedBody.Timer
+        onClockTick(
+            LiveActivity(ActivityKind.TIMER, presentations.timer(remaining, total, running), expiresAt = Long.MAX_VALUE),
+            changed = before == null || before.running != running,
+        ) { it.refreshTimer(remaining, total) }
+    }
+
+    /**
+     * A clock ticking. It keeps its activity current, but redraws only what can be seen: the
+     * digits of an open panel, or the compact readout. The full render — sizes, rest timers, the
+     * window — is for when something about the clock changes (started, paused, a lap), not for
+     * every tick; a stopwatch otherwise re-laid-out the whole window sixteen times a second, even
+     * while the island rested as a bare pill.
+     */
+    private fun onClockTick(activity: LiveActivity, changed: Boolean, refreshOpen: (IslandView) -> Unit) {
+        activities.put(activity)
         val view = island
-        if (view != null && view.mode == IslandMode.EXPANDED) {
-            view.refreshTimer(remaining, total)
-            updateCompactOnly()
-        } else {
-            render()
+        when {
+            view == null -> Unit
+            changed -> render()
+            // In the bubble, or behind something else: nothing of it is on screen to move.
+            currentTop()?.kind != activity.kind -> Unit
+            view.mode == IslandMode.EXPANDED -> refreshOpen(view)
+            view.mode == IslandMode.COMPACT || view.mode == IslandMode.MEDIUM -> updateCompactOnly()
+            // Resting as a pill: the digits are not shown.
+            else -> Unit
         }
     }
 
     private fun onTimerFinished() {
         haptics.pop()
+        activities.remove(ActivityKind.TIMER)
+        val ringing = settings.timerAlarm
+        if (ringing) alarm.start()
         push(
             LiveActivity(
-                ActivityKind.NOTIFICATION,
-                presentations.timerFinished(),
-                expiresAt = SystemClock.elapsedRealtime() + 4000,
+                if (ringing) ActivityKind.ALARM else ActivityKind.NOTIFICATION,
+                presentations.timerFinished(timer.totalMs, ringing),
+                // Ringing, it stays as long as the ringing does; silent, it passes.
+                expiresAt = SystemClock.elapsedRealtime() + if (ringing) TimerAlarm.LIMIT_MS else 4_000,
+                autoExpand = ringing,
             )
         )
-        activities.remove(ActivityKind.TIMER)
+    }
+
+    /** Silences a finished timer and takes it off the island. */
+    private fun stopAlarm() {
+        alarm.stop()
+        activities.remove(ActivityKind.ALARM)
+        if (activities.peek(ActivityKind.NOTIFICATION)?.presentation?.body is ExpandedBody.TimerDone) {
+            activities.remove(ActivityKind.NOTIFICATION)
+        }
+        userStage = null
+    }
+
+    // ------------------------------------------------------------------ connectivity
+
+    /**
+     * Offline is only said after a few seconds of it — switching from Wi-Fi to mobile data drops
+     * the connection for a moment, and that is not news — and "back online" only after it was.
+     */
+    private fun onConnectivity(nowOnline: Boolean, wifi: Boolean) {
+        if (!settings.featureConnectivity) return
+        val was = online
+        online = nowOnline
+        if (was == null || was == nowOnline) return
+        if (!nowOnline) {
+            handler.removeCallbacks(offlineCheck)
+            handler.postDelayed(offlineCheck, OFFLINE_GRACE_MS)
+            return
+        }
+        handler.removeCallbacks(offlineCheck)
+        if (offlineAnnounced) {
+            offlineAnnounced = false
+            push(LiveActivity(ActivityKind.CONNECTIVITY, presentations.online(wifi), SystemClock.elapsedRealtime() + 2_500))
+        }
+    }
+
+    private fun onAirplane(on: Boolean) {
+        if (!settings.featureConnectivity) return
+        // Airplane mode explains the silence; it does not need "no internet" said as well.
+        handler.removeCallbacks(offlineCheck)
+        push(LiveActivity(ActivityKind.CONNECTIVITY, presentations.airplane(on), SystemClock.elapsedRealtime() + 2_000))
+    }
+
+    // ------------------------------------------------------------------ sleep timer
+
+    override fun sleepEndsAt(): Long? = sleepAt
+
+    override fun onSleepTimer() {
+        haptics.tick()
+        val now = System.currentTimeMillis()
+        // The next length up from what is left, rounded to the step; past the longest, off.
+        // Rounded up, so a second tap straight after the first goes on to 30 rather than
+        // finding 14 minutes and some seconds left and setting 15 again.
+        val leftMin = sleepAt?.let { ((it - now + 59_999L) / 60_000L).toInt() }
+        val next = SLEEP_STEPS_MIN.firstOrNull { leftMin == null || it > leftMin }
+        handler.removeCallbacks(sleepRunnable)
+        sleepAt = next?.let { now + it * 60_000L }
+        next?.let { handler.postDelayed(sleepRunnable, it * 60_000L) }
+        render()
+    }
+
+    private fun onSleepTimerDone() {
+        sleepAt = null
+        // Only pause: a player already stopped is left alone rather than started again.
+        if (mediaMonitor.snapshot()?.playing == true) mediaMonitor.command(MediaCommand.PLAY_PAUSE)
         render()
     }
 
@@ -905,12 +1089,30 @@ class IslandController(private val context: Context) : IslandView.Listener {
         lastActivityChangeAt = SystemClock.elapsedRealtime()
     }
 
-    private fun render() = runCatching { renderInternal() }.getOrElse {
+    private fun render() = runCatching { renders++; renderInternal() }.getOrElse {
         // A render must never take the service down with it.
+        renderFailures++
         android.util.Log.w("NotchIsland", "render failed", it)
     }
 
+    /** Activities pushed with a fresh arrival — haptic, bounce and all. For tests. */
+    @VisibleForTesting
+    internal var arrivals = 0
+        private set
+
+    /** Full renders so far, for tests that check the island is not redrawing for nothing. */
+    @VisibleForTesting
+    internal var renders = 0
+        private set
+
+    /** Renders that threw and were swallowed. Always zero unless something is broken; for tests. */
+    @VisibleForTesting
+    internal var renderFailures = 0
+        private set
+
     private fun renderInternal() {
+        // However the ringing timer left — stopped, dismissed, timed out — its sound goes with it.
+        if (alarm.ringing && activities.peek(ActivityKind.ALARM) == null) alarm.stop()
         val view = island ?: return
         handler.removeCallbacks(expiryRunnable)
 
@@ -1004,6 +1206,18 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
         const val DAY_MS = 24 * 60 * 60_000L
 
+        /** AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT, which the island waits a moment for. */
+        const val SCREENSHOT_ACTION = 9
+
+        /** How long the connection has to stay gone before "no internet" is said. */
+        const val OFFLINE_GRACE_MS = 5_000L
+
+        /** The sleep timer's lengths, in minutes, stepped through a tap at a time. */
+        val SLEEP_STEPS_MIN = listOf(15, 30, 45, 60)
+
+        /** Volume changes this soon after the island's own slider moved it are its own echo. */
+        const val OWN_VOLUME_WINDOW_MS = 1_000L
+
         /** Rain starts closer together than this are one shower, announced once. */
         const val RAIN_SAME_SHOWER_MS = 90 * 60_000L
     }
@@ -1059,6 +1273,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 }
             }
             GestureAction.START_STOPWATCH -> startStopwatch()
+            GestureAction.OPEN_CAMERA -> openCamera()
+            // Both arrived in Android 9; a setting restored onto an older phone does nothing.
+            GestureAction.LOCK_SCREEN -> if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                helperAction(AccessibilityService.GLOBAL_ACTION_LOCK_SCREEN)
+            }
+            GestureAction.TAKE_SCREENSHOT -> if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                helperAction(AccessibilityService.GLOBAL_ACTION_TAKE_SCREENSHOT)
+            }
+            GestureAction.OPEN_NOTIFICATIONS -> helperAction(AccessibilityService.GLOBAL_ACTION_NOTIFICATIONS)
+            GestureAction.OPEN_QUICK_SETTINGS -> helperAction(AccessibilityService.GLOBAL_ACTION_QUICK_SETTINGS)
             GestureAction.HIDE_TEMPORARILY -> {
                 hiddenUntil = SystemClock.elapsedRealtime() + 30_000
                 updateVisibility()
@@ -1092,6 +1316,12 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 timer.cancel()
                 activities.remove(ActivityKind.TIMER)
             }
+            TimerCommand.STOP_ALARM -> stopAlarm()
+            TimerCommand.REPEAT -> {
+                val length = timer.totalMs
+                stopAlarm()
+                if (length > 0) startTimer(length)
+            }
         }
         render()
     }
@@ -1107,7 +1337,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
     }
 
-    override fun onVolumeChange(progress: Int) = volumeMonitor.setMusicVolume(progress)
+    override fun onVolumeChange(progress: Int) {
+        ownVolumeChangeAt = SystemClock.elapsedRealtime()
+        volumeMonitor.setMusicVolume(progress)
+    }
 
     override fun onBrightnessChange(progress: Int) {
         if (!quickActions.setBrightness(progress)) {
@@ -1223,20 +1456,12 @@ class IslandController(private val context: Context) : IslandView.Listener {
             render()
             return
         }
-        activities.put(
-            LiveActivity(
-                ActivityKind.STOPWATCH,
-                presentations.stopwatch(elapsed, running, stopwatch.laps.toList()),
-                expiresAt = Long.MAX_VALUE,
-            )
-        )
-        val view = island
-        if (view != null && view.mode == IslandMode.EXPANDED) {
-            view.refreshStopwatch(elapsed)
-            updateCompactOnly()
-        } else {
-            render()
-        }
+        val laps = stopwatch.laps.toList()
+        val before = activities.peek(ActivityKind.STOPWATCH)?.presentation?.body as? ExpandedBody.Stopwatch
+        onClockTick(
+            LiveActivity(ActivityKind.STOPWATCH, presentations.stopwatch(elapsed, running, laps), expiresAt = Long.MAX_VALUE),
+            changed = before == null || before.running != running || before.laps.size != laps.size,
+        ) { it.refreshStopwatch(elapsed) }
     }
 
     fun startStopwatch() {
@@ -1244,6 +1469,28 @@ class IslandController(private val context: Context) : IslandView.Listener {
         markActivityChanged()
         stopwatch.start()
         userStage = IslandMode.EXPANDED
+        render()
+    }
+
+    /** A global action through the helper; without it, says so instead of doing nothing. */
+    private fun helperAction(action: Int) {
+        val perform = IslandBus.globalAction
+        if (perform == null) {
+            toast(context.getString(R.string.needs_helper))
+            return
+        }
+        haptics.pop()
+        // A screenshot of the island opened over everything is not what anyone wants.
+        userStage = null
+        render()
+        handler.postDelayed({ runCatching { perform(action) } }, if (action == SCREENSHOT_ACTION) 350L else 0L)
+    }
+
+    private fun openCamera() {
+        haptics.pop()
+        val intent = Intent(MediaStore.INTENT_ACTION_STILL_IMAGE_CAMERA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        if (runCatching { context.startActivity(intent) }.isFailure) toast(context.getString(R.string.no_camera_app))
+        userStage = null
         render()
     }
 

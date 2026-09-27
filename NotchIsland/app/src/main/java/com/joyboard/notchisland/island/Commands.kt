@@ -5,7 +5,13 @@ import androidx.annotation.StringRes
 
 enum class MediaCommand { PLAY_PAUSE, NEXT, PREVIOUS }
 
-enum class TimerCommand { PAUSE, RESUME, ADD_MINUTE, CANCEL }
+enum class TimerCommand {
+    PAUSE, RESUME, ADD_MINUTE, CANCEL,
+    /** A finished timer: silence it. */
+    STOP_ALARM,
+    /** A finished timer: silence it and run the same length again. */
+    REPEAT,
+}
 
 enum class StopwatchCommand { START_PAUSE, LAP, RESET }
 

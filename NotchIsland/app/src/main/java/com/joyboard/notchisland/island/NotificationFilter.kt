@@ -16,6 +16,24 @@ object NotificationFilter {
     /** NotificationManager.IMPORTANCE_DEFAULT: the lowest level that makes a sound. */
     const val AUDIBLE_IMPORTANCE = 3
 
+    /**
+     * Whether a notification that stays in the shade is a live activity — something with a state
+     * worth watching — or just an app saying it is running. Only the first belongs on the island:
+     * otherwise every VPN, fitness tracker and background service would hold it forever.
+     */
+    fun ongoingIsLive(
+        category: String?,
+        hasProgress: Boolean,
+        indeterminate: Boolean,
+        chronometer: Boolean,
+        promoted: Boolean,
+        navigation: Boolean,
+    ): Boolean = navigation || promoted || hasProgress || indeterminate || chronometer ||
+        category in LIVE_CATEGORIES
+
+    /** Categories that are live by nature: a download, a stopwatch, a workout, a shared location. */
+    private val LIVE_CATEGORIES = setOf("progress", "stopwatch", "workout", "location_sharing", "navigation")
+
     fun shouldShow(
         kind: NotificationKind,
         packageBlocked: Boolean,

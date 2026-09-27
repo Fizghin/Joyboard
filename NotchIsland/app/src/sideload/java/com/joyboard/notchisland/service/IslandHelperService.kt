@@ -32,6 +32,8 @@ class IslandHelperService : AccessibilityService() {
         // This service's WindowManager carries its token, which is what lets a window added
         // through it be an accessibility overlay.
         IslandBus.setHelperWindowManager(getSystemService(WindowManager::class.java))
+        // Gestures on the island can lock the phone, take a screenshot or pull down the shade.
+        IslandBus.globalAction = { action -> performGlobalAction(action) }
         updateWindows()
     }
 

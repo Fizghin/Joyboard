@@ -39,8 +39,9 @@ Synced lyrics in the music panel, and the weather in the quick panel with a head
 rain. Both optional, both off until you turn them on.
 
 **Small things that help**
-One-tap 1, 5, 10 and 25-minute timers. A warning when the battery runs hot. The network speed
-while something big downloads. A note pinned to the island until you tick it off.
+One-tap 1, 5, 10 and 25-minute timers that ring when they finish. A sleep timer for music. A
+word when the internet drops and when it comes back. A warning when the battery runs hot. The
+network speed while something big downloads. A note pinned to the island until you tick it off.
 
 **Out of the way when it should be**
 The island steps aside for full-screen videos and games, for quiet hours and in landscape — and a

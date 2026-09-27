@@ -27,6 +27,10 @@ accesses audio or images.
 **Battery, volume, ringer and screen state.** Read from system broadcasts to draw the matching
 live activities, including the battery's temperature for the heat warning.
 
+**Whether the phone is online** (unless you switch off *Connection*). Whether the default
+network can reach the internet, whether it is Wi-Fi, and whether airplane mode is on — to say when
+the connection goes and comes back. Nothing about the network itself is read or kept.
+
 **How much data is moving** (only if you switch on *Network speed*). The phone's running totals of
 bytes received and sent, read every second and a half while the screen is on, to show a transfer
 rate. Nothing about what is transferred, or by which app, is read.

@@ -1,14 +1,14 @@
 {
-  "versionCode": 14,
-  "versionName": "2.8",
+  "versionCode": 15,
+  "versionName": "2.9",
   "mandatory": false,
   "notes": [
-    "Two at once: a second live activity waits in a bubble beside the island; tap to swap",
-    "Directions from Google Maps, Waze and other maps apps; quick timers in the resting panel",
-    "Battery heat warning and temperature, optional network speed, and a pinned note"
+    "Fixes: music controls hidden by the player's notification, services holding the island, repeated pops, calls not opening, low battery repeating",
+    "Timers ring until stopped; a sleep timer for music; a word when the internet drops and returns",
+    "New gestures: open the camera; with the helper, lock, screenshot, notifications, quick settings"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 2137237,
-  "debugSizeBytes": 20859384
+  "sizeBytes": 2165377,
+  "debugSizeBytes": 20887791
 }

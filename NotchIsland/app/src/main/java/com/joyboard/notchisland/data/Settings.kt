@@ -146,6 +146,10 @@ data class IslandSettings(
     val featureNetworkSpeed: Boolean = false,
     /** A note kept on the island until it is ticked off; blank for none. */
     val pinnedNote: String = "",
+    /** A finished timer rings and vibrates until stopped, rather than just saying so. */
+    val timerAlarm: Boolean = true,
+    /** The internet dropping and coming back, and airplane mode. */
+    val featureConnectivity: Boolean = true,
     /** Synced lyrics in the open media panel, looked up online. Off unless turned on. */
     val featureLyrics: Boolean = false,
     /** Weather in the quick panel, looked up online for [weatherArea]. Off unless turned on. */
@@ -278,7 +282,12 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 enum class NotificationStyle { PREVIEW, MINIMAL, ICON_ONLY }
 
-enum class GestureAction(@StringRes val label: Int) {
+enum class GestureAction(
+    @StringRes val label: Int,
+    val needsHelper: Boolean = false,
+    /** The Android release the action first exists on. */
+    val minSdk: Int = 26,
+) {
     NONE(R.string.do_nothing),
     EXPAND(R.string.expand_island),
     EXPAND_FULL(R.string.open_everything),
@@ -294,4 +303,10 @@ enum class GestureAction(@StringRes val label: Int) {
     START_STOPWATCH(R.string.start_stopwatch),
     SHOW_QUICK_PANEL(R.string.show_quick_toggles),
     HIDE_TEMPORARILY(R.string.hide_30_seconds),
+    OPEN_CAMERA(R.string.open_camera),
+    // These four are done by the helper service, so they exist only where it does.
+    LOCK_SCREEN(R.string.lock_screen, needsHelper = true, minSdk = 28),
+    TAKE_SCREENSHOT(R.string.take_screenshot, needsHelper = true, minSdk = 28),
+    OPEN_NOTIFICATIONS(R.string.open_notifications, needsHelper = true),
+    OPEN_QUICK_SETTINGS(R.string.open_quick_settings, needsHelper = true),
 }

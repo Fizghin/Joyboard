@@ -44,11 +44,15 @@ enum class ActivityKind(val priority: Int) {
     /** Do Not Disturb switching on or off. */
     FOCUS(52),
     VOLUME(55),
+    /** Going offline, coming back, airplane mode. */
+    CONNECTIVITY(57),
     PRIVACY(60),
     UNLOCK(65),
     /** A message another app asked the island to show, through the automation intents. */
     EXTERNAL(68),
     NOTIFICATION(70),
+    /** A timer that has run out and is ringing until it is stopped. */
+    ALARM(85),
     /** A ringing or connected call always wins, and stays until it ends. */
     CALL(90),
 }
@@ -86,6 +90,8 @@ sealed interface ExpandedBody {
     data class Timer(val remainingMs: Long, val totalMs: Long, val running: Boolean) : ExpandedBody
     /** A title and a line of detail, with an optional button that acts on the island's content. */
     data class Message(val title: String, val subtitle: String?, val actionLabel: String? = null) : ExpandedBody
+    /** A countdown that has run out: stop it, or run it again. */
+    data class TimerDone(val totalMs: Long) : ExpandedBody
     /** Directions: the turn, how far to it, and when you will arrive. */
     data class Navigation(val item: NotificationItem, val info: NavigationInfo) : ExpandedBody
 }
@@ -163,12 +169,26 @@ data class NotificationItem(
     val ambient: Boolean = false,
     /** The small line apps put beside their name — for a maps app, the arrival time. */
     val subText: String = "",
+    /** A music or video player's own notification; the media session speaks for it instead. */
+    val media: Boolean = false,
+    /** It shows a running clock — a recording, a workout, a call in progress. */
+    val chronometer: Boolean = false,
+    /** Android 16's promoted "live update": the app itself says this is live. */
+    val promoted: Boolean = false,
+    /** The app asked to alert once: later updates of it are quiet. */
+    val alertOnce: Boolean = false,
 ) {
     val isCall: Boolean get() = category == "call"
     /** Turn-by-turn directions from a maps app. */
     val isNavigation: Boolean get() = NavigationText.isNavigation(category, packageName, ongoing)
 
     val hasProgress: Boolean get() = progress >= 0 && progressMax > 0
+
+    /** An ongoing notification with a state worth watching, rather than an app saying it runs. */
+    val isLiveOngoing: Boolean
+        get() = NotificationFilter.ongoingIsLive(
+            category, hasProgress, progressIndeterminate, chronometer, promoted, isNavigation,
+        )
 }
 
 data class NotificationAction(val title: String, val intent: PendingIntent?)

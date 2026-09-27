@@ -62,7 +62,14 @@ object IslandBus {
     var shadeOpen: Boolean = false
         private set
 
-    fun setHelperWindowManager(windowManager: WindowManager?) {
+    /**
+     * Performs one of AccessibilityService's global actions — lock, screenshot, the shade —
+     * through the helper while it is connected; null otherwise.
+     */
+    @Volatile
+    var globalAction: ((Int) -> Boolean)? = null
+
+        fun setHelperWindowManager(windowManager: WindowManager?) {
         helperWindowManagerRef = windowManager?.let(::WeakReference)
         val target = controller ?: return
         handler.post { target.onHelperChanged() }
@@ -96,6 +103,7 @@ object IslandBus {
         postKeyboard(false)
         postShade(false)
         setHelperWindowManager(null)
+        globalAction = null
     }
 
     fun postNotification(item: NotificationItem) {
