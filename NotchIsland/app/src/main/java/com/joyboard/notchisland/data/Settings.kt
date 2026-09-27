@@ -34,13 +34,21 @@ data class IslandSettings(
     val iosMode: Boolean = false,
 
     // ---- the phone's own camera cutout ----
-    /** Draw a stand-in lens inside the pill, for phones where the island hides the real one. */
+    /**
+     * The camera hole, in screen terms: dp from the screen's horizontal centre and from its top
+     * edge. It is hardware, so it is stored against the screen and the island arranges itself
+     * around it. A zero width means no hole is known.
+     */
+    val holeCenterX: Float = 0f,
+    val holeCenterY: Float = 0f,
+    val holeWidth: Float = 0f,
+    val holeHeight: Float = 0f,
+    val cameraSource: CameraSource = CameraSource.NONE,
+    val devicePresetId: String? = null,
+    /** Keep text and icons out from under the camera. */
+    val avoidHole: Boolean = true,
+    /** Draw a stand-in lens over the hole, for when the island's body would otherwise hide it. */
     val showFauxCamera: Boolean = false,
-    /** Diameter of the lens, in dp — measure your own punch hole and match it. */
-    val cameraSize: Int = 11,
-    /** Lens position measured from the island's centre, so off-centre punch holes line up. */
-    val cameraOffsetX: Int = 46,
-    val cameraOffsetY: Int = 0,
 
     // ---- appearance ----
     val backgroundColor: Int = Color.BLACK,
@@ -136,6 +144,30 @@ data class IslandSettings(
  */
 const val DEFAULT_UPDATE_MANIFEST_URL =
     "https://raw.githubusercontent.com/Fizghin/Joyboard/notch/update.json"
+
+/** Where the known camera position came from. */
+enum class CameraSource(val label: String) {
+    NONE("Not set"),
+    DETECTED("Reported by this phone"),
+    PRESET("From a device preset"),
+    MANUAL("Calibrated by hand"),
+}
+
+/** The hole as geometry, or null when none is known. */
+val IslandSettings.hole: com.joyboard.notchisland.island.Hole?
+    get() = if (holeWidth > 0f && holeHeight > 0f) {
+        com.joyboard.notchisland.island.Hole(holeCenterX, holeCenterY, holeWidth, holeHeight)
+    } else {
+        null
+    }
+
+fun IslandSettings.withHole(hole: com.joyboard.notchisland.island.Hole?, source: CameraSource) = copy(
+    holeCenterX = hole?.centerX ?: 0f,
+    holeCenterY = hole?.centerY ?: 0f,
+    holeWidth = hole?.width ?: 0f,
+    holeHeight = hole?.height ?: 0f,
+    cameraSource = if (hole == null) CameraSource.NONE else source,
+)
 
 /** Where the island is anchored, and therefore what can be touched. */
 enum class PositionMode(val label: String) {

@@ -35,6 +35,7 @@ import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.TapExpansion
 import com.joyboard.notchisland.service.NotchNotificationListener
+import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.data.isQuietAt
 import com.joyboard.notchisland.util.PendingIntents
 import com.joyboard.notchisland.util.dp
@@ -313,7 +314,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
         val container = root ?: return
         val strip = touchStrip ?: return
         val overlap = settings.positionMode == PositionMode.OVERLAP_STATUS_BAR
-        val topPadding = if (overlap) 0 else TOUCH_PADDING.dp
+        // Above the island is only ever the status bar's dead band except in the default anchor,
+        // so the offsets mean exactly "island top" everywhere else — which is also what the
+        // calibrator draws, so the two can be trusted to agree.
+        val topPadding = if (settings.positionMode == PositionMode.BELOW_STATUS_BAR) TOUCH_PADDING.dp else 0
         if (container.paddingTop != topPadding) {
             container.setPadding(TOUCH_PADDING.dp, topPadding, TOUCH_PADDING.dp, TOUCH_PADDING.dp)
         }
@@ -328,6 +332,24 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
         strip.getChildAt(0)?.visibility =
             if (overlap && settings.showTouchHint && height > 6.dp) View.VISIBLE else View.INVISIBLE
+        pushHoleToIsland()
+    }
+
+    /**
+     * Hands the camera hole to the island in the island's own terms: an offset from its top
+     * centre. The island is centred at offsetX and its top edge is the window's top plus the
+     * container padding, both of which are known here and nowhere else.
+     */
+    private fun pushHoleToIsland() {
+        val view = island ?: return
+        val hole = settings.hole
+        if (hole == null) {
+            view.setHole(null, 0f, 0f)
+            return
+        }
+        val density = context.resources.displayMetrics.density
+        val islandTopDp = (windowY() + (root?.paddingTop ?: 0)) / density
+        view.setHole(hole, hole.centerX - settings.offsetX, hole.centerY - islandTopDp)
     }
 
     private fun baseFlags(): Int =

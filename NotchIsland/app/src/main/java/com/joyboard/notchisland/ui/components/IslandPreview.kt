@@ -42,6 +42,7 @@ import androidx.compose.ui.platform.LocalContext
 import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.PositionMode
+import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.island.IslandMode
 import com.joyboard.notchisland.util.DynamicColors
 
@@ -207,23 +208,22 @@ fun IslandPreview(
                         )
                     }
             ) {
-                if (settings.showFauxCamera && mode != IslandMode.EXPANDED &&
-                    mode != IslandMode.MEDIUM
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .align(Alignment.CenterEnd)
-                            .padding(end = 13.dp)
-                            .size(11.dp)
-                            .background(Color(0xFF0A0A0C), CircleShape)
-                    )
-                }
                 when (mode) {
                     IslandMode.COMPACT -> CompactContent(accent)
                     IslandMode.MEDIUM -> MediumContent(accent)
                     IslandMode.EXPANDED -> ExpandedContent(accent)
                     else -> Unit
                 }
+            }
+
+            // The phone's own camera, where it really is, drawn on top as hardware would be.
+            settings.hole?.let { hole ->
+                Box(
+                    modifier = Modifier
+                        .offset(x = hole.centerX.dp, y = (hole.centerY - hole.height / 2f).dp)
+                        .size(hole.width.dp, hole.height.dp)
+                        .background(Color(0xFF050507), CircleShape)
+                )
             }
         }
 

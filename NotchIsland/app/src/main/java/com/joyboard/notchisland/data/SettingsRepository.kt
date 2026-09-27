@@ -71,9 +71,17 @@ class SettingsRepository(private val context: Context) {
         val preset = stringPreferencesKey("preset")
         val iosMode = booleanPreferencesKey("ios_mode")
         val showFauxCamera = booleanPreferencesKey("show_faux_camera")
-        val cameraSize = intPreferencesKey("camera_size")
-        val cameraOffsetX = intPreferencesKey("camera_offset_x")
-        val cameraOffsetY = intPreferencesKey("camera_offset_y")
+        // 2.2 stored the lens relative to the island; kept only to migrate from.
+        val legacyCameraSize = intPreferencesKey("camera_size")
+        val legacyCameraOffsetX = intPreferencesKey("camera_offset_x")
+        val legacyCameraOffsetY = intPreferencesKey("camera_offset_y")
+        val holeCenterX = floatPreferencesKey("hole_center_x")
+        val holeCenterY = floatPreferencesKey("hole_center_y")
+        val holeWidth = floatPreferencesKey("hole_width")
+        val holeHeight = floatPreferencesKey("hole_height")
+        val cameraSource = stringPreferencesKey("camera_source")
+        val devicePresetId = stringPreferencesKey("device_preset_id")
+        val avoidHole = booleanPreferencesKey("avoid_hole")
         val tapExpansion = stringPreferencesKey("tap_expansion")
         val backgroundColor = intPreferencesKey("background_color")
         val opacity = floatPreferencesKey("opacity")
@@ -136,6 +144,19 @@ class SettingsRepository(private val context: Context) {
         val skippedVersion = intPreferencesKey("skipped_version")
     }
 
+    // A lens placed in 2.2 was measured from the island's centre, and the island's centre sat at
+    // (offsetX, offsetY + height / 2) — which is enough to put it back on the screen.
+    private fun Preferences.legacyHoleSize(): Float? =
+        if (this[K.showFauxCamera] == true) this[K.legacyCameraSize]?.toFloat() else null
+
+    private fun Preferences.legacyHoleX(): Float? = legacyHoleSize()?.let {
+        ((this[K.offsetX] ?: 0) + (this[K.legacyCameraOffsetX] ?: 0)).toFloat()
+    }
+
+    private fun Preferences.legacyHoleY(): Float? = legacyHoleSize()?.let {
+        ((this[K.offsetY] ?: 0) + (this[K.collapsedHeight] ?: 30) / 2 + (this[K.legacyCameraOffsetY] ?: 0)).toFloat()
+    }
+
     private fun Preferences.toSettings(): IslandSettings {
         val d = IslandSettings()
         return IslandSettings(
@@ -158,9 +179,14 @@ class SettingsRepository(private val context: Context) {
             preset = this[K.preset]?.toEnum<IslandPreset>() ?: d.preset,
             iosMode = this[K.iosMode] ?: d.iosMode,
             showFauxCamera = this[K.showFauxCamera] ?: d.showFauxCamera,
-            cameraSize = this[K.cameraSize] ?: d.cameraSize,
-            cameraOffsetX = this[K.cameraOffsetX] ?: d.cameraOffsetX,
-            cameraOffsetY = this[K.cameraOffsetY] ?: d.cameraOffsetY,
+            holeCenterX = this[K.holeCenterX] ?: legacyHoleX() ?: d.holeCenterX,
+            holeCenterY = this[K.holeCenterY] ?: legacyHoleY() ?: d.holeCenterY,
+            holeWidth = this[K.holeWidth] ?: legacyHoleSize() ?: d.holeWidth,
+            holeHeight = this[K.holeHeight] ?: legacyHoleSize() ?: d.holeHeight,
+            cameraSource = this[K.cameraSource]?.toEnum<CameraSource>()
+                ?: if (legacyHoleSize() != null) CameraSource.MANUAL else d.cameraSource,
+            devicePresetId = this[K.devicePresetId],
+            avoidHole = this[K.avoidHole] ?: d.avoidHole,
             tapExpansion = this[K.tapExpansion]?.toEnum<TapExpansion>() ?: d.tapExpansion,
             backgroundColor = this[K.backgroundColor] ?: d.backgroundColor,
             opacity = this[K.opacity] ?: d.opacity,
@@ -244,9 +270,16 @@ class SettingsRepository(private val context: Context) {
         this[K.preset] = s.preset.name
         this[K.iosMode] = s.iosMode
         this[K.showFauxCamera] = s.showFauxCamera
-        this[K.cameraSize] = s.cameraSize
-        this[K.cameraOffsetX] = s.cameraOffsetX
-        this[K.cameraOffsetY] = s.cameraOffsetY
+        this[K.holeCenterX] = s.holeCenterX
+        this[K.holeCenterY] = s.holeCenterY
+        this[K.holeWidth] = s.holeWidth
+        this[K.holeHeight] = s.holeHeight
+        this[K.cameraSource] = s.cameraSource.name
+        s.devicePresetId?.let { this[K.devicePresetId] = it } ?: remove(K.devicePresetId)
+        this[K.avoidHole] = s.avoidHole
+        remove(K.legacyCameraSize)
+        remove(K.legacyCameraOffsetX)
+        remove(K.legacyCameraOffsetY)
         this[K.tapExpansion] = s.tapExpansion.name
         this[K.backgroundColor] = s.backgroundColor
         this[K.opacity] = s.opacity

@@ -27,9 +27,13 @@ object SettingsCodec {
         put("preset", settings.preset.name)
         put("iosMode", settings.iosMode)
         put("showFauxCamera", settings.showFauxCamera)
-        put("cameraSize", settings.cameraSize)
-        put("cameraOffsetX", settings.cameraOffsetX)
-        put("cameraOffsetY", settings.cameraOffsetY)
+        put("holeCenterX", settings.holeCenterX.toDouble())
+        put("holeCenterY", settings.holeCenterY.toDouble())
+        put("holeWidth", settings.holeWidth.toDouble())
+        put("holeHeight", settings.holeHeight.toDouble())
+        put("cameraSource", settings.cameraSource.name)
+        settings.devicePresetId?.let { put("devicePresetId", it) }
+        put("avoidHole", settings.avoidHole)
         put("tapExpansion", settings.tapExpansion.name)
         put("backgroundColor", settings.backgroundColor)
         put("opacity", settings.opacity.toDouble())
@@ -111,9 +115,13 @@ object SettingsCodec {
             preset = o.enum("preset", base.preset),
             iosMode = o.optBoolean("iosMode", base.iosMode),
             showFauxCamera = o.optBoolean("showFauxCamera", base.showFauxCamera),
-            cameraSize = o.optInt("cameraSize", base.cameraSize),
-            cameraOffsetX = o.optInt("cameraOffsetX", base.cameraOffsetX),
-            cameraOffsetY = o.optInt("cameraOffsetY", base.cameraOffsetY),
+            holeCenterX = o.optDouble("holeCenterX", base.holeCenterX.toDouble()).toFloat(),
+            holeCenterY = o.optDouble("holeCenterY", base.holeCenterY.toDouble()).toFloat(),
+            holeWidth = o.optDouble("holeWidth", base.holeWidth.toDouble()).toFloat(),
+            holeHeight = o.optDouble("holeHeight", base.holeHeight.toDouble()).toFloat(),
+            cameraSource = o.enum("cameraSource", base.cameraSource),
+            devicePresetId = o.optString("devicePresetId").ifBlank { base.devicePresetId },
+            avoidHole = o.optBoolean("avoidHole", base.avoidHole),
             tapExpansion = o.enum("tapExpansion", base.tapExpansion),
             backgroundColor = o.optInt("backgroundColor", base.backgroundColor),
             opacity = o.optDouble("opacity", base.opacity.toDouble()).toFloat(),

@@ -36,6 +36,7 @@ import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.util.dp
+import kotlin.math.roundToInt
 import com.joyboard.notchisland.util.formatRelative
 import com.joyboard.notchisland.util.formatStopwatch
 import com.joyboard.notchisland.util.readableAccent
@@ -235,10 +236,6 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             compactRow,
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT)
         )
-        addView(
-            fauxCamera,
-            LayoutParams(11.dp, 11.dp, Gravity.CENTER_VERTICAL or Gravity.CENTER_HORIZONTAL)
-        )
 
         val titleColumn = LinearLayout(context).apply {
             orientation = LinearLayout.VERTICAL
@@ -261,6 +258,11 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         addView(
             expandedRoot,
             LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT)
+        )
+        // Last child draws on top: the lens sits over the hole whatever else is showing.
+        addView(
+            fauxCamera,
+            LayoutParams(11.dp, 11.dp, Gravity.TOP or Gravity.CENTER_HORIZONTAL)
         )
 
         buildToggles()
@@ -287,18 +289,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         systemAccent = DynamicColors.accent(context, dark = true)
         systemSurface = DynamicColors.surface(context, dark = true)
         bgDrawable.setColor(resolvedBackground())
-        fauxCamera.visible(s.showFauxCamera && mode != IslandMode.EXPANDED)
-        // Punch holes sit wherever the maker put them, so the lens is positioned by hand.
-        (fauxCamera.layoutParams as? LayoutParams)?.let { lp ->
-            lp.width = s.cameraSize.dp
-            lp.height = s.cameraSize.dp
-            // FrameLayout shifts a centred child by exactly (leftMargin - rightMargin).
-            lp.leftMargin = s.cameraOffsetX.dp
-            lp.rightMargin = 0
-            lp.topMargin = s.cameraOffsetY.dp
-            lp.bottomMargin = 0
-            fauxCamera.layoutParams = lp
-        }
+        applyHoleLayout(mode)
         if (s.iosMode) {
             // The real thing is pure black with no outline and no shadow behind it.
             bgDrawable.setColor(Color.BLACK)
@@ -380,6 +371,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             }
         }
 
+        if (mode == IslandMode.PILL || mode == IslandMode.COMPACT) applyHoleLayout(mode)
         if (mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM) {
             togglesRow.visible(mode == IslandMode.EXPANDED && showsToggles(p))
             // Only re-measure and resize when the panel's contents actually changed.
@@ -417,6 +409,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         togglesRow.visible(target == IslandMode.EXPANDED && showsToggles(presentation))
         if (target == IslandMode.EXPANDED) refreshToggleStates()
 
+        applyHoleLayout(target)
         val targetWidth = widthFor(target)
         val targetHeight = heightFor(target, targetWidth)
         val startWidth = if (width == 0) targetWidth else width
@@ -426,7 +419,6 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
         expandedRoot.visible(opened)
         compactRow.visible(target == IslandMode.COMPACT || target == IslandMode.PILL)
-        fauxCamera.visible(settings.showFauxCamera && !opened)
         // Bars only cost frames while they can actually be seen.
         trailingWave.visible(trailingWave.visibility == View.VISIBLE && target == IslandMode.COMPACT)
         headerWave.playing = headerWave.playing && target == IslandMode.EXPANDED
@@ -464,6 +456,101 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         alpha = if (target == IslandMode.HIDDEN) 0f else 1f
     }
 
+    // ------------------------------------------------------------------ the camera hole
+
+    private var hole: Hole? = null
+    private var holeDx = 0f
+    private var holeDy = 0f
+
+    /**
+     * Tells the island where the phone's camera is, as an offset from the island's top centre —
+     * the point it is anchored by, so the offset holds whatever size the island grows to.
+     */
+    fun setHole(hole: Hole?, dxFromIslandCenter: Float, dyFromIslandTop: Float) {
+        this.hole = hole
+        holeDx = dxFromIslandCenter
+        holeDy = dyFromIslandTop
+        cachedExpandedKey = null
+        applyHoleLayout(mode)
+    }
+
+    /**
+     * Treats the camera as hardware: content in every size is laid out around it, and the
+     * optional lens is drawn exactly over it. Called before any size is measured, because the
+     * clearance changes how tall the open panel needs to be.
+     */
+    private fun applyHoleLayout(target: IslandMode) {
+        val density = resources.displayMetrics.density
+        val widthDp = widthFor(target) / density
+        val current = hole
+        val local = current?.let { HoleGeometry.locate(holeDx, holeDy, it, widthDp) }
+
+        when (target) {
+            IslandMode.HIDDEN, IslandMode.PILL, IslandMode.COMPACT -> {
+                val rowHeight = (if (target == IslandMode.COMPACT) settings.collapsedHeight + 4 else settings.collapsedHeight).toFloat()
+                val clearance = if (settings.avoidHole && local != null) {
+                    HoleGeometry.rowClearance(
+                        local, widthDp, rowHeight,
+                        basePadding = ROW_PADDING,
+                        leadingWidth = LEADING_WIDTH,
+                        trailingWidth = trailingWidthDp(),
+                        margin = HOLE_MARGIN,
+                    )
+                } else {
+                    Clearance.NONE
+                }
+                compactRow.setPadding(
+                    dpPx(ROW_PADDING + clearance.start), 0, dpPx(ROW_PADDING + clearance.end), 0
+                )
+            }
+            IslandMode.MEDIUM, IslandMode.EXPANDED -> {
+                val clearance = if (settings.avoidHole && local != null) {
+                    HoleGeometry.panelClearance(local, widthDp, PANEL_TALL, PANEL_PADDING_TOP, HOLE_MARGIN)
+                } else {
+                    Clearance.NONE
+                }
+                expandedRoot.setPadding(
+                    16.dp, dpPx(PANEL_PADDING_TOP + clearance.top), 16.dp, 14.dp
+                )
+            }
+        }
+
+        // The lens only makes sense for a round hole that the island actually covers.
+        val islandHeightDp = when (target) {
+            IslandMode.MEDIUM, IslandMode.EXPANDED -> PANEL_TALL
+            IslandMode.COMPACT -> settings.collapsedHeight + 4f
+            else -> settings.collapsedHeight.toFloat()
+        }
+        val showLens = settings.showFauxCamera && current != null && current.isRound &&
+            local != null && HoleGeometry.intersects(local, widthDp, islandHeightDp)
+        fauxCamera.visible(showLens)
+        if (showLens) {
+            (fauxCamera.layoutParams as? LayoutParams)?.let { lp ->
+                lp.width = dpPx(current.width)
+                lp.height = dpPx(current.height)
+                lp.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+                // A horizontally centred FrameLayout child moves by exactly its left margin.
+                lp.leftMargin = dpPx(holeDx)
+                lp.rightMargin = 0
+                lp.topMargin = dpPx(holeDy - current.height / 2f)
+                fauxCamera.layoutParams = lp
+            }
+        }
+    }
+
+    private fun trailingWidthDp(): Float {
+        val density = resources.displayMetrics.density
+        val visible = listOf(trailingText, trailingIcon, trailingRing, trailingWave)
+            .firstOrNull { it.visibility == View.VISIBLE } ?: return 0f
+        visible.measure(
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
+            MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
+        )
+        return visible.measuredWidth / density
+    }
+
+    private fun dpPx(value: Float): Int = (value * resources.displayMetrics.density).roundToInt()
+
     /**
      * Re-asserts the size for the current mode if the view has drifted from it — a cancelled
      * animation or an interrupted layout can otherwise leave the island stuck open.
@@ -486,7 +573,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         mode = target
         val opened = target == IslandMode.EXPANDED || target == IslandMode.MEDIUM
         bodyContainer.visible(target == IslandMode.EXPANDED)
-        fauxCamera.visible(settings.showFauxCamera && !opened)
+        applyHoleLayout(target)
         val w = widthFor(target)
         val h = heightFor(target, w)
         // The island lives inside whatever container the controller built, so stay generic.
@@ -556,7 +643,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     }
 
     private fun measureExpandedHeight(width: Int, target: IslandMode): Int {
-        val key = "$width|$target|$bodySignature|${togglesRow.visibility}"
+        val key = "$width|$target|$bodySignature|${togglesRow.visibility}|${expandedRoot.paddingTop}"
         if (key == cachedExpandedKey && cachedExpandedHeight > 0) return cachedExpandedHeight
         // The medium card is the header alone, so measure it with the body folded away.
         val bodyWas = bodyContainer.visibility
@@ -1388,6 +1475,12 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     companion object {
         private const val DOUBLE_TAP_WINDOW = 230L
+        private const val ROW_PADDING = 12f
+        private const val LEADING_WIDTH = 18f
+        private const val PANEL_PADDING_TOP = 14f
+        private const val HOLE_MARGIN = 6f
+        /** The open panel is taller than any camera is deep, so treat it as unbounded. */
+        private const val PANEL_TALL = 10_000f
 
         fun formatDuration(ms: Long, forceMinutes: Boolean = false): String =
             com.joyboard.notchisland.util.formatDuration(ms, forceMinutes)

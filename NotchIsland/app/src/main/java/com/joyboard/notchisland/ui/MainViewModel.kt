@@ -12,8 +12,14 @@ import androidx.lifecycle.viewModelScope
 import com.joyboard.notchisland.BuildConfig
 import com.joyboard.notchisland.data.DEFAULT_UPDATE_MANIFEST_URL
 import com.joyboard.notchisland.data.IslandSettings
+import com.joyboard.notchisland.data.CENTRED_WITHIN_DP
+import com.joyboard.notchisland.data.CameraSource
+import com.joyboard.notchisland.data.fittedTo
+import com.joyboard.notchisland.data.DevicePreset
+import com.joyboard.notchisland.data.DevicePresets
 import com.joyboard.notchisland.data.IslandPreset
-import com.joyboard.notchisland.data.PositionMode
+import com.joyboard.notchisland.data.withHole
+import kotlin.math.roundToInt
 import com.joyboard.notchisland.data.SettingsCodec
 import com.joyboard.notchisland.data.SettingsRepository
 import com.joyboard.notchisland.service.IslandBus
@@ -253,6 +259,35 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { repository.toggleBlocked(packageName) }
     }
 
+    // ------------------------------------------------------------------ the camera hole
+
+    /** The preset for the phone this is running on, when its model is one we know. */
+    val suggestedDevice: DevicePreset? = DevicePresets.match(Build.MODEL)
+
+    fun applyDevicePreset(preset: DevicePreset) {
+        val width = CutoutDetector.screenWidthDp(getApplication())
+        viewModelScope.launch {
+            repository.update { preset.applyTo(it, width) }
+            _status.value = "Set up for ${preset.name}. Detect from this phone for exact placement."
+        }
+    }
+
+    /** Asks the phone where its own camera is. Exact, where the phone is willing to say. */
+    fun detectHole() {
+        CutoutDetector.detectHole(getApplication())
+            .onSuccess { hole ->
+                viewModelScope.launch { repository.update { it.withHole(hole, CameraSource.DETECTED) } }
+                _status.value = "Found a ${hole.width.roundToInt()}×${hole.height.roundToInt()} dp camera cutout"
+            }
+            .onFailure { _status.value = it.message }
+    }
+
+    fun clearHole() {
+        viewModelScope.launch {
+            repository.update { it.withHole(null, CameraSource.NONE).copy(devicePresetId = null) }
+        }
+    }
+
     /** Shapes the island to a known device, and turns iOS motion on for the Apple ones. */
     fun applyPreset(preset: IslandPreset) {
         viewModelScope.launch {
@@ -280,25 +315,18 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     /** Measures the real camera cutout and shapes the island to match it. */
     fun fitToCutout() {
-        val cutout = CutoutDetector.detect(getApplication())
-        if (cutout == null) {
-            _status.value = "No camera cutout reported by this display"
-            return
-        }
-        viewModelScope.launch {
-            repository.update {
-                it.copy(
-                    collapsedWidth = (cutout.widthDp + 16).coerceIn(48, 300),
-                    collapsedHeight = (cutout.heightDp + 6).coerceIn(18, 64),
-                    cornerRadius = ((cutout.heightDp + 6) / 2).coerceIn(6, 40),
-                    offsetX = cutout.centerOffsetDp.coerceIn(-140, 140),
-                    offsetY = cutout.topDp.coerceIn(0, 40),
-                    positionMode = PositionMode.OVERLAP_STATUS_BAR,
-                )
+        CutoutDetector.detectHole(getApplication())
+            .onSuccess { hole ->
+                viewModelScope.launch {
+                    repository.update { it.fittedTo(hole, CameraSource.DETECTED) }
+                }
+                _status.value = if (kotlin.math.abs(hole.centerX) > CENTRED_WITHIN_DP) {
+                    "Your camera is off to the side, so the island stays centred and keeps clear of it"
+                } else {
+                    "Wrapped the island around a ${hole.width.roundToInt()}×${hole.height.roundToInt()} dp camera"
+                }
             }
-            _status.value =
-                "Matched a ${cutout.widthDp}×${cutout.heightDp} dp cutout"
-        }
+            .onFailure { _status.value = it.message }
     }
 
     /** Everything worth pasting into a bug report, including any crash since the last clear. */

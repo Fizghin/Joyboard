@@ -18,7 +18,15 @@ import androidx.compose.ui.unit.dp
 import android.content.Intent
 import androidx.compose.ui.platform.LocalContext
 import com.joyboard.notchisland.CalibrationActivity
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Row
+import androidx.compose.material3.Button
+import androidx.compose.material3.TextButton
+import androidx.compose.ui.Alignment
+import com.joyboard.notchisland.data.CameraSource
 import com.joyboard.notchisland.data.ColorSource
+import com.joyboard.notchisland.data.DevicePreset
+import com.joyboard.notchisland.data.DevicePresets
 import com.joyboard.notchisland.data.IslandPreset
 import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.ThemeMode
@@ -53,10 +61,10 @@ fun AppearanceScreen(viewModel: MainViewModel) {
 
         SectionCard(
             title = "Shape",
-            subtitle = "Start from a device, then adjust anything below."
+            subtitle = "Start from an iPhone's island, then adjust anything below."
         ) {
             DropdownRow(
-                title = "Preset",
+                title = "Style",
                 selected = settings.preset,
                 options = IslandPreset.entries.toList(),
                 label = { it.label },
@@ -70,28 +78,96 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 checked = settings.iosMode,
                 onCheckedChange = { value -> viewModel.update { it.copy(iosMode = value) } }
             )
-            SwitchRow(
-                title = "Draw a camera lens",
-                subtitle = "A small dark circle inside the pill, so it reads as hardware",
-                checked = settings.showFauxCamera,
-                onCheckedChange = { value -> viewModel.update { it.copy(showFauxCamera = value) } }
-            )
-            OutlinedButton(
-                onClick = {
-                    context.startActivity(Intent(context, CalibrationActivity::class.java))
+        }
+
+        SectionCard(
+            title = "Your phone's camera",
+            subtitle = "The camera is hardware: the island keeps its text and icons clear of it."
+        ) {
+            val suggested = viewModel.suggestedDevice
+            if (suggested != null && settings.devicePresetId != suggested.id) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 18.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "This looks like a ${suggested.name}.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Button(onClick = { viewModel.applyDevicePreset(suggested) }) { Text("Use it") }
+                }
+            }
+            DropdownRow(
+                title = "Phone",
+                selected = DevicePresets.byId(settings.devicePresetId),
+                options = listOf<DevicePreset?>(null) + DevicePresets.all,
+                label = { preset ->
+                    when {
+                        preset == null -> "Choose…"
+                        preset.maker == "Any phone" -> preset.name
+                        else -> "${preset.maker} ${preset.name}".replace("Google Pixel", "Pixel")
+                            .replace("Honor Honor", "Honor").replace("OnePlus OnePlus", "OnePlus")
+                            .replace("Nothing Phone", "Nothing Phone")
+                    }
                 },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 6.dp)
-            ) { Text("Calibrate to my punch hole") }
+                onSelected = { preset -> preset?.let { viewModel.applyDevicePreset(it) } }
+            )
             Text(
-                "Opens a full-screen aligner that draws into the cutout area with the status " +
-                    "bar hidden, so you can drag the pill straight onto your camera instead of " +
-                    "guessing at numbers. Works on any cutout, centred or not.",
+                when (settings.cameraSource) {
+                    CameraSource.NONE -> "No camera position set yet."
+                    else -> "${settings.cameraSource.label}: ${settings.holeWidth.roundToInt()}×" +
+                        "${settings.holeHeight.roundToInt()} dp, ${settings.holeCenterY.roundToInt()} dp down" +
+                        when {
+                            settings.holeCenterX < -1f -> ", ${(-settings.holeCenterX).roundToInt()} dp left of centre"
+                            settings.holeCenterX > 1f -> ", ${settings.holeCenterX.roundToInt()} dp right of centre"
+                            else -> ", centred"
+                        }
+                },
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
+            )
+            Row(
+                modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                OutlinedButton(onClick = { viewModel.detectHole() }, modifier = Modifier.weight(1f)) {
+                    Text("Detect from this phone")
+                }
+                OutlinedButton(
+                    onClick = { context.startActivity(Intent(context, CalibrationActivity::class.java)) },
+                    modifier = Modifier.weight(1f)
+                ) { Text("Calibrate") }
+            }
+            Text(
+                "Presets place the camera from the phone's design and are close, not exact. " +
+                    "Detect asks the phone itself, which knows precisely — use it for any phone, " +
+                    "listed or not, then fine-tune in Calibrate if you like.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
             )
+            SwitchRow(
+                title = "Keep content clear of the camera",
+                subtitle = "Icons and text move aside instead of sitting under the lens",
+                checked = settings.avoidHole,
+                onCheckedChange = { value -> viewModel.update { it.copy(avoidHole = value) } }
+            )
+            SwitchRow(
+                title = "Draw a lens over the camera",
+                subtitle = "A dark circle exactly over the hole, so it reads as one piece with the island",
+                checked = settings.showFauxCamera,
+                onCheckedChange = { value -> viewModel.update { it.copy(showFauxCamera = value) } }
+            )
+            if (settings.cameraSource != CameraSource.NONE) {
+                TextButton(
+                    onClick = { viewModel.clearHole() },
+                    modifier = Modifier.padding(horizontal = 8.dp)
+                ) { Text("Forget the camera position") }
+            }
         }
 
         SectionCard(title = "Size", subtitle = "Match your phone's camera cutout.") {
@@ -100,10 +176,10 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 6.dp)
-            ) { Text("Fit to my camera cutout") }
+            ) { Text("Fit to my camera") }
             Text(
-                "Measures the real cutout and sets the width, height, corner and offsets to " +
-                    "match it, then anchors the island over the status bar.",
+                "Asks the phone where its camera is and wraps the island around it. A camera " +
+                    "off to one side is recorded instead, and the island stays centred.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
