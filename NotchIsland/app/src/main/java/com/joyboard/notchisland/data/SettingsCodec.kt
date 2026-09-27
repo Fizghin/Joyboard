@@ -79,6 +79,8 @@ object SettingsCodec {
         put("notificationDurationMs", settings.notificationDurationMs)
         put("blockedPackages", JSONArray(settings.blockedPackages.toList()))
         put("autoExpandPackages", JSONArray(settings.autoExpandPackages.toList()))
+        put("silentNotifications", settings.silentNotifications)
+        put("respectDoNotDisturb", settings.respectDoNotDisturb)
         put("quickReplyEnabled", settings.quickReplyEnabled)
         put("otpDetection", settings.otpDetection)
         put("autoExpandOtp", settings.autoExpandOtp)
@@ -169,6 +171,8 @@ object SettingsCodec {
             notificationDurationMs = o.optInt("notificationDurationMs", base.notificationDurationMs),
             blockedPackages = strings("blockedPackages") ?: base.blockedPackages,
             autoExpandPackages = strings("autoExpandPackages") ?: base.autoExpandPackages,
+            silentNotifications = o.optBoolean("silentNotifications", base.silentNotifications),
+            respectDoNotDisturb = o.optBoolean("respectDoNotDisturb", base.respectDoNotDisturb),
             quickReplyEnabled = o.optBoolean("quickReplyEnabled", base.quickReplyEnabled),
             otpDetection = o.optBoolean("otpDetection", base.otpDetection),
             autoExpandOtp = o.optBoolean("autoExpandOtp", base.autoExpandOtp),

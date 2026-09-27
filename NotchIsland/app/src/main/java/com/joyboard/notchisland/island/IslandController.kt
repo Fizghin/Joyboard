@@ -146,6 +146,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
         settings = next
         haptics.enabled = next.hapticsEnabled
         haptics.strength = next.hapticStrength
+        // Switching history off should forget what was kept, not just stop adding to it.
+        if (!next.featureHistory) history.clear()
         island?.applySettings(next)
         refreshTouchStrip()
         updateWindowParams()
@@ -455,11 +457,25 @@ class IslandController(private val context: Context) : IslandView.Listener {
     )
 
     fun onNotification(item: NotificationItem) {
-        if (item.packageName in settings.blockedPackages) return
-        when {
-            item.isCall && settings.featureCalls -> pushCall(item)
-            item.ongoing -> pushOngoing(item)
-            settings.featureNotifications -> pushNotification(item)
+        val kind = when {
+            item.isCall && settings.featureCalls -> NotificationKind.CALL
+            item.ongoing -> NotificationKind.ONGOING
+            else -> NotificationKind.PREVIEW
+        }
+        val allowed = NotificationFilter.shouldShow(
+            kind = kind,
+            packageBlocked = item.packageName in settings.blockedPackages,
+            importance = item.importance,
+            passesDoNotDisturb = item.passesDoNotDisturb,
+            ambient = item.ambient,
+            showSilent = settings.silentNotifications,
+            respectDoNotDisturb = settings.respectDoNotDisturb,
+        )
+        if (!allowed) return
+        when (kind) {
+            NotificationKind.CALL -> pushCall(item)
+            NotificationKind.ONGOING -> pushOngoing(item)
+            NotificationKind.PREVIEW -> if (settings.featureNotifications) pushNotification(item)
         }
     }
 
@@ -540,7 +556,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private fun pushNotification(item: NotificationItem) {
         lastNotification = item
-        remember(item)
+        if (settings.featureHistory) remember(item)
         val presentation = Presentation(
             kind = ActivityKind.NOTIFICATION,
             leadingIcon = item.appIcon ?: item.smallIcon,

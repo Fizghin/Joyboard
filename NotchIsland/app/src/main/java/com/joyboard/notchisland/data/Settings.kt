@@ -77,7 +77,6 @@ data class IslandSettings(
     val hideInLandscape: Boolean = true,
     val showOnLockScreen: Boolean = true,
     val dimBackgroundWhenExpanded: Boolean = true,
-    val idleClock: Boolean = false,
     val alwaysShowPill: Boolean = true,
 
     // ---- gestures ----
@@ -111,7 +110,10 @@ data class IslandSettings(
     val notificationDurationMs: Int = 4000,
     val blockedPackages: Set<String> = emptySet(),
     val autoExpandPackages: Set<String> = emptySet(),
+    /** Let notifications the phone considers silent take over the island too. */
     val silentNotifications: Boolean = false,
+    /** When Do Not Disturb stops a notification interrupting, the island does not either. */
+    val respectDoNotDisturb: Boolean = true,
     val quickReplyEnabled: Boolean = true,
     val otpDetection: Boolean = true,
     val autoExpandOtp: Boolean = true,
@@ -129,13 +131,7 @@ data class IslandSettings(
     val autoCheckUpdates: Boolean = true,
     val lastUpdateCheck: Long = 0L,
     val skippedVersion: Int = 0,
-) {
-    val alphaBackgroundColor: Int
-        get() = Color.argb(
-            (Color.alpha(backgroundColor) * opacity.coerceIn(0f, 1f)).toInt(),
-            Color.red(backgroundColor), Color.green(backgroundColor), Color.blue(backgroundColor)
-        )
-}
+)
 
 /**
  * Where the in-app updater looks for a release manifest. The default points at this repository,

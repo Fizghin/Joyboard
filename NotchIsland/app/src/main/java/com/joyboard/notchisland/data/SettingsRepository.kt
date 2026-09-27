@@ -102,7 +102,6 @@ class SettingsRepository(private val context: Context) {
         val hideInLandscape = booleanPreferencesKey("hide_in_landscape")
         val showOnLockScreen = booleanPreferencesKey("show_on_lock_screen")
         val dimBackground = booleanPreferencesKey("dim_background")
-        val idleClock = booleanPreferencesKey("idle_clock")
         val alwaysShowPill = booleanPreferencesKey("always_show_pill")
         val tapAction = stringPreferencesKey("tap_action")
         val doubleTapAction = stringPreferencesKey("double_tap_action")
@@ -138,6 +137,7 @@ class SettingsRepository(private val context: Context) {
         val notificationDuration = intPreferencesKey("notification_duration")
         val blockedPackages = stringSetPreferencesKey("blocked_packages")
         val silentNotifications = booleanPreferencesKey("silent_notifications")
+        val respectDoNotDisturb = booleanPreferencesKey("respect_do_not_disturb")
         val updateManifestUrl = stringPreferencesKey("update_manifest_url")
         val autoCheckUpdates = booleanPreferencesKey("auto_check_updates")
         val lastUpdateCheck = longPreferencesKey("last_update_check")
@@ -208,7 +208,6 @@ class SettingsRepository(private val context: Context) {
             hideInLandscape = this[K.hideInLandscape] ?: d.hideInLandscape,
             showOnLockScreen = this[K.showOnLockScreen] ?: d.showOnLockScreen,
             dimBackgroundWhenExpanded = this[K.dimBackground] ?: d.dimBackgroundWhenExpanded,
-            idleClock = this[K.idleClock] ?: d.idleClock,
             alwaysShowPill = this[K.alwaysShowPill] ?: d.alwaysShowPill,
             tapAction = this[K.tapAction]?.toEnum<GestureAction>() ?: d.tapAction,
             doubleTapAction = this[K.doubleTapAction]?.toEnum<GestureAction>() ?: d.doubleTapAction,
@@ -245,6 +244,7 @@ class SettingsRepository(private val context: Context) {
             notificationDurationMs = this[K.notificationDuration] ?: d.notificationDurationMs,
             blockedPackages = this[K.blockedPackages] ?: d.blockedPackages,
             silentNotifications = this[K.silentNotifications] ?: d.silentNotifications,
+            respectDoNotDisturb = this[K.respectDoNotDisturb] ?: d.respectDoNotDisturb,
             updateManifestUrl = this[K.updateManifestUrl]?.takeIf { it.isNotBlank() }
                 ?: d.updateManifestUrl,
             autoCheckUpdates = this[K.autoCheckUpdates] ?: d.autoCheckUpdates,
@@ -300,7 +300,6 @@ class SettingsRepository(private val context: Context) {
         this[K.hideInLandscape] = s.hideInLandscape
         this[K.showOnLockScreen] = s.showOnLockScreen
         this[K.dimBackground] = s.dimBackgroundWhenExpanded
-        this[K.idleClock] = s.idleClock
         this[K.alwaysShowPill] = s.alwaysShowPill
         this[K.tapAction] = s.tapAction.name
         this[K.doubleTapAction] = s.doubleTapAction.name
@@ -336,6 +335,7 @@ class SettingsRepository(private val context: Context) {
         this[K.notificationDuration] = s.notificationDurationMs
         this[K.blockedPackages] = s.blockedPackages
         this[K.silentNotifications] = s.silentNotifications
+        this[K.respectDoNotDisturb] = s.respectDoNotDisturb
         this[K.updateManifestUrl] = s.updateManifestUrl
         this[K.autoCheckUpdates] = s.autoCheckUpdates
         this[K.lastUpdateCheck] = s.lastUpdateCheck

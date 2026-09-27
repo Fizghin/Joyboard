@@ -15,22 +15,22 @@ enum class IslandMode { HIDDEN, PILL, COMPACT, MEDIUM, EXPANDED }
  * Every source of island content is a "live activity". Higher [priority] wins when several are
  * alive at once, exactly like the way iOS picks which activity owns the island.
  */
-enum class ActivityKind(val priority: Int, val persistent: Boolean) {
-    IDLE(0, true),
-    MEDIA(20, true),
+enum class ActivityKind(val priority: Int) {
+    IDLE(0),
+    MEDIA(20),
     /** Someone else's long-running notification: navigation, a download, a delivery. */
-    ONGOING(25, true),
-    TIMER(30, true),
-    STOPWATCH(32, true),
-    CHARGING(40, false),
-    BATTERY_LOW(45, false),
-    RINGER(50, false),
-    VOLUME(55, false),
-    PRIVACY(60, false),
-    UNLOCK(65, false),
-    NOTIFICATION(70, false),
+    ONGOING(25),
+    TIMER(30),
+    STOPWATCH(32),
+    CHARGING(40),
+    BATTERY_LOW(45),
+    RINGER(50),
+    VOLUME(55),
+    PRIVACY(60),
+    UNLOCK(65),
+    NOTIFICATION(70),
     /** A ringing or connected call always wins, and stays until it ends. */
-    CALL(90, true),
+    CALL(90),
 }
 
 /** What the right-hand side of the compact island shows. */
@@ -68,7 +68,6 @@ data class Presentation(
     val title: String? = null,
     val subtitle: String? = null,
     val body: ExpandedBody = ExpandedBody.QuickPanel,
-    val expandable: Boolean = true,
     val tapIntent: PendingIntent? = null,
     /** Set when the activity is backed by a notification, so removal can retire it. */
     val notificationKey: String? = null,
@@ -104,7 +103,6 @@ data class NotificationItem(
     val whenMs: Long,
     val contentIntent: PendingIntent?,
     val actions: List<NotificationAction>,
-    val isConversation: Boolean,
     /** Long-running notifications become sticky activities instead of passing previews. */
     val ongoing: Boolean = false,
     val category: String? = null,
@@ -115,6 +113,12 @@ data class NotificationItem(
     val otp: String? = null,
     /** The notification's own inline-reply action, when it has one. */
     val reply: ReplyAction? = null,
+    /** From the notification's Ranking: how important the phone considers it. */
+    val importance: Int = NotificationFilter.AUDIBLE_IMPORTANCE,
+    /** False when Do Not Disturb stopped this notification from interrupting. */
+    val passesDoNotDisturb: Boolean = true,
+    /** The phone has already tucked this one away as low priority. */
+    val ambient: Boolean = false,
 ) {
     val isCall: Boolean get() = category == "call"
 

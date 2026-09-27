@@ -3,11 +3,11 @@ package com.joyboard.notchisland.service
 import android.app.Notification
 import android.graphics.Bitmap
 import android.graphics.drawable.Drawable
-import android.os.Build
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import androidx.core.graphics.drawable.toBitmap
 import com.joyboard.notchisland.island.NotificationAction
+import com.joyboard.notchisland.island.NotificationFilter
 import com.joyboard.notchisland.island.NotificationItem
 import com.joyboard.notchisland.island.OtpExtractor
 import com.joyboard.notchisland.island.ReplyAction
@@ -90,8 +90,10 @@ class NotchNotificationListener : NotificationListenerService() {
         val progress = if (progressMax > 0) extras.getInt(Notification.EXTRA_PROGRESS, -1) else -1
         val indeterminate = extras.getBoolean(Notification.EXTRA_PROGRESS_INDETERMINATE, false)
 
-        val isConversation = Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
-            notification.category == Notification.CATEGORY_MESSAGE
+        // How the phone itself ranked this notification: its importance, and whether Do Not
+        // Disturb let it through. Without this every notification looks equally urgent.
+        val ranking = Ranking()
+        val ranked = runCatching { currentRanking?.getRanking(sbn.key, ranking) == true }.getOrDefault(false)
 
         return NotificationItem(
             key = sbn.key,
@@ -106,7 +108,6 @@ class NotchNotificationListener : NotificationListenerService() {
             whenMs = sbn.postTime,
             contentIntent = notification.contentIntent,
             actions = actions,
-            isConversation = isConversation,
             ongoing = ongoing,
             category = notification.category,
             progress = progress,
@@ -114,6 +115,9 @@ class NotchNotificationListener : NotificationListenerService() {
             progressIndeterminate = indeterminate,
             otp = OtpExtractor.extract(title, text),
             reply = reply,
+            importance = if (ranked) ranking.importance else NotificationFilter.AUDIBLE_IMPORTANCE,
+            passesDoNotDisturb = !ranked || ranking.matchesInterruptionFilter(),
+            ambient = ranked && ranking.isAmbient,
         )
     }
 

@@ -229,6 +229,18 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                     viewModel.update { it.copy(notificationDurationMs = (value * 1000).roundToInt()) }
                 }
             )
+            SwitchRow(
+                title = "Show silent notifications",
+                subtitle = "Off means only notifications that would make a sound take over the island",
+                checked = settings.silentNotifications,
+                onCheckedChange = { value -> viewModel.update { it.copy(silentNotifications = value) } }
+            )
+            SwitchRow(
+                title = "Follow Do Not Disturb",
+                subtitle = "When Do Not Disturb keeps a notification quiet, the island stays quiet too",
+                checked = settings.respectDoNotDisturb,
+                onCheckedChange = { value -> viewModel.update { it.copy(respectDoNotDisturb = value) } }
+            )
             NavRow(
                 title = "Per-app rules",
                 subtitle = buildString {
