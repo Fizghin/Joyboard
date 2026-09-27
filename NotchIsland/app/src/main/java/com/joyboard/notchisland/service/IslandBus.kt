@@ -49,6 +49,14 @@ object IslandBus {
 
     val helperWindowManager: WindowManager? get() = helperWindowManagerRef?.get()
 
+    /** Why the island is hidden right now, or null when it is showing. For diagnostics. */
+    @Volatile
+    var hideReason: String? = null
+
+    /** Whether the island is drawn above the status bar right now. For diagnostics. */
+    @Volatile
+    var islandAboveStatusBar: Boolean = false
+
     /** The notification shade is pulled down, as far as the helper can tell. */
     @Volatile
     var shadeOpen: Boolean = false

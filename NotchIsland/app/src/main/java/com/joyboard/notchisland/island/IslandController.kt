@@ -257,6 +257,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun rehostIfNeeded() {
         val wanted = accessibilityHost()
         if (window.isSettledFor(wanted)) return
+        // The new window reports the status bar afresh; the old one's reading may not apply.
+        fullscreen = false
         window.detach()
         window.attach(settings, wanted)
         window.applySettings(settings)
@@ -270,9 +272,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
     @VisibleForTesting
     internal val touchStripHeight: Int get() = window.touchStripHeight
 
+    @VisibleForTesting
+    internal val statusBarProbe: android.view.View? get() = window.probe
+
+    @VisibleForTesting
+    internal val islandRootView: android.view.View? get() = window.rootView
+
     private fun updateVisibility() {
         val now = java.util.Calendar.getInstance()
-        val hide = VisibilityPolicy.shouldHide(
+        val reason = VisibilityPolicy.reason(
             VisibilityPolicy.Inputs(
                 screenOn = screenOn,
                 lockedOut = !settings.showOnLockScreen && keyguard?.isKeyguardLocked == true,
@@ -295,7 +303,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 aboveStatusBar = window.aboveStatusBar,
             )
         )
-        window.setVisible(!hide)
+        IslandBus.hideReason = reason
+        IslandBus.islandAboveStatusBar = window.aboveStatusBar
+        window.setVisible(reason == null)
     }
 
     // ------------------------------------------------------------------ activity feed

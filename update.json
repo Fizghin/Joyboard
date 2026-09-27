@@ -1,16 +1,15 @@
 {
-  "versionCode": 9,
-  "versionName": "2.4",
+  "versionCode": 10,
+  "versionName": "2.4.1",
   "mandatory": false,
   "notes": [
+    "Fixed: turning on the helper made the island disappear",
+    "Diagnostics now say why the island is hidden, if it ever is",
     "Synced lyrics in the music panel (opt-in, from LRCLIB)",
-    "Weather in the quick panel, with a heads-up before rain (opt-in, from Open-Meteo)",
-    "From 2.3: status bar icons no longer draw across the island — with the helper on it sits above them",
-    "From 2.3: device presets set the island's whole shape",
-    "Smoother settings preview"
+    "Weather in the quick panel, with a heads-up before rain (opt-in, from Open-Meteo)"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 2011353,
+  "sizeBytes": 2027741,
   "debugSizeBytes": 20732640
 }

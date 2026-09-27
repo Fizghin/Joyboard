@@ -29,6 +29,9 @@ import android.content.res.Configuration
 import com.joyboard.notchisland.BuildConfig
 import org.junit.Assume.assumeFalse
 import org.junit.Assume.assumeTrue
+import androidx.core.view.WindowInsetsCompat
+import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 
 /**
  * The whole controller — overlay window, activity queue, timers — under Robolectric's clock.
@@ -175,6 +178,49 @@ class ControllerRestTest {
         idle(50)
         assertEquals(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, controller.windowType)
         assertTrue(controller.touchStripHeight > 0)
+    }
+
+    private fun statusBarInsets(visible: Boolean) = WindowInsetsCompat.Builder()
+        .setVisible(WindowInsetsCompat.Type.statusBars(), visible)
+        .build()
+        .toWindowInsets()!!
+
+    /**
+     * The reported bug: with the helper on, the island vanished. A window above the status bar
+     * is told there is no status bar, which read as a full-screen app and hid the island.
+     */
+    @Test
+    fun `above the status bar the island ignores its own insets and stays visible`() {
+        assumeTrue("sideload build only", BuildConfig.HELPER_AVAILABLE)
+        IslandBus.controller = controller
+        IslandBus.setHelperWindowManager(helperWindowManager())
+        idle(50)
+        assertEquals(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, controller.windowType)
+
+        controller.islandRootView!!.dispatchApplyWindowInsets(statusBarInsets(visible = false))
+        idle(50)
+        assertTrue("the island's own insets must not hide it", controller.islandShowing)
+
+        // A real full-screen app is still noticed, through the probe below the bar.
+        val probe = controller.statusBarProbe
+        assertNotNull(probe)
+        probe!!.dispatchApplyWindowInsets(statusBarInsets(visible = false))
+        idle(50)
+        assertFalse(controller.islandShowing)
+        probe.dispatchApplyWindowInsets(statusBarInsets(visible = true))
+        idle(50)
+        assertTrue(controller.islandShowing)
+    }
+
+    @Test
+    fun `below the status bar the island reads full screen from its own window`() {
+        assertNull(controller.statusBarProbe)
+        controller.islandRootView!!.dispatchApplyWindowInsets(statusBarInsets(visible = false))
+        idle(50)
+        assertFalse(controller.islandShowing)
+        controller.islandRootView!!.dispatchApplyWindowInsets(statusBarInsets(visible = true))
+        idle(50)
+        assertTrue(controller.islandShowing)
     }
 
     @Test

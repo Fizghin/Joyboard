@@ -412,6 +412,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             appendLine("Preset: ${settings.value.preset} (iOS mode ${settings.value.iosMode})")
             appendLine("Island: ${settings.value.collapsedWidth}x${settings.value.collapsedHeight} dp")
             appendLine("Service running: ${IslandBus.serviceRunning}")
+            appendLine("Helper connected: ${IslandBus.helperConnected}, island above status bar: ${IslandBus.islandAboveStatusBar}")
+            appendLine("Island hidden because: ${IslandBus.hideReason ?: "not hidden"}")
+            appendLine("Shade open: ${IslandBus.shadeOpen}, keyboard: ${IslandBus.keyboardVisible}, app in front: ${IslandBus.foregroundPackage}")
             if (crash != null) {
                 appendLine()
                 appendLine("Recent crashes:")

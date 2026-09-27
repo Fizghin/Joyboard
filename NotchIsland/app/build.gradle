@@ -13,8 +13,8 @@ android {
         applicationId "com.joyboard.notchisland"
         minSdk 26
         targetSdk 36
-        versionCode 9
-        versionName "2.4"
+        versionCode 10
+        versionName "2.4.1"
         vectorDrawables.useSupportLibrary true
     }
 

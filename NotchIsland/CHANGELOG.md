@@ -1,5 +1,15 @@
 # Changelog
 
+## 2.4.1
+
+- Fixed: turning on the helper made the island disappear. A window above the status bar is never
+  told about the status bar, so the island read that as a full-screen app and hid itself. Full
+  screen is now watched from a 1-pixel probe below the bar, where the reading is true.
+- The notification-shade check is stricter — it needs a focused system window covering most of
+  the screen — so other system windows cannot hide the island either.
+- About → Share diagnostics now says whether the helper is connected, whether the island is above
+  the status bar, and why it is hidden when it is.
+
 ## 2.4
 
 - **Synced lyrics** in the open media panel — the line being sung and the next one — from LRCLIB.

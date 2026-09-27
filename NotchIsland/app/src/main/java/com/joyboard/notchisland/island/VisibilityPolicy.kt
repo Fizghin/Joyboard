@@ -33,16 +33,23 @@ object VisibilityPolicy {
         val aboveStatusBar: Boolean = false,
     )
 
-    fun shouldHide(i: Inputs): Boolean {
+    fun shouldHide(i: Inputs): Boolean = reason(i) != null
+
+    /** Why the island is hidden, or null when it is not — for diagnostics. */
+    fun reason(i: Inputs): String? = when {
+        !i.screenOn -> "screen off"
+        i.lockedOut -> "lock screen"
+        i.temporarilyHidden -> "hidden for a moment"
+        i.quiet -> "quiet hours"
+        i.landscape && i.hideInLandscape -> "landscape"
         // An island above the status bar would sit on top of the pulled-down shade, so it goes
         // while the shade is open; an ordinary overlay is simply covered by the shade.
-        val hard = !i.screenOn || i.lockedOut || i.temporarilyHidden || i.quiet ||
-            (i.landscape && i.hideInLandscape) || (i.shadeOpen && i.aboveStatusBar)
-        if (hard) return true
-        if (i.urgent) return false
-        val fullscreen = i.fullscreen && i.hideInFullscreen
-        val typing = i.keyboardVisible && i.hideWhileTyping && !i.replying
-        val app = i.foregroundPackage != null && i.foregroundPackage in i.hiddenInPackages
-        return fullscreen || typing || app
+        i.shadeOpen && i.aboveStatusBar -> "notification shade open"
+        i.urgent -> null
+        i.fullscreen && i.hideInFullscreen -> "full-screen app"
+        i.keyboardVisible && i.hideWhileTyping && !i.replying -> "keyboard open"
+        i.foregroundPackage != null && i.foregroundPackage in i.hiddenInPackages ->
+            "hidden in ${i.foregroundPackage}"
+        else -> null
     }
 }

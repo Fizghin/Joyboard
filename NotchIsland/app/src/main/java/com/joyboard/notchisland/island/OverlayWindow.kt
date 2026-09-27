@@ -138,8 +138,6 @@ internal class OverlayWindow(
             isClickable = true
         }
 
-        watchStatusBar(container)
-
         val strip = FrameLayout(context).apply {
             addView(
                 View(context).apply {
@@ -179,6 +177,11 @@ internal class OverlayWindow(
                 windowManager?.addView(container, buildParams())
                 host = windowManager
             }
+            // An island above the status bar is never told about the status bar — Android only
+            // reports bars to windows beneath them — so its own insets would always read "no
+            // status bar", which looks exactly like a full-screen app. A probe underneath
+            // watches for it instead.
+            if (aboveStatusBar) attachProbe() else watchStatusBar(container)
             root = container
             island = view
             touchStrip = strip
@@ -207,7 +210,34 @@ internal class OverlayWindow(
         }
     }
 
+    /** A 1-px, untouchable, invisible ordinary overlay, there only to see the status bar. */
+    private fun attachProbe() {
+        val view = View(context)
+        watchStatusBar(view)
+        val params = WindowManager.LayoutParams(
+            1, 1,
+            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE or
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+                WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN,
+            PixelFormat.TRANSPARENT,
+        ).apply { gravity = Gravity.TOP or Gravity.START }
+        runCatching {
+            windowManager?.addView(view, params)
+            probe = view
+        }
+    }
+
+    /** The status-bar probe, while the island is above the bar. */
+    internal var probe: View? = null
+        private set
+
+    /** The island's own window content. */
+    internal val rootView: View? get() = root
+
     fun detach() {
+        probe?.let { runCatching { windowManager?.removeViewImmediate(it) } }
+        probe = null
         val current = root ?: return
         runCatching { host?.removeViewImmediate(current) }
         root = null

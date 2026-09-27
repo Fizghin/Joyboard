@@ -8,6 +8,7 @@ import android.graphics.Rect
 import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
+import com.joyboard.notchisland.island.ShadeDetector
 
 /**
  * An optional helper that gives the island two kinds of help.
@@ -57,19 +58,20 @@ class IslandHelperService : AccessibilityService() {
         IslandBus.postShade(shadeOpen(current))
     }
 
-    /**
-     * The pulled-down shade is a system window covering most of the screen; the status bar is a
-     * system window only a few dp tall. The lock screen lives in the same window as the shade,
-     * so while the phone is locked this says nothing and the lock-screen setting decides.
-     */
     private fun shadeOpen(windows: List<AccessibilityWindowInfo>): Boolean {
-        if (getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return false
-        val half = resources.displayMetrics.heightPixels / 2
         val bounds = Rect()
-        return windows.any {
-            it.type == AccessibilityWindowInfo.TYPE_SYSTEM &&
-                bounds.also(it::getBoundsInScreen).height() > half
-        }
+        return ShadeDetector.isOpen(
+            windows = windows.map {
+                it.getBoundsInScreen(bounds)
+                ShadeDetector.Window(
+                    system = it.type == AccessibilityWindowInfo.TYPE_SYSTEM,
+                    heightPx = bounds.height(),
+                    focused = it.isFocused,
+                )
+            },
+            screenHeightPx = resources.displayMetrics.heightPixels,
+            locked = getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true,
+        )
     }
 
     private fun isActivity(pkg: String, cls: String): Boolean = runCatching {

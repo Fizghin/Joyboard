@@ -5,6 +5,7 @@ import com.joyboard.notchisland.island.VisibilityPolicy.Inputs
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import org.junit.Assert.assertEquals
 
 class VisibilityPolicyTest {
 
@@ -55,6 +56,16 @@ class VisibilityPolicyTest {
         assertTrue(hides(Inputs(shadeOpen = true, aboveStatusBar = true)))
         assertTrue(hides(Inputs(shadeOpen = true, aboveStatusBar = true, urgent = true)))
         assertFalse(hides(Inputs(shadeOpen = true, aboveStatusBar = false)))
+    }
+
+    @Test
+    fun `diagnostics name the reason, and none when showing`() {
+        assertEquals(null, VisibilityPolicy.reason(Inputs()))
+        assertEquals("full-screen app", VisibilityPolicy.reason(Inputs(fullscreen = true, hideInFullscreen = true)))
+        assertEquals("notification shade open", VisibilityPolicy.reason(Inputs(shadeOpen = true, aboveStatusBar = true)))
+        assertEquals("hidden in com.game", VisibilityPolicy.reason(
+            Inputs(foregroundPackage = "com.game", hiddenInPackages = setOf("com.game"))
+        ))
     }
 
     @Test
