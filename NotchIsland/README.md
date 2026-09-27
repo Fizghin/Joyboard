@@ -4,7 +4,14 @@ An iOS-style Dynamic Island for Android. A floating pill sits near the camera cu
 into whatever the phone is doing right now — music, notifications, charging, volume, timers —
 then settles back down.
 
-<img src="docs/preview.svg" width="420" alt="Island states: resting pill, compact readout, expanded panel" />
+| Resting | Compact | Small card |
+| --- | --- | --- |
+| <img src="docs/screenshots/1_pill.png" width="260" alt="Resting pill around a centred camera" /> | <img src="docs/screenshots/2_compact.png" width="260" alt="Compact now-playing readout" /> | <img src="docs/screenshots/3_medium.png" width="260" alt="Small card with title and artist" /> |
+
+<img src="docs/screenshots/4_expanded.png" width="420" alt="Fully open now-playing panel with scrubber, controls, volume and quick toggles" />
+
+These are real renders of `IslandView`, drawn by Robolectric with native graphics — not mockups.
+The dark circle with a red rim is where the phone's camera sits.
 
 ## What it does
 
@@ -13,6 +20,23 @@ to a small card, then to the full panel — one tap per step, and one more to pu
 down to skip the steps and open everything at once. If you would rather a tap just opened it,
 *Gestures → Tap behaviour → Open everything at once* does that. Sizes, corners, colour and motion
 are all yours to set.
+
+**The camera is hardware, and treated as such.** The punch hole is stored against the *screen*,
+not the island, so it stays put while the island moves, grows and animates around it. In every
+size the island's content is laid out clear of it: an icon that would sit under the lens moves
+past it, and the open panel starts below it.
+
+| Content kept clear | Content ignoring the camera |
+| --- | --- |
+| <img src="docs/screenshots/5_compact_hole_left_avoided.png" width="300" /> | <img src="docs/screenshots/6_compact_hole_left_ignored.png" width="300" /> |
+
+*Detect from this phone* reads the cutout from Android itself — on Android 12 and later, its exact
+outline — so it is right for any phone, listed or not. There are also presets for Pixel 6 and the
+rest of the Pixel 4a-9 range, Galaxy S23 FE and the S21-S25 and A52-A55 lines, Honor X9b 5G,
+OnePlus 9-12, Nothing Phone (1), (2) and (2a), and more, matched automatically from the phone's
+model. Presets know *where* each camera is; their sizes are close starting points, and the app
+says so. A camera near the middle gets the island wrapped around it; one in a corner leaves the
+island centred.
 
 **Shaped to your phone, not a guess.** *Look → Shape → Calibrate to my punch hole* opens a
 full-screen aligner that draws into the cutout area with the system bars hidden. Drag the pill
@@ -255,10 +279,21 @@ every push to `notch`.
 
 ### Tests
 
-The parts that can be tested without a device are pulled out and tested: the live-activity
-priority queue, passcode detection, duration formatting, quiet-hour windows that wrap midnight,
-and the settings backup round trip including forward compatibility with unknown enum values.
-Everything else — window layering, gestures, the overlay itself — needs a real device.
+90 tests in two layers.
+
+**Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
+policy, tap stepping, camera clearance geometry, device presets and model matching, the
+notification filter, the spring curve's overshoot and settling, passcode detection, formatting,
+quiet hours, and the settings backup round trip.
+
+**Robolectric** — the real code on an Android 16 runtime under a controlled clock: the timer and
+stopwatch; the whole `IslandController`, overlay window and all, including regression tests for
+the island refusing to go back to its resting size (verified to fail against the old code); and
+screenshot tests that render `IslandView` in every size with native graphics. CI uploads those
+renders on every push.
+
+What still needs a phone: real window layering against the system status bar, touch delivery,
+and anything that depends on another app's notifications.
 
 ## How it is put together
 

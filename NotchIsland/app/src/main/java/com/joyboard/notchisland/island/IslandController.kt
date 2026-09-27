@@ -24,11 +24,13 @@ import android.graphics.drawable.GradientDrawable
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.annotation.VisibleForTesting
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.MainActivity
 import com.joyboard.notchisland.R
+import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.GestureAction
 import com.joyboard.notchisland.data.NotificationStyle
 import com.joyboard.notchisland.data.IslandSettings
@@ -37,7 +39,9 @@ import com.joyboard.notchisland.data.TapExpansion
 import com.joyboard.notchisland.service.NotchNotificationListener
 import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.data.isQuietAt
+import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.util.PendingIntents
+import com.joyboard.notchisland.util.readableAccent
 import com.joyboard.notchisland.util.dp
 import com.joyboard.notchisland.util.formatStopwatch
 
@@ -102,6 +106,11 @@ class IslandController(private val context: Context) : IslandView.Listener {
             handler.postDelayed(this, 500)
         }
     }
+
+    /** The size the island is currently at. Read-only, for tests. */
+    @VisibleForTesting
+    internal val currentMode: IslandMode
+        get() = island?.mode ?: IslandMode.HIDDEN
 
     // ------------------------------------------------------------------ lifecycle
 
@@ -665,8 +674,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
                     leadingIcon = drawable(
                         if (level == 0) R.drawable.ic_volume_off else R.drawable.ic_volume_up
                     ),
-                    trailing = Trailing.Ring(fraction, settings.accentColor, "${(fraction * 100).toInt()}"),
-                    accent = settings.accentColor,
+                    trailing = Trailing.Ring(fraction, islandAccent(), "${(fraction * 100).toInt()}"),
+                    accent = islandAccent(),
                     title = if (stream == AudioManager.STREAM_MUSIC) "Media volume" else "Ring volume",
                     subtitle = "${(fraction * 100).toInt()}%",
                     body = ExpandedBody.QuickPanel,
@@ -690,7 +699,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
                     kind = ActivityKind.RINGER,
                     leadingIcon = drawable(iconRes),
                     trailing = Trailing.Text(title),
-                    accent = settings.accentColor,
+                    accent = islandAccent(),
                     title = title,
                     subtitle = "Ringer mode",
                     body = ExpandedBody.Message(title, "Ringer mode changed"),
@@ -772,9 +781,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
             Presentation(
                 kind = ActivityKind.TIMER,
                 leadingIcon = drawable(R.drawable.ic_timer),
-                leadingTint = settings.accentColor,
-                trailing = Trailing.Text(IslandView.formatDuration(remaining, true), settings.accentColor),
-                accent = settings.accentColor,
+                leadingTint = islandAccent(),
+                trailing = Trailing.Text(IslandView.formatDuration(remaining, true), islandAccent()),
+                accent = islandAccent(),
                 title = "Timer",
                 subtitle = IslandView.formatDuration(remaining, true),
                 body = ExpandedBody.Timer(remaining, total, running),
@@ -798,9 +807,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 Presentation(
                     kind = ActivityKind.NOTIFICATION,
                     leadingIcon = drawable(R.drawable.ic_timer),
-                    leadingTint = settings.accentColor,
-                    trailing = Trailing.Text("Done", settings.accentColor),
-                    accent = settings.accentColor,
+                    leadingTint = islandAccent(),
+                    trailing = Trailing.Text("Done", islandAccent()),
+                    accent = islandAccent(),
                     title = "Timer finished",
                     subtitle = null,
                     body = ExpandedBody.Message("Timer finished", null),
@@ -816,6 +825,19 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     private fun currentTop(): LiveActivity? = activities.top()
 
+    /**
+     * The island's own accent, resolved the way the view resolves it, for activities that have no
+     * colour of their own — timers, volume, the ringer. Using the raw manual colour here made them
+     * ignore a wallpaper-matched accent that the rest of the island was following.
+     */
+    private fun islandAccent(): Int = readableAccent(
+        when (settings.accentSource) {
+            ColorSource.MATERIAL_YOU -> DynamicColors.accent(context, dark = true)
+            // Album art only exists for music; everything else falls back to the chosen colour.
+            ColorSource.ARTWORK, ColorSource.MANUAL -> settings.accentColor
+        }
+    )
+
     private fun markActivityChanged() {
         lastActivityChangeAt = SystemClock.elapsedRealtime()
     }
@@ -824,7 +846,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         kind = ActivityKind.IDLE,
         leadingIcon = drawable(R.drawable.ic_island),
         trailing = Trailing.None,
-        accent = settings.accentColor,
+        accent = islandAccent(),
         title = "Notch Island",
         subtitle = null,
         body = ExpandedBody.QuickPanel,
@@ -1112,9 +1134,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 Presentation(
                     kind = ActivityKind.STOPWATCH,
                     leadingIcon = drawable(R.drawable.ic_stopwatch),
-                    leadingTint = settings.accentColor,
-                    trailing = Trailing.Text(formatStopwatch(elapsed), settings.accentColor),
-                    accent = settings.accentColor,
+                    leadingTint = islandAccent(),
+                    trailing = Trailing.Text(formatStopwatch(elapsed), islandAccent()),
+                    accent = islandAccent(),
                     title = "Stopwatch",
                     subtitle = formatStopwatch(elapsed),
                     body = ExpandedBody.Stopwatch(elapsed, running, stopwatch.laps.toList()),
@@ -1191,8 +1213,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun historyPresentation() = Presentation(
         kind = ActivityKind.IDLE,
         leadingIcon = drawable(R.drawable.ic_bell),
-        leadingTint = settings.accentColor,
-        accent = settings.accentColor,
+        leadingTint = islandAccent(),
+        accent = islandAccent(),
         title = "Recent",
         subtitle = "${history.size} notification(s)",
         body = ExpandedBody.History(history.toList()),

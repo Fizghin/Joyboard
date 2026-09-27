@@ -342,7 +342,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
                 trailingRing.visible(true)
             }
             is Trailing.Waveform -> {
-                trailingWave.barColor = t.color
+                // The same resolved accent the open panel uses, so the bars do not change colour
+                // when the island grows. (Charging green and low-battery red stay as they are.)
+                trailingWave.barColor = resolveAccent(p)
                 trailingWave.playing = t.playing
                 trailingWave.visible(true)
             }
@@ -572,6 +574,13 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     fun snapToMode(target: IslandMode) {
         mode = target
         val opened = target == IslandMode.EXPANDED || target == IslandMode.MEDIUM
+        if (opened) {
+            // Only the animated path used to build the panel, so snapping straight open — as a
+            // rotation or theme change does — could leave an empty shell.
+            buildBody(presentation, resolveAccent(presentation))
+            togglesRow.visible(target == IslandMode.EXPANDED && showsToggles(presentation))
+            if (target == IslandMode.EXPANDED) refreshToggleStates()
+        }
         bodyContainer.visible(target == IslandMode.EXPANDED)
         applyHoleLayout(target)
         val w = widthFor(target)
