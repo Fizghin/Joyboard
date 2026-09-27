@@ -36,6 +36,20 @@ internal class PanelRefs {
     var timerRing: RingProgressView? = null
     var stopwatchText: TextView? = null
     var replyField: EditText? = null
+    var lyrics: List<LyricLine>? = null
+    var lyricNow: TextView? = null
+    var lyricNext: TextView? = null
+
+    /** Moves the lyrics to the line being sung, touching the views only when the line changes. */
+    fun showLyricAt(positionMs: Long) {
+        val lines = lyrics ?: return
+        val index = Lrc.indexAt(lines, positionMs)
+        // Before the first line and in the gaps between verses, a note stands in for words.
+        val now = lines.getOrNull(index)?.text?.takeIf { it.isNotBlank() } ?: "♪"
+        val next = lines.getOrNull(index + 1)?.text.orEmpty()
+        if (lyricNow?.text?.toString() != now) lyricNow?.text = now
+        if (lyricNext?.text?.toString() != next) lyricNext?.text = next
+    }
 }
 
 /** What a panel needs from the island it is drawn into. */
@@ -143,6 +157,34 @@ internal class IslandPanels(
         controls.addView(widgets.spacer(18.dp))
         controls.addView(next)
         into.addView(controls)
+
+        media.lyrics?.takeIf { it.isNotEmpty() }?.let { lines ->
+            val now = TextView(context).apply {
+                setTextColor(Color.WHITE)
+                textSize = 15f
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                gravity = Gravity.CENTER_HORIZONTAL
+                maxLines = 2
+                ellipsize = TextUtils.TruncateAt.END
+            }
+            val next = TextView(context).apply {
+                setTextColor(0x80FFFFFF.toInt())
+                textSize = 13f
+                gravity = Gravity.CENTER_HORIZONTAL
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+            }
+            refs.lyrics = lines
+            refs.lyricNow = now
+            refs.lyricNext = next
+            refs.showLyricAt(media.positionMs)
+            into.addView(now, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 10.dp })
+            into.addView(next, LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+            ).apply { topMargin = 2.dp })
+        }
 
         media.upNext?.let { next ->
             into.addView(widgets.smallLabel(context.getString(R.string.up_next, next)).apply {

@@ -30,6 +30,7 @@ import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import org.robolectric.annotation.GraphicsMode
 import java.time.Duration
+import com.joyboard.notchisland.island.LyricLine
 
 /**
  * Renders the real IslandView, in every size, into PNGs under build/outputs/roborazzi. Nothing is
@@ -49,12 +50,13 @@ class IslandScreenshotTest {
         canvas.drawCircle(60f, 60f, 34f, android.graphics.Paint().apply { color = Color.rgb(255, 214, 10) })
     }
 
-    private fun mediaPresentation(): Presentation {
+    private fun mediaPresentation(lyrics: List<LyricLine>? = null): Presentation {
         val media = MediaSnapshot(
             packageName = "com.example.music", appLabel = "Music", title = "Midnight City",
             artist = "M83", album = "Hurry Up, We're Dreaming", artwork = art(), appIcon = null,
             playing = true, positionMs = 96_000, durationMs = 243_000, accent = Color.rgb(255, 55, 95),
             upNext = "Wait",
+            lyrics = lyrics,
         )
         return Presentation(
             kind = ActivityKind.MEDIA,
@@ -69,7 +71,13 @@ class IslandScreenshotTest {
     }
 
     /** Draws the island on a phone-width white strip with the hole painted where it really is. */
-    private fun render(name: String, mode: IslandMode, settings: IslandSettings, hole: Hole?) {
+    private fun render(
+        name: String,
+        mode: IslandMode,
+        settings: IslandSettings,
+        hole: Hole?,
+        presentation: Presentation = mediaPresentation(),
+    ) {
         val island = IslandView(activity, FakeListener())
         val screen = FrameLayout(activity).apply { setBackgroundColor(Color.rgb(242, 242, 247)) }
         screen.addView(island, FrameLayout.LayoutParams(1, 1, Gravity.TOP or Gravity.CENTER_HORIZONTAL).apply {
@@ -78,7 +86,7 @@ class IslandScreenshotTest {
         activity.setContentView(screen)
 
         island.applySettings(settings)
-        island.setPresentation(mediaPresentation())
+        island.setPresentation(presentation)
         hole?.let { island.setHole(it, it.centerX - settings.offsetX, it.centerY - settings.offsetY) }
         island.snapToMode(mode)
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
@@ -121,6 +129,17 @@ class IslandScreenshotTest {
         render("2_compact", IslandMode.COMPACT, s, centred)
         render("3_medium", IslandMode.MEDIUM, s, centred)
         render("4_expanded", IslandMode.EXPANDED, s, centred)
+    }
+
+    @Test
+    fun lyricsFollowThePlayhead() {
+        // The fixture's playhead is at 1:36, inside the second line.
+        val lines = listOf(
+            LyricLine(90_000, "Waiting in a car"),
+            LyricLine(95_000, "Waiting for a ride in the dark"),
+            LyricLine(101_000, "The night city grows"),
+        )
+        render("7_expanded_lyrics", IslandMode.EXPANDED, iosAround(centred), centred, mediaPresentation(lines))
     }
 
     @Test

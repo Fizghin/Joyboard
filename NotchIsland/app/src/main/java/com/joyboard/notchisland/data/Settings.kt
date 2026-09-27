@@ -124,6 +124,8 @@ data class IslandSettings(
     val featureOngoing: Boolean = true,
     val featureStopwatch: Boolean = true,
     val featureHistory: Boolean = true,
+    /** Synced lyrics in the open media panel, looked up online. Off unless turned on. */
+    val featureLyrics: Boolean = false,
     /** The next calendar event, counting down. Off by default: it needs calendar access. */
     val featureCalendar: Boolean = false,
     /** How long before an event the island starts counting down to it. */

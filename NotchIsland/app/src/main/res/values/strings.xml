@@ -447,6 +447,8 @@
     <string name="send_test_message">Send a test message</string>
     <string name="test_message_title">Hello from automation</string>
     <string name="test_message_text">This is what another app’s message looks like.</string>
+    <string name="synced_lyrics">Synced lyrics</string>
+    <string name="synced_lyrics_desc">Words in time with the music, from LRCLIB, a free lyrics database. Only the song’s title, artist, album and length are sent.</string>
     <plurals name="blocked_apps">
         <item quantity="one">%1$d app blocked</item>
         <item quantity="other">%1$d apps blocked</item>

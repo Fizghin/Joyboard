@@ -119,6 +119,7 @@ class SettingsRepository private constructor(context: Context) {
         val hideWhileTyping = booleanPreferencesKey("hide_while_typing")
         val hiddenInPackages = stringSetPreferencesKey("hidden_in_packages")
         val featureCalendar = booleanPreferencesKey("feature_calendar")
+        val featureLyrics = booleanPreferencesKey("feature_lyrics")
         val calendarLeadMinutes = intPreferencesKey("calendar_lead_minutes")
         val externalApiEnabled = booleanPreferencesKey("external_api_enabled")
         val tapAction = stringPreferencesKey("tap_action")
@@ -233,6 +234,7 @@ class SettingsRepository private constructor(context: Context) {
             hideWhileTyping = this[K.hideWhileTyping] ?: d.hideWhileTyping,
             hiddenInPackages = this[K.hiddenInPackages] ?: d.hiddenInPackages,
             featureCalendar = this[K.featureCalendar] ?: d.featureCalendar,
+            featureLyrics = this[K.featureLyrics] ?: d.featureLyrics,
             calendarLeadMinutes = this[K.calendarLeadMinutes] ?: d.calendarLeadMinutes,
             externalApiEnabled = this[K.externalApiEnabled] ?: d.externalApiEnabled,
             tapAction = this[K.tapAction]?.toEnum<GestureAction>() ?: d.tapAction,
@@ -372,6 +374,7 @@ class SettingsRepository private constructor(context: Context) {
         this[K.hideWhileTyping] = s.hideWhileTyping
         this[K.hiddenInPackages] = s.hiddenInPackages
         this[K.featureCalendar] = s.featureCalendar
+        this[K.featureLyrics] = s.featureLyrics
         this[K.calendarLeadMinutes] = s.calendarLeadMinutes
         this[K.externalApiEnabled] = s.externalApiEnabled
     }

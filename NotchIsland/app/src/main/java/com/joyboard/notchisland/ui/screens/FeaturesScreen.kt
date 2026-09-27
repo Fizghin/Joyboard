@@ -61,6 +61,13 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 onCheckedChange = { value -> viewModel.update { it.copy(featureMedia = value) } }
             )
             SwitchRow(
+                title = stringResource(R.string.synced_lyrics),
+                subtitle = stringResource(R.string.synced_lyrics_desc),
+                checked = settings.featureLyrics,
+                enabled = permissions.notificationAccess && settings.featureMedia,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureLyrics = value) } }
+            )
+            SwitchRow(
                 title = stringResource(R.string.notifications),
                 subtitle = if (permissions.notificationAccess) stringResource(R.string.previews_slide_out_island)
                 else stringResource(R.string.needs_notification_access),

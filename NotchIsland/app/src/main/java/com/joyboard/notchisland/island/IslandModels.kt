@@ -94,6 +94,8 @@ data class MediaSnapshot(
     val canSeek: Boolean = true,
     /** The next title in the app's queue, when it publishes one. */
     val upNext: String? = null,
+    /** Synced lyrics, when they are switched on and were found. */
+    val lyrics: List<LyricLine>? = null,
 )
 
 data class NotificationItem(

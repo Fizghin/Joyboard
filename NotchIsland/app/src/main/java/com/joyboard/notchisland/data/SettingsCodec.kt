@@ -61,6 +61,7 @@ object SettingsCodec {
         put("hideWhileTyping", settings.hideWhileTyping)
         put("hiddenInPackages", JSONArray(settings.hiddenInPackages.toList()))
         put("featureCalendar", settings.featureCalendar)
+        put("featureLyrics", settings.featureLyrics)
         put("calendarLeadMinutes", settings.calendarLeadMinutes)
         put("externalApiEnabled", settings.externalApiEnabled)
         put("tapAction", settings.tapAction.name)
@@ -162,6 +163,7 @@ object SettingsCodec {
             hideWhileTyping = o.optBoolean("hideWhileTyping", base.hideWhileTyping),
             hiddenInPackages = strings("hiddenInPackages") ?: base.hiddenInPackages,
             featureCalendar = o.optBoolean("featureCalendar", base.featureCalendar),
+            featureLyrics = o.optBoolean("featureLyrics", base.featureLyrics),
             calendarLeadMinutes = o.optInt("calendarLeadMinutes", base.calendarLeadMinutes),
             externalApiEnabled = o.optBoolean("externalApiEnabled", base.externalApiEnabled),
             tapAction = o.enum("tapAction", base.tapAction),

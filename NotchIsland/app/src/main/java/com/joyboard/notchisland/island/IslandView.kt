@@ -613,6 +613,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         seek.progress = positionMs.coerceIn(0, durationMs.coerceAtLeast(1L)).toInt()
         refs.mediaPosition?.text = formatDuration(positionMs)
         refs.mediaDuration?.text = formatDuration(durationMs)
+        refs.showLyricAt(positionMs)
     }
 
     fun refreshTimer(remainingMs: Long, totalMs: Long) {
@@ -746,7 +747,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
      */
     private fun bodyKey(p: Presentation, accent: Int): String = when (val body = p.body) {
         is ExpandedBody.Media -> with(body.media) {
-            "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$upNext|$accent"
+            "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$upNext|${lyrics?.size}|$accent"
         }
         is ExpandedBody.Notification -> with(body.item) {
             "notification|$key|${actions.size}|${settings.quickReplyEnabled && reply != null}|" +

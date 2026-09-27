@@ -82,6 +82,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val quickActions = QuickActions(context)
     private val mediaMonitor = MediaMonitor(context) { snapshot -> onMediaSnapshot(snapshot) }
     private val calendarMonitor = CalendarMonitor(context) { event -> onCalendar(event) }
+    private val lyrics = LyricsProvider()
     private val automationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = onAutomation(intent)
     }
@@ -164,6 +165,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { privacyMonitor.stop() }
         mediaMonitor.stop()
         calendarMonitor.release()
+        lyrics.release()
         setAutomationListening(false)
         quickActions.release()
         window.detach()
@@ -193,6 +195,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
             calendarMonitor.stop()
             activities.remove(ActivityKind.CALENDAR)
             calendarShownId = null
+        }
+        if (before.featureLyrics != next.featureLyrics && next.featureMedia) {
+            onMediaSnapshot(mediaMonitor.snapshot())
         }
         if (before.featurePrivacy != next.featurePrivacy) {
             if (next.featurePrivacy) privacyMonitor.start() else {
@@ -309,7 +314,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             if (previous?.title != snapshot.title) markActivityChanged()
             activities.put(LiveActivity(
                 kind = ActivityKind.MEDIA,
-                presentation = presentations.media(snapshot),
+                presentation = presentations.media(withLyrics(snapshot)),
                 expiresAt = Long.MAX_VALUE,
             ))
         }
@@ -387,6 +392,23 @@ class IslandController(private val context: Context) : IslandView.Listener {
             )
         )
         render()
+    }
+
+    /**
+     * Adds lyrics to the snapshot when they are on and already known; otherwise asks for them,
+     * and the answer comes back as a fresh snapshot for the same song.
+     */
+    private fun withLyrics(snapshot: MediaSnapshot): MediaSnapshot {
+        if (!settings.featureLyrics) return snapshot
+        val song = LyricsProvider.Song.of(snapshot) ?: return snapshot
+        val lines = lyrics.cached(song)
+        if (lines == null) {
+            lyrics.request(song) { found ->
+                val now = mediaMonitor.snapshot()
+                if (now != null && LyricsProvider.Song.of(now)?.key == found.key) onMediaSnapshot(now)
+            }
+        }
+        return if (lines.isNullOrEmpty()) snapshot else snapshot.copy(lyrics = lines)
     }
 
     fun onNotification(item: NotificationItem) {
