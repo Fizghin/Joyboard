@@ -34,6 +34,8 @@ class IslandHelperService : AccessibilityService() {
                 updateKeyboard()
             }
             AccessibilityEvent.TYPE_WINDOWS_CHANGED -> updateKeyboard()
+            // Only the two event types above are subscribed to.
+            else -> Unit
         }
     }
 

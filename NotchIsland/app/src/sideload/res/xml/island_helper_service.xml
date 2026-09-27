@@ -4,11 +4,13 @@
   canRetrieveWindowContent is required to list windows at all; the service never reads a view.
 -->
 <accessibility-service xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
     android:accessibilityEventTypes="typeWindowStateChanged|typeWindowsChanged"
     android:accessibilityFeedbackType="feedbackGeneric"
     android:accessibilityFlags="flagRetrieveInteractiveWindows"
     android:canRetrieveWindowContent="true"
     android:description="@string/helper_service_description"
     android:isAccessibilityTool="false"
+    tools:ignore="UnusedAttribute"
     android:notificationTimeout="150"
     android:summary="@string/helper_service_summary" />
