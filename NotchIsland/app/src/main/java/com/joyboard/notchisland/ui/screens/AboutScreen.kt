@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import android.content.Intent
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -22,6 +21,19 @@ import com.joyboard.notchisland.ui.components.SectionCard
 import com.joyboard.notchisland.util.openBatteryOptimisationSettings
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.res.colorResource
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.style.TextAlign
 
 @Composable
 fun AboutScreen(viewModel: MainViewModel) {
@@ -32,17 +44,50 @@ fun AboutScreen(viewModel: MainViewModel) {
             .verticalScroll(rememberScrollState())
             .padding(bottom = 32.dp)
     ) {
-        SectionCard(title = stringResource(R.string.app_name)) {
-            Body(stringResource(R.string.version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE))
-            if (viewModel.updaterEnabled) OutlinedButton(
-                onClick = { viewModel.checkForUpdatesNow() },
+        // The app itself: its icon, name and version, then what it is.
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 16.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 8.dp)
-            ) { Text(stringResource(R.string.check_updates)) }
-            Body(
-                stringResource(R.string.ios_style_dynamic_island_android)
+                    .size(88.dp)
+                    .clip(RoundedCornerShape(26.dp))
+                    .background(colorResource(R.color.ic_launcher_background)),
+                contentAlignment = Alignment.Center
+            ) {
+                Image(
+                    painter = painterResource(R.drawable.ic_launcher_foreground),
+                    contentDescription = null,
+                    modifier = Modifier.size(88.dp)
+                )
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                stringResource(R.string.app_name),
+                style = MaterialTheme.typography.headlineSmall,
+                color = MaterialTheme.colorScheme.onSurface
             )
+            Text(
+                stringResource(R.string.version, BuildConfig.VERSION_NAME, BuildConfig.VERSION_CODE),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Text(
+                stringResource(R.string.ios_style_dynamic_island_android),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 12.dp)
+            )
+            if (viewModel.updaterEnabled) {
+                FilledTonalButton(
+                    onClick = { viewModel.checkForUpdatesNow() },
+                    modifier = Modifier.padding(top = 16.dp)
+                ) { Text(stringResource(R.string.check_updates)) }
+            }
         }
 
         SectionCard(title = stringResource(R.string.how_island_decides_what_show)) {
@@ -67,7 +112,7 @@ fun AboutScreen(viewModel: MainViewModel) {
             Body(
                 stringResource(R.string.android_may_stop_background_overlays)
             )
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { context.openBatteryOptimisationSettings() },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -86,13 +131,13 @@ fun AboutScreen(viewModel: MainViewModel) {
                 ActivityResultContracts.OpenDocument()
             ) { uri -> uri?.let { viewModel.importSettings(it) } }
 
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { exporter.launch("notch-island-settings.json") },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 6.dp)
             ) { Text(stringResource(R.string.export_settings)) }
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { importer.launch(arrayOf("application/json", "text/plain", "*/*")) },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -106,7 +151,7 @@ fun AboutScreen(viewModel: MainViewModel) {
         ) {
             val shareSubject = stringResource(R.string.notch_island_diagnostics)
             val shareTitle = stringResource(R.string.share_diagnostics)
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = {
                     val share = Intent(Intent.ACTION_SEND)
                         .setType("text/plain")
@@ -118,7 +163,7 @@ fun AboutScreen(viewModel: MainViewModel) {
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 6.dp)
             ) { Text(stringResource(R.string.share_diagnostics)) }
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { viewModel.clearCrashLog() },
                 modifier = Modifier
                     .fillMaxWidth()
@@ -144,6 +189,6 @@ private fun Body(text: String) {
         style = MaterialTheme.typography.bodyMedium,
         color = MaterialTheme.colorScheme.onSurfaceVariant,
         fontWeight = FontWeight.Normal,
-        modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
     )
 }

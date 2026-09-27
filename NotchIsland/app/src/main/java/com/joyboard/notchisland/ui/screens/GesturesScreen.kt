@@ -21,6 +21,21 @@ import com.joyboard.notchisland.ui.components.SwitchRow
 import kotlin.math.roundToInt
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.material.icons.Icons
+import com.joyboard.notchisland.ui.theme.Tint
+import androidx.compose.material.icons.rounded.Gesture
+import androidx.compose.material.icons.rounded.PanTool
+import androidx.compose.material.icons.rounded.Replay
+import androidx.compose.material.icons.rounded.SwipeDown
+import androidx.compose.material.icons.rounded.SwipeLeft
+import androidx.compose.material.icons.rounded.SwipeRight
+import androidx.compose.material.icons.rounded.SwipeUp
+import androidx.compose.material.icons.rounded.Timelapse
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Vibration
+import androidx.compose.material.icons.rounded.ViewCompact
+import androidx.compose.material.icons.rounded.Waves
 
 @Composable
 fun GesturesScreen(viewModel: MainViewModel) {
@@ -39,6 +54,8 @@ fun GesturesScreen(viewModel: MainViewModel) {
         ) {
             DropdownRow(
                 title = stringResource(R.string.tap_behaviour),
+                icon = Icons.Rounded.Tune,
+                tint = Tint.Blue,
                 selected = settings.tapExpansion,
                 options = TapExpansion.entries.toList(),
                 label = { stringResource(it.label) },
@@ -61,25 +78,25 @@ fun GesturesScreen(viewModel: MainViewModel) {
             title = stringResource(R.string.gestures),
             subtitle = stringResource(R.string.every_touch_island_can_be)
         ) {
-            DropdownRow(stringResource(R.string.tap), settings.tapAction, actions, { stringResource(it.label) }) { value ->
+            DropdownRow(stringResource(R.string.tap), settings.tapAction, actions, { stringResource(it.label) }, icon = Icons.Rounded.TouchApp, tint = Tint.Blue) { value ->
                 viewModel.update { it.copy(tapAction = value) }
             }
-            DropdownRow(stringResource(R.string.double_tap), settings.doubleTapAction, actions, { stringResource(it.label) }) { value ->
+            DropdownRow(stringResource(R.string.double_tap), settings.doubleTapAction, actions, { stringResource(it.label) }, icon = Icons.Rounded.Gesture, tint = Tint.Blue) { value ->
                 viewModel.update { it.copy(doubleTapAction = value) }
             }
-            DropdownRow(stringResource(R.string.long_press), settings.longPressAction, actions, { stringResource(it.label) }) { value ->
+            DropdownRow(stringResource(R.string.long_press), settings.longPressAction, actions, { stringResource(it.label) }, icon = Icons.Rounded.PanTool, tint = Tint.Orange) { value ->
                 viewModel.update { it.copy(longPressAction = value) }
             }
-            DropdownRow(stringResource(R.string.swipe_down), settings.swipeDownAction, actions, { stringResource(it.label) }) { value ->
+            DropdownRow(stringResource(R.string.swipe_down), settings.swipeDownAction, actions, { stringResource(it.label) }, icon = Icons.Rounded.SwipeDown, tint = Tint.Purple) { value ->
                 viewModel.update { it.copy(swipeDownAction = value) }
             }
-            DropdownRow(stringResource(R.string.swipe_up), settings.swipeUpAction, actions, { stringResource(it.label) }) { value ->
+            DropdownRow(stringResource(R.string.swipe_up), settings.swipeUpAction, actions, { stringResource(it.label) }, icon = Icons.Rounded.SwipeUp, tint = Tint.Purple) { value ->
                 viewModel.update { it.copy(swipeUpAction = value) }
             }
-            DropdownRow(stringResource(R.string.swipe_left), settings.swipeLeftAction, actions, { stringResource(it.label) }) { value ->
+            DropdownRow(stringResource(R.string.swipe_left), settings.swipeLeftAction, actions, { stringResource(it.label) }, icon = Icons.Rounded.SwipeLeft, tint = Tint.Purple) { value ->
                 viewModel.update { it.copy(swipeLeftAction = value) }
             }
-            DropdownRow(stringResource(R.string.swipe_right), settings.swipeRightAction, actions, { stringResource(it.label) }) { value ->
+            DropdownRow(stringResource(R.string.swipe_right), settings.swipeRightAction, actions, { stringResource(it.label) }, icon = Icons.Rounded.SwipeRight, tint = Tint.Purple) { value ->
                 viewModel.update { it.copy(swipeRightAction = value) }
             }
         }
@@ -87,6 +104,8 @@ fun GesturesScreen(viewModel: MainViewModel) {
         SectionCard(title = stringResource(R.string.feedback)) {
             SwitchRow(
                 title = stringResource(R.string.haptics),
+                icon = Icons.Rounded.Vibration,
+                tint = Tint.Pink,
                 subtitle = stringResource(R.string.small_tap_whenever_island_changes),
                 checked = settings.hapticsEnabled,
                 onCheckedChange = { value -> viewModel.update { it.copy(hapticsEnabled = value) } }
@@ -94,6 +113,8 @@ fun GesturesScreen(viewModel: MainViewModel) {
             if (settings.hapticsEnabled) {
                 SliderRow(
                     title = stringResource(R.string.haptic_strength),
+                    icon = Icons.Rounded.Waves,
+                    tint = Tint.Pink,
                     value = settings.hapticStrength.toFloat(),
                     range = 1f..3f,
                     steps = 1,
@@ -109,6 +130,8 @@ fun GesturesScreen(viewModel: MainViewModel) {
             }
             SliderRow(
                 title = stringResource(R.string.close_again_after),
+                icon = Icons.Rounded.Timelapse,
+                tint = Tint.Gray,
                 value = settings.autoCollapseSeconds.toFloat(),
                 range = 0f..20f,
                 valueLabel = if (settings.autoCollapseSeconds == 0) stringResource(R.string.never)
@@ -125,6 +148,8 @@ fun GesturesScreen(viewModel: MainViewModel) {
         ) {
             SwitchRow(
                 title = stringResource(R.string.stay_compact_while_something_live),
+                icon = Icons.Rounded.ViewCompact,
+                tint = Tint.Teal,
                 subtitle = stringResource(R.string.keeps_readout_up_as_long),
                 checked = settings.stayCompactForActivities,
                 onCheckedChange = { value ->
@@ -134,6 +159,8 @@ fun GesturesScreen(viewModel: MainViewModel) {
             if (!settings.stayCompactForActivities) {
                 SliderRow(
                     title = stringResource(R.string.settle_back_after),
+                    icon = Icons.Rounded.Replay,
+                    tint = Tint.Teal,
                     value = settings.compactRestSeconds.toFloat(),
                     range = 0f..60f,
                     valueLabel = if (settings.compactRestSeconds == 0) stringResource(R.string.straight_away)

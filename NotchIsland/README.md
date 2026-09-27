@@ -167,6 +167,14 @@ app, open the last notification, show the quick panel, hide for 30 seconds, or n
 
 ## The app
 
+| Home | Live activities (dark) |
+| --- | --- |
+| <img src="docs/screenshots/app_home.png" width="300" alt="Home screen: status card, live preview, setup checklist and quick actions" /> | <img src="docs/screenshots/app_activities_dark.png" width="300" alt="Live activities list in dark mode with coloured icon tiles" /> |
+
+Rendered by the same Robolectric setup as the island. Every setting carries a coloured icon tile,
+groups sit on cards that stand apart from the page in light and dark, the title folds away as
+you scroll, and the preview's sizes are a segmented control with a sliding thumb.
+
 Four tabs plus two sub-screens, all Material 3 Compose:
 
 - **Island** — master switch, a live interactive preview of the three states, a permission
@@ -383,7 +391,7 @@ every push to `notch`.
 
 ### Tests
 
-182 tests in two layers.
+184 tests in two layers.
 
 **Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
 policy, when the island hides, tap stepping, camera clearance geometry, which screen a camera

@@ -1,5 +1,22 @@
 # Changelog
 
+## 2.6
+
+A redesign of the app.
+
+- Every setting has a coloured icon tile, in iOS's system colours to match the island.
+- Groups sit on rounded cards with their heading above them, in colours that stay distinct from
+  the page in both light and dark — before, Material You made cards and page the same colour.
+- Stronger type, and a large title that folds into the bar as you scroll.
+- Home opens on a status card tinted from your wallpaper, with a Running / Off / Setup needed
+  badge and the main switch; permissions are a checklist with a progress bar and green ticks;
+  "Try it out" is a row of quick-action tiles.
+- The preview's four sizes are a segmented control whose thumb springs between them.
+- Buttons are tonal with icons; *Reset everything* is shown as the destructive action it is.
+- About opens on the app's icon, name and version.
+- Switches show a tick when on; selected tabs use filled icons.
+- Fixed setting titles that could render dark-on-dark in dark mode.
+
 ## 2.5
 
 Motion

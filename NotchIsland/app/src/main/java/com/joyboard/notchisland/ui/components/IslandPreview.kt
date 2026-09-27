@@ -48,6 +48,10 @@ import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.ui.draw.shadow
 
 private val STATUS_BAR_BAND = 26.dp
 
@@ -235,40 +239,7 @@ fun IslandPreview(
             }
         }
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 10.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            listOf(
-                IslandMode.PILL to stringResource(R.string.idle),
-                IslandMode.COMPACT to stringResource(R.string.preview),
-                IslandMode.MEDIUM to stringResource(R.string.small),
-                IslandMode.EXPANDED to stringResource(R.string.full),
-            ).forEach { (value, label) ->
-                val selected = mode == value
-                Box(
-                    modifier = Modifier
-                        .weight(1f)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(
-                            if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant
-                        )
-                        .clickable { onModeChange(value) }
-                        .padding(vertical = 10.dp),
-                    contentAlignment = Alignment.Center
-                ) {
-                    Text(
-                        label,
-                        color = if (selected) MaterialTheme.colorScheme.onPrimary
-                        else MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelLarge
-                    )
-                }
-            }
-        }
+        ModeSelector(mode = mode, onModeChange = onModeChange)
     }
 }
 
@@ -417,6 +388,66 @@ private fun ExpandedContent(accent: Color) {
                 Icon(Icons.Default.PlayArrow, contentDescription = null, tint = Color.Black)
             }
             Icon(Icons.Default.SkipNext, contentDescription = null, tint = Color.White)
+        }
+    }
+}
+
+/**
+ * The four sizes as one segmented control: a track with a pill that springs to the chosen size,
+ * like the segmented controls on the phone the island is borrowed from.
+ */
+@Composable
+private fun ModeSelector(mode: IslandMode, onModeChange: (IslandMode) -> Unit) {
+    val options = listOf(
+        IslandMode.PILL to stringResource(R.string.idle),
+        IslandMode.COMPACT to stringResource(R.string.preview),
+        IslandMode.MEDIUM to stringResource(R.string.small),
+        IslandMode.EXPANDED to stringResource(R.string.full),
+    )
+    val index = options.indexOfFirst { it.first == mode }.coerceAtLeast(0)
+    BoxWithConstraints(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 10.dp)
+            .height(44.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.surfaceContainerHighest)
+    ) {
+        val segment = maxWidth / options.size
+        val offset by animateDpAsState(
+            targetValue = segment * index,
+            animationSpec = spring(dampingRatio = 0.72f, stiffness = Spring.StiffnessMediumLow),
+            label = "segment",
+        )
+        Box(
+            modifier = Modifier
+                .offset { IntOffset(offset.roundToPx(), 0) }
+                .width(segment)
+                .fillMaxHeight()
+                .padding(4.dp)
+                .shadow(3.dp, CircleShape)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.primary)
+        )
+        Row(modifier = Modifier.fillMaxSize()) {
+            options.forEach { (value, label) ->
+                val selected = value == mode
+                Box(
+                    modifier = Modifier
+                        .weight(1f)
+                        .fillMaxHeight()
+                        .clip(CircleShape)
+                        .clickable { onModeChange(value) },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(
+                        label,
+                        style = MaterialTheme.typography.labelLarge,
+                        color = if (selected) MaterialTheme.colorScheme.onPrimary
+                        else MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
         }
     }
 }

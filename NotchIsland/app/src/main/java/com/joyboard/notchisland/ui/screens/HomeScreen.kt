@@ -50,6 +50,39 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import com.joyboard.notchisland.util.openAccessibilitySettings
 import com.joyboard.notchisland.util.openAppInfo
+import com.joyboard.notchisland.ui.theme.Tint
+import androidx.compose.material.icons.rounded.Link
+import androidx.compose.material.icons.rounded.Sync
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Brush
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.text.style.TextAlign
+import com.joyboard.notchisland.ui.components.IconTile
+import androidx.compose.material.icons.rounded.Accessibility
+import androidx.compose.material.icons.rounded.AvTimer
+import androidx.compose.material.icons.rounded.Check
+import androidx.compose.material.icons.rounded.CheckCircle
+import androidx.compose.material.icons.rounded.DoNotDisturbOn
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.Lightbulb
+import androidx.compose.material.icons.rounded.Notifications
+import androidx.compose.material.icons.rounded.OpenInFull
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.Settings
+import androidx.compose.material.icons.rounded.SystemUpdate
+import androidx.compose.material.icons.rounded.Timer
+import androidx.compose.ui.res.pluralStringResource
 
 @Composable
 fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
@@ -64,46 +97,12 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             .verticalScroll(rememberScrollState())
             .padding(bottom = 32.dp)
     ) {
-        SectionCard {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(
-                        stringResource(R.string.dynamic_island),
-                        style = MaterialTheme.typography.titleLarge,
-                        fontWeight = FontWeight.Bold
-                    )
-                    Text(
-                        when {
-                            !permissions.overlay -> stringResource(R.string.needs_display_over_apps_permission)
-                            settings.enabled -> stringResource(R.string.running_tap_island_expand)
-                            else -> stringResource(R.string.switched_off)
-                        },
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Switch(
-                    checked = settings.enabled,
-                    enabled = permissions.overlay,
-                    onCheckedChange = { viewModel.setEnabled(it) }
-                )
-            }
-            if (!permissions.overlay) {
-                Button(
-                    onClick = { context.openOverlaySettings() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 6.dp)
-                ) {
-                    Text(stringResource(R.string.allow_display_over_other_apps))
-                }
-            }
-        }
+        HeroCard(
+            enabled = settings.enabled,
+            canRun = permissions.overlay,
+            onToggle = { viewModel.setEnabled(it) },
+            onAllow = { context.openOverlaySettings() },
+        )
 
         IslandPreview(
             settings = settings,
@@ -115,26 +114,39 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             title = stringResource(R.string.permissions),
             subtitle = stringResource(R.string.each_one_unlocks_different_part)
         ) {
+            val checks = listOfNotNull(
+                permissions.overlay, permissions.notificationAccess, permissions.writeSettings,
+                permissions.dndAccess, permissions.helper.takeIf { BuildConfig.HELPER_AVAILABLE },
+            )
+            SetupProgress(done = checks.count { it }, total = checks.size)
             PermissionRow(
                 title = stringResource(R.string.display_over_other_apps),
+                icon = Icons.Rounded.Layers,
+                tint = Tint.Blue,
                 subtitle = stringResource(R.string.required_draws_island_itself),
                 granted = permissions.overlay,
                 onGrant = { context.openOverlaySettings() }
             )
             PermissionRow(
                 title = stringResource(R.string.notification_access),
+                icon = Icons.Rounded.Notifications,
+                tint = Tint.Red,
                 subtitle = stringResource(R.string.media_controls_alerts_now_playing),
                 granted = permissions.notificationAccess,
                 onGrant = { context.openNotificationAccessSettings() }
             )
             PermissionRow(
                 title = stringResource(R.string.modify_system_settings),
+                icon = Icons.Rounded.Settings,
+                tint = Tint.Gray,
                 subtitle = stringResource(R.string.brightness_auto_rotate_from_quick),
                 granted = permissions.writeSettings,
                 onGrant = { context.openWriteSettings() }
             )
             PermissionRow(
                 title = stringResource(R.string.do_not_disturb_access),
+                icon = Icons.Rounded.DoNotDisturbOn,
+                tint = Tint.Indigo,
                 subtitle = stringResource(R.string.lets_dnd_toggle_work_place),
                 granted = permissions.dndAccess,
                 onGrant = { context.openDndAccessSettings() }
@@ -143,6 +155,8 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                 var disclosing by remember { mutableStateOf(false) }
                 PermissionRow(
                     title = stringResource(R.string.helper_row_title),
+                    icon = Icons.Rounded.Accessibility,
+                    tint = Tint.Purple,
                     subtitle = stringResource(R.string.helper_row_desc),
                     granted = permissions.helper,
                     onGrant = { disclosing = true }
@@ -178,30 +192,21 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
 
         SectionCard(title = stringResource(R.string.try_out)) {
             Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
             ) {
-                OutlinedButton(
-                    onClick = { viewModel.expandIsland() },
-                    modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.expand)) }
-                OutlinedButton(
-                    onClick = { viewModel.startTimer(1) },
-                    modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.n_1_min_timer)) }
-            }
-            Row(
-                modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { viewModel.startTimer(5) },
-                    modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.n_5_min_timer)) }
-                OutlinedButton(
-                    onClick = onOpenAppearance,
-                    modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.customise)) }
+                ActionTile(Icons.Rounded.OpenInFull, Tint.Blue, stringResource(R.string.expand), Modifier.weight(1f)) {
+                    viewModel.expandIsland()
+                }
+                ActionTile(Icons.Rounded.Timer, Tint.Orange, stringResource(R.string.n_1_min_timer), Modifier.weight(1f)) {
+                    viewModel.startTimer(1)
+                }
+                ActionTile(Icons.Rounded.AvTimer, Tint.Orange, stringResource(R.string.n_5_min_timer), Modifier.weight(1f)) {
+                    viewModel.startTimer(5)
+                }
+                ActionTile(Icons.Rounded.Palette, Tint.Pink, stringResource(R.string.customise), Modifier.weight(1f)) {
+                    onOpenAppearance()
+                }
             }
             Text(
                 stringResource(R.string.timers_expand_action_need_island),
@@ -216,13 +221,16 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 10.dp),
+                    .padding(horizontal = 16.dp, vertical = 10.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                IconTile(Icons.Rounded.SystemUpdate, Tint.Green)
+                Spacer(Modifier.width(14.dp))
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
                         stringResource(R.string.version_2, BuildConfig.VERSION_NAME),
-                        style = MaterialTheme.typography.bodyLarge
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurface
                     )
                     Text(
                         when (val state = updateState) {
@@ -239,7 +247,7 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = { viewModel.checkForUpdatesNow() },
                     enabled = updateState !is UpdateState.Checking &&
                         updateState !is UpdateState.Downloading
@@ -247,6 +255,8 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             }
             SwitchRow(
                 title = stringResource(R.string.check_automatically),
+                icon = Icons.Rounded.Sync,
+                tint = Tint.Blue,
                 subtitle = stringResource(R.string.looks_once_every_few_hours),
                 checked = settings.autoCheckUpdates,
                 onCheckedChange = { value -> viewModel.update { it.copy(autoCheckUpdates = value) } }
@@ -254,6 +264,8 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             var editingSource by remember { mutableStateOf(false) }
             NavRow(
                 title = stringResource(R.string.update_source),
+                icon = Icons.Rounded.Link,
+                tint = Tint.Gray,
                 subtitle = settings.updateManifestUrl,
                 onClick = { editingSource = true }
             )
@@ -278,71 +290,192 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
     }
 }
 
+/**
+ * The top of the screen: whether the island is running, and the one switch that matters, on
+ * a card tinted from the wallpaper so it reads as the heart of the app.
+ */
+@Composable
+private fun HeroCard(
+    enabled: Boolean,
+    canRun: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onAllow: () -> Unit,
+) {
+    val scheme = MaterialTheme.colorScheme
+    val (dot, shortStatus, longStatus) = when {
+        !canRun -> Triple(Tint.Orange, R.string.status_setup, R.string.needs_display_over_apps_permission)
+        enabled -> Triple(Tint.Green, R.string.status_running, R.string.running_tap_island_expand)
+        else -> Triple(Tint.Gray, R.string.status_off, R.string.switched_off)
+    }
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 16.dp, vertical = 8.dp)
+            .clip(RoundedCornerShape(30.dp))
+            .background(Brush.linearGradient(listOf(scheme.primaryContainer, scheme.tertiaryContainer)))
+            .padding(20.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(modifier = Modifier.weight(1f)) {
+                Row(
+                    modifier = Modifier
+                        .clip(CircleShape)
+                        .background(scheme.surface.copy(alpha = 0.6f))
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(Modifier.size(8.dp).background(dot, CircleShape))
+                    Spacer(Modifier.width(6.dp))
+                    Text(
+                        stringResource(shortStatus),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = scheme.onSurface
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text(
+                    stringResource(R.string.dynamic_island),
+                    style = MaterialTheme.typography.headlineMedium,
+                    color = scheme.onPrimaryContainer
+                )
+                Text(
+                    stringResource(longStatus),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = scheme.onPrimaryContainer.copy(alpha = 0.78f),
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(
+                checked = enabled,
+                enabled = canRun,
+                onCheckedChange = onToggle,
+                thumbContent = if (enabled) {
+                    { Icon(Icons.Rounded.Check, contentDescription = null, modifier = Modifier.size(SwitchDefaults.IconSize)) }
+                } else null,
+            )
+        }
+        if (!canRun) {
+            Spacer(Modifier.height(16.dp))
+            Button(
+                onClick = onAllow,
+                shape = RoundedCornerShape(16.dp),
+                modifier = Modifier.fillMaxWidth().height(48.dp)
+            ) {
+                Icon(Icons.Rounded.Layers, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.allow_display_over_other_apps))
+            }
+        }
+    }
+}
+
+/** How much of the setup is done, as a count and a bar. */
+@Composable
+private fun SetupProgress(done: Int, total: Int) {
+    Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, top = 10.dp, bottom = 6.dp)) {
+        Text(
+            pluralStringResource(R.plurals.setup_progress, total, done, total),
+            style = MaterialTheme.typography.labelMedium,
+            color = if (done == total) Tint.Green else MaterialTheme.colorScheme.primary
+        )
+        Spacer(Modifier.height(8.dp))
+        LinearProgressIndicator(
+            progress = { if (total == 0) 1f else done / total.toFloat() },
+            color = if (done == total) Tint.Green else MaterialTheme.colorScheme.primary,
+            trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+            strokeCap = StrokeCap.Round,
+            modifier = Modifier.fillMaxWidth().height(6.dp)
+        )
+    }
+}
+
 @Composable
 private fun PermissionRow(
     title: String,
     subtitle: String,
     granted: Boolean,
+    icon: ImageVector,
+    tint: Color,
     onGrant: () -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 10.dp),
+            .heightIn(min = 64.dp)
+            .padding(horizontal = 16.dp, vertical = 10.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(
-            modifier = Modifier
-                .size(28.dp)
-                .background(
-                    if (granted) Color(0xFF34C759).copy(alpha = 0.18f)
-                    else MaterialTheme.colorScheme.surfaceVariant,
-                    CircleShape
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = if (granted) Icons.Default.Check else Icons.Default.PriorityHigh,
-                contentDescription = null,
-                tint = if (granted) Color(0xFF34C759) else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(16.dp)
-            )
-        }
+        IconTile(icon, tint)
         Column(
             modifier = Modifier
                 .weight(1f)
-                .padding(start = 12.dp)
+                .padding(start = 14.dp, end = 10.dp)
         ) {
-            Text(title, style = MaterialTheme.typography.bodyLarge)
+            Text(title, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurface)
             Text(
                 subtitle,
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.padding(top = 2.dp)
             )
         }
-        if (!granted) {
-            OutlinedButton(onClick = onGrant) { Text(stringResource(R.string.grant)) }
+        if (granted) {
+            Icon(
+                Icons.Rounded.CheckCircle,
+                contentDescription = null,
+                tint = Tint.Green,
+                modifier = Modifier.size(26.dp)
+            )
+        } else {
+            FilledTonalButton(
+                onClick = onGrant,
+                contentPadding = PaddingValues(horizontal = 14.dp, vertical = 6.dp)
+            ) { Text(stringResource(R.string.grant)) }
         }
+    }
+}
+
+/** A quick action: a large tile over a short label, like a control centre button. */
+@Composable
+private fun ActionTile(
+    icon: ImageVector,
+    tint: Color,
+    label: String,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier = modifier
+            .clip(RoundedCornerShape(18.dp))
+            .clickable(onClick = onClick)
+            .padding(vertical = 10.dp, horizontal = 4.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        IconTile(icon, tint, size = 46.dp)
+        Spacer(Modifier.height(8.dp))
+        Text(
+            label,
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurface,
+            textAlign = TextAlign.Center,
+            maxLines = 2
+        )
     }
 }
 
 @Composable
 private fun Tip(text: String) {
     Row(
-        modifier = Modifier.padding(horizontal = 18.dp, vertical = 5.dp),
+        modifier = Modifier.padding(horizontal = 16.dp, vertical = 7.dp),
         verticalAlignment = Alignment.Top
     ) {
-        Box(
-            modifier = Modifier
-                .padding(top = 7.dp)
-                .size(5.dp)
-                .background(MaterialTheme.colorScheme.primary, CircleShape)
-        )
+        IconTile(Icons.Rounded.Lightbulb, Tint.Yellow, size = 26.dp)
         Text(
             text,
             style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(start = 10.dp)
+            color = MaterialTheme.colorScheme.onSurface,
+            modifier = Modifier.padding(start = 12.dp, top = 3.dp)
         )
     }
 }

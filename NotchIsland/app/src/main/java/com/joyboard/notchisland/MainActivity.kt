@@ -60,6 +60,15 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.material3.LargeTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Bolt
+import androidx.compose.material.icons.filled.Palette
+import androidx.compose.material.icons.filled.TouchApp
+import com.joyboard.notchisland.ui.theme.AppSurfaces
+import androidx.compose.ui.unit.dp
 
 class MainActivity : ComponentActivity() {
 
@@ -105,13 +114,19 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector)
+private data class Tab(
+    val route: String,
+    @StringRes val label: Int,
+    val icon: ImageVector,
+    /** The filled version, shown while the tab is selected. */
+    val selectedIcon: ImageVector,
+)
 
 private val tabs = listOf(
-    Tab("home", R.string.island, Icons.Outlined.Home),
-    Tab("features", R.string.activities, Icons.Outlined.Bolt),
-    Tab("appearance", R.string.look, Icons.Outlined.Palette),
-    Tab("gestures", R.string.gestures, Icons.Outlined.TouchApp),
+    Tab("home", R.string.island, Icons.Outlined.Home, Icons.Filled.Home),
+    Tab("features", R.string.activities, Icons.Outlined.Bolt, Icons.Filled.Bolt),
+    Tab("appearance", R.string.look, Icons.Outlined.Palette, Icons.Filled.Palette),
+    Tab("gestures", R.string.gestures, Icons.Outlined.TouchApp, Icons.Filled.TouchApp),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,11 +146,19 @@ private fun NotchIslandApp(
     val backStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = backStackEntry?.destination?.route
     val isSubScreen = currentRoute == "blocked" || currentRoute == "about"
+    // A big title that folds into the bar as the page scrolls, like the system's own settings.
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
-            TopAppBar(
+            LargeTopAppBar(
+                scrollBehavior = scrollBehavior,
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = AppSurfaces.page,
+                    scrolledContainerColor = AppSurfaces.card,
+                ),
                 title = {
                     Text(
                         when (currentRoute) {
@@ -166,7 +189,7 @@ private fun NotchIslandApp(
         },
         bottomBar = {
             if (!isSubScreen) {
-                NavigationBar {
+                NavigationBar(containerColor = AppSurfaces.card, tonalElevation = 0.dp) {
                     tabs.forEach { tab ->
                         val selected = backStackEntry?.destination?.hierarchy
                             ?.any { it.route == tab.route } == true
@@ -181,14 +204,19 @@ private fun NotchIslandApp(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
+                            icon = {
+                                Icon(
+                                    if (selected) tab.selectedIcon else tab.icon,
+                                    contentDescription = stringResource(tab.label)
+                                )
+                            },
                             label = { Text(stringResource(tab.label)) }
                         )
                     }
                 }
             }
         },
-        containerColor = MaterialTheme.colorScheme.background
+        containerColor = AppSurfaces.page
     ) { padding ->
         Box(
             modifier = Modifier

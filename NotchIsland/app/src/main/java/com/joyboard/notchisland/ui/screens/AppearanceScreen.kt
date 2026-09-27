@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -44,6 +43,45 @@ import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
 import com.joyboard.notchisland.BuildConfig
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.material.icons.Icons
+import com.joyboard.notchisland.ui.theme.Tint
+import androidx.compose.material.icons.rounded.AutoAwesome
+import androidx.compose.material.icons.rounded.BorderOuter
+import androidx.compose.material.icons.rounded.BorderStyle
+import androidx.compose.material.icons.rounded.CameraAlt
+import androidx.compose.material.icons.rounded.CenterFocusStrong
+import androidx.compose.material.icons.rounded.Colorize
+import androidx.compose.material.icons.rounded.Contrast
+import androidx.compose.material.icons.rounded.DarkMode
+import androidx.compose.material.icons.rounded.FormatColorFill
+import androidx.compose.material.icons.rounded.Height
+import androidx.compose.material.icons.rounded.Layers
+import androidx.compose.material.icons.rounded.LineWeight
+import androidx.compose.material.icons.rounded.Opacity
+import androidx.compose.material.icons.rounded.Palette
+import androidx.compose.material.icons.rounded.PhoneIphone
+import androidx.compose.material.icons.rounded.RoundedCorner
+import androidx.compose.material.icons.rounded.Smartphone
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.SwapHoriz
+import androidx.compose.material.icons.rounded.SwapVert
+import androidx.compose.material.icons.rounded.TouchApp
+import androidx.compose.material.icons.rounded.VerticalAlignTop
+import androidx.compose.material.icons.rounded.ViewAgenda
+import androidx.compose.material.icons.rounded.ViewCompact
+import androidx.compose.material.icons.rounded.ViewDay
+import androidx.compose.material.icons.rounded.Visibility
+import androidx.compose.material.icons.rounded.Waves
+import androidx.compose.material.icons.rounded.WidthNormal
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.rounded.Tune
+import androidx.compose.material.icons.rounded.Refresh
+import androidx.compose.material.icons.rounded.RestartAlt
 
 @Composable
 fun AppearanceScreen(viewModel: MainViewModel) {
@@ -70,6 +108,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         ) {
             DropdownRow(
                 title = stringResource(R.string.style),
+                icon = Icons.Rounded.PhoneIphone,
+                tint = Tint.Gray,
                 selected = settings.preset,
                 options = IslandPreset.entries.toList(),
                 label = { stringResource(it.label) },
@@ -77,6 +117,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SwitchRow(
                 title = stringResource(R.string.ios_mode),
+                icon = Icons.Rounded.AutoAwesome,
+                tint = Tint.Blue,
                 subtitle = stringResource(R.string.pure_black_fully_rounded_44),
                 checked = settings.iosMode,
                 onCheckedChange = { value -> viewModel.update { it.copy(iosMode = value) } }
@@ -105,6 +147,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             }
             DropdownRow(
                 title = stringResource(R.string.phone),
+                icon = Icons.Rounded.Smartphone,
+                tint = Tint.Blue,
                 selected = DevicePresets.byId(settings.devicePresetId),
                 options = listOf<DevicePreset?>(null) + DevicePresets.all,
                 label = { preset ->
@@ -135,13 +179,19 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                OutlinedButton(onClick = { viewModel.detectHole() }, modifier = Modifier.weight(1f)) {
-                    Text(stringResource(R.string.detect_from_phone))
+                FilledTonalButton(onClick = { viewModel.detectHole() }, modifier = Modifier.weight(1f)) {
+                    Icon(Icons.Rounded.CenterFocusStrong, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.detect_short), maxLines = 1)
                 }
-                OutlinedButton(
+                FilledTonalButton(
                     onClick = { context.startActivity(Intent(context, CalibrationActivity::class.java)) },
                     modifier = Modifier.weight(1f)
-                ) { Text(stringResource(R.string.calibrate)) }
+                ) {
+                    Icon(Icons.Rounded.Tune, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.calibrate), maxLines = 1)
+                }
             }
             Text(
                 stringResource(R.string.presets_place_camera_from_phone),
@@ -151,12 +201,16 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SwitchRow(
                 title = stringResource(R.string.keep_content_clear_camera),
+                icon = Icons.Rounded.CenterFocusStrong,
+                tint = Tint.Teal,
                 subtitle = stringResource(R.string.icons_text_move_aside_instead),
                 checked = settings.avoidHole,
                 onCheckedChange = { value -> viewModel.update { it.copy(avoidHole = value) } }
             )
             SwitchRow(
                 title = stringResource(R.string.draw_lens_over_camera),
+                icon = Icons.Rounded.CameraAlt,
+                tint = Tint.Gray,
                 subtitle = stringResource(R.string.dark_circle_exactly_over_hole),
                 checked = settings.showFauxCamera,
                 onCheckedChange = { value -> viewModel.update { it.copy(showFauxCamera = value) } }
@@ -170,12 +224,16 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         }
 
         SectionCard(title = stringResource(R.string.size), subtitle = stringResource(R.string.match_phone_camera_cutout)) {
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { viewModel.fitToCutout() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 6.dp)
-            ) { Text(stringResource(R.string.fit_my_camera)) }
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                    Icon(Icons.Rounded.CenterFocusStrong, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.fit_my_camera), maxLines = 1)
+                }
             Text(
                 stringResource(R.string.asks_phone_where_its_camera),
                 style = MaterialTheme.typography.bodySmall,
@@ -184,6 +242,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SliderRow(
                 title = stringResource(R.string.resting_width),
+                icon = Icons.Rounded.WidthNormal,
+                tint = Tint.Blue,
                 value = settings.collapsedWidth.toFloat(),
                 range = 60f..260f,
                 valueLabel = stringResource(R.string.dp, settings.collapsedWidth),
@@ -193,6 +253,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SliderRow(
                 title = stringResource(R.string.height),
+                icon = Icons.Rounded.Height,
+                tint = Tint.Blue,
                 value = settings.collapsedHeight.toFloat(),
                 range = 18f..64f,
                 valueLabel = stringResource(R.string.dp, settings.collapsedHeight),
@@ -202,6 +264,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SliderRow(
                 title = stringResource(R.string.corner_radius),
+                icon = Icons.Rounded.RoundedCorner,
+                tint = Tint.Blue,
                 value = settings.cornerRadius.toFloat(),
                 range = 0f..40f,
                 valueLabel = stringResource(R.string.dp, settings.cornerRadius),
@@ -211,6 +275,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SliderRow(
                 title = stringResource(R.string.compact_width),
+                icon = Icons.Rounded.ViewCompact,
+                tint = Tint.Blue,
                 value = settings.compactWidth.toFloat(),
                 range = 120f..320f,
                 valueLabel = stringResource(R.string.dp, settings.compactWidth),
@@ -220,6 +286,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SliderRow(
                 title = stringResource(R.string.small_card_width),
+                icon = Icons.Rounded.ViewDay,
+                tint = Tint.Blue,
                 value = settings.mediumWidth.toFloat(),
                 range = 150f..380f,
                 valueLabel = stringResource(R.string.dp, settings.mediumWidth),
@@ -229,6 +297,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SliderRow(
                 title = stringResource(R.string.expanded_width),
+                icon = Icons.Rounded.ViewAgenda,
+                tint = Tint.Blue,
                 value = settings.expandedWidth.toFloat(),
                 range = 240f..420f,
                 valueLabel = stringResource(R.string.dp, settings.expandedWidth),
@@ -247,6 +317,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             if (BuildConfig.HELPER_AVAILABLE) {
                 SwitchRow(
                     title = stringResource(R.string.draw_above_status_bar),
+                    icon = Icons.Rounded.Layers,
+                    tint = Tint.Purple,
                     subtitle = stringResource(
                         if (permissions.helper) R.string.draw_above_status_bar_on
                         else R.string.draw_above_status_bar_needs_helper
@@ -257,6 +329,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             }
             DropdownRow(
                 title = stringResource(R.string.anchor),
+                icon = Icons.Rounded.VerticalAlignTop,
+                tint = Tint.Purple,
                 selected = settings.positionMode,
                 options = PositionMode.entries.toList(),
                 label = { stringResource(it.label) },
@@ -283,6 +357,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 Column {
                     SliderRow(
                         title = stringResource(R.string.touch_strip),
+                        icon = Icons.Rounded.TouchApp,
+                        tint = Tint.Purple,
                         value = settings.touchStripHeight.toFloat(),
                         range = 8f..48f,
                         valueLabel = stringResource(R.string.dp, settings.touchStripHeight),
@@ -292,6 +368,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                     )
                     SwitchRow(
                         title = stringResource(R.string.show_hint_under_island),
+                        icon = Icons.Rounded.Visibility,
+                        tint = Tint.Purple,
                         subtitle = stringResource(R.string.faint_handle_marking_where_taps),
                         checked = settings.showTouchHint,
                         onCheckedChange = { value ->
@@ -302,6 +380,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             }
             SliderRow(
                 title = stringResource(R.string.horizontal_offset),
+                icon = Icons.Rounded.SwapHoriz,
+                tint = Tint.Orange,
                 value = settings.offsetX.toFloat(),
                 range = -120f..120f,
                 valueLabel = stringResource(R.string.dp, settings.offsetX),
@@ -311,6 +391,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SliderRow(
                 title = stringResource(R.string.vertical_offset),
+                icon = Icons.Rounded.SwapVert,
+                tint = Tint.Orange,
                 value = settings.offsetY.toFloat(),
                 range = 0f..90f,
                 valueLabel = stringResource(R.string.dp, settings.offsetY),
@@ -327,6 +409,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         ) {
             DropdownRow(
                 title = stringResource(R.string.accent),
+                icon = Icons.Rounded.Palette,
+                tint = Tint.Pink,
                 selected = settings.accentSource,
                 options = ColorSource.entries.toList(),
                 label = { stringResource(it.label) },
@@ -335,12 +419,16 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             if (settings.accentSource == ColorSource.MANUAL) {
                 ColorRow(
                     title = stringResource(R.string.accent_colour),
+                    icon = Icons.Rounded.Colorize,
+                    tint = Tint.Pink,
                     selected = settings.accentColor,
                     onSelected = { value -> viewModel.update { it.copy(accentColor = value) } }
                 )
             }
             DropdownRow(
                 title = stringResource(R.string.island_body),
+                icon = Icons.Rounded.FormatColorFill,
+                tint = Tint.Gray,
                 selected = settings.backgroundSource,
                 options = listOf(ColorSource.MANUAL, ColorSource.MATERIAL_YOU),
                 label = { stringResource(it.label) },
@@ -349,12 +437,16 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             if (settings.backgroundSource == ColorSource.MANUAL) {
                 ColorRow(
                     title = stringResource(R.string.body_colour),
+                    icon = Icons.Rounded.FormatColorFill,
+                    tint = Tint.Gray,
                     selected = settings.backgroundColor,
                     onSelected = { value -> viewModel.update { it.copy(backgroundColor = value) } }
                 )
             }
             SliderRow(
                 title = stringResource(R.string.opacity),
+                icon = Icons.Rounded.Opacity,
+                tint = Tint.Cyan,
                 value = settings.opacity,
                 range = 0.2f..1f,
                 valueLabel = "${(settings.opacity * 100).roundToInt()}%",
@@ -362,17 +454,23 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SwitchRow(
                 title = stringResource(R.string.outline),
+                icon = Icons.Rounded.BorderOuter,
+                tint = Tint.Gray,
                 checked = settings.borderEnabled,
                 onCheckedChange = { value -> viewModel.update { it.copy(borderEnabled = value) } }
             )
             if (settings.borderEnabled) {
                 ColorRow(
                     title = stringResource(R.string.outline_colour),
+                    icon = Icons.Rounded.BorderStyle,
+                    tint = Tint.Gray,
                     selected = settings.borderColor,
                     onSelected = { value -> viewModel.update { it.copy(borderColor = value) } }
                 )
                 SliderRow(
                     title = stringResource(R.string.outline_width),
+                    icon = Icons.Rounded.LineWeight,
+                    tint = Tint.Gray,
                     value = settings.borderWidth.toFloat(),
                     range = 1f..6f,
                     steps = 4,
@@ -384,6 +482,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             }
             SwitchRow(
                 title = stringResource(R.string.drop_shadow),
+                icon = Icons.Rounded.Contrast,
+                tint = Tint.Gray,
                 checked = settings.shadowEnabled,
                 onCheckedChange = { value -> viewModel.update { it.copy(shadowEnabled = value) } }
             )
@@ -392,6 +492,8 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         SectionCard(title = stringResource(R.string.motion_theme)) {
             SliderRow(
                 title = stringResource(R.string.animation_speed),
+                icon = Icons.Rounded.Speed,
+                tint = Tint.Indigo,
                 value = settings.animationSpeed,
                 range = 0.5f..2f,
                 valueLabel = "${(settings.animationSpeed * 10).roundToInt() / 10f}x",
@@ -399,12 +501,16 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             SwitchRow(
                 title = stringResource(R.string.effects),
+                icon = Icons.Rounded.Waves,
+                tint = Tint.Purple,
                 subtitle = stringResource(R.string.effects_desc),
                 checked = settings.effects,
                 onCheckedChange = { value -> viewModel.update { it.copy(effects = value) } }
             )
             DropdownRow(
                 title = stringResource(R.string.app_theme),
+                icon = Icons.Rounded.DarkMode,
+                tint = Tint.Indigo,
                 selected = settings.themeMode,
                 options = ThemeMode.entries.toList(),
                 label = {
@@ -424,18 +530,28 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.bodySmall,
             )
-            OutlinedButton(
+            FilledTonalButton(
                 onClick = { viewModel.restartOverlay() },
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 8.dp)
-            ) { Text(stringResource(R.string.restart_overlay)) }
-            OutlinedButton(
+                    .padding(horizontal = 16.dp, vertical = 6.dp)
+            ) {
+                    Icon(Icons.Rounded.Refresh, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.restart_overlay), maxLines = 1)
+                }
+            // Resetting everything is the one destructive action here, so it reads that way.
+            TextButton(
                 onClick = { viewModel.resetToDefaults() },
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 18.dp, vertical = 4.dp)
-            ) { Text(stringResource(R.string.reset_everything_defaults)) }
+                    .padding(horizontal = 16.dp, vertical = 2.dp)
+            ) {
+                    Icon(Icons.Rounded.RestartAlt, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text(stringResource(R.string.reset_everything_defaults), maxLines = 1)
+                }
         }
     }
 }

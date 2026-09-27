@@ -483,6 +483,14 @@
     <string name="alarm_at">Alarm %1$s</string>
     <string name="effects">Ripples and glows</string>
     <string name="effects_desc">A ripple where you touch the island, and a bounce and edge glow when something arrives</string>
+    <string name="status_running">Running</string>
+    <string name="status_off">Off</string>
+    <string name="status_setup">Setup needed</string>
+    <string name="detect_short">Detect</string>
+    <plurals name="setup_progress">
+        <item quantity="one">%1$d of %2$d ready</item>
+        <item quantity="other">%1$d of %2$d ready</item>
+    </plurals>
     <plurals name="blocked_apps">
         <item quantity="one">%1$d app blocked</item>
         <item quantity="other">%1$d apps blocked</item>

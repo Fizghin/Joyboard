@@ -1,15 +1,14 @@
 {
-  "versionCode": 11,
-  "versionName": "2.5",
+  "versionCode": 12,
+  "versionName": "2.6",
   "mandatory": false,
   "notes": [
-    "Ripple on touch, and a bounce and edge glow when something arrives (Look → Ripples and glows)",
-    "Smoother app: screens slide, rows expand",
-    "New: headphones connecting, flashlight with a Turn off button, Do Not Disturb notices, next alarm in the quick panel",
-    "From 2.4.1: fixed the island disappearing when the helper was turned on"
+    "A redesigned app: icon tiles on every setting, clearer cards in light and dark, a status card on Home",
+    "Setup checklist with progress, quick-action tiles, a sliding size selector in the preview",
+    "From 2.5: ripples, arrival glow, headphones, flashlight, Do Not Disturb and alarm in the island"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 2035625,
-  "debugSizeBytes": 20757039
+  "sizeBytes": 2102833,
+  "debugSizeBytes": 20791483
 }
