@@ -1,6 +1,6 @@
 # Privacy policy — Notch Island
 
-Last updated: 25 September 2026
+Last updated: 27 September 2026
 
 Notch Island does not collect, transmit or sell any personal data. There is no analytics SDK, no
 advertising SDK, no crash reporting service and no account.
@@ -25,6 +25,20 @@ accesses audio or images.
 
 **Battery, volume, ringer and screen state.** Read from system broadcasts to draw the matching
 live activities.
+
+**Calendar** (only if you switch on *Next calendar event*). The title, time and place of events in
+roughly the next hour, read to count down to the next one. Held in memory only, never written
+anywhere, never sent.
+
+**Which app is in front, and whether a keyboard or the notification shade is open** (sideloaded
+build, only if you turn on the helper). The optional helper is an accessibility service used for
+exactly these facts, so the island can hide in apps you choose, while you type and while the
+shade is down — and for its overlay window, which lets the island be drawn above the status bar.
+It does not read what is on screen — no text, no views — and nothing it learns is stored or sent.
+The Play build does not include it.
+
+**Messages from other apps** (only if you switch on *Automation*). Text another app asks the
+island to show, held in memory until it times out.
 
 ## What is stored on your device
 
@@ -52,6 +66,8 @@ has no updater and no network permission use at all.
 | Post notifications | The ongoing notification Android requires for a foreground service |
 | Modify system settings | The brightness and auto-rotate toggles, if you use them |
 | Do Not Disturb access | The DND toggle, if you use it |
+| Read calendar | The next-event countdown, if you switch it on |
+| Accessibility service | Sideloaded build only: drawing above the status bar, and hiding in chosen apps and while typing, if you turn it on |
 | Vibrate | Haptics |
 | Receive boot completed | Bring the island back after a restart, if you asked it to |
 | Internet, install packages | Sideloaded build only: the in-app updater |

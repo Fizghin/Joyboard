@@ -1,16 +1,19 @@
 {
-  "versionCode": 7,
-  "versionName": "2.2.1",
+  "versionCode": 8,
+  "versionName": "2.3",
   "mandatory": false,
   "notes": [
-    "Fixed: the island stayed open instead of going back to its resting pill",
-    "The auto-collapse countdown was being reset by every refresh — a download's progress or a track's playhead kept pushing it back, so it never fired",
-    "A live activity no longer pins the island at the compact size forever; it settles back to the pill once nothing new has happened",
-    "Gestures → Going back to rest sets how long that takes, or restores the always-compact behaviour",
-    "Added a guard that re-asserts the size if an interrupted animation leaves the island stuck"
+    "Status bar icons no longer draw across the island: with the helper on, it sits above them (sideload build)",
+    "Device presets now set the island's whole shape — every size, corner and offset",
+    "Hides for full-screen videos and games; with the helper, also in apps you choose and while typing",
+    "Next calendar event: a countdown in the island (opt-in)",
+    "Media: Up next, and an output button for where the sound plays",
+    "Automation: Tasker and friends can post messages to the island (opt-in)",
+    "Fixed notification buttons doing nothing on Android 14+, the tile below Android 14, and silent notifications taking over",
+    "Targets Android 16, ready for translation, better screen reader support"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 1964897,
-  "debugSizeBytes": 18928173
+  "sizeBytes": 1999885,
+  "debugSizeBytes": 21354534
 }

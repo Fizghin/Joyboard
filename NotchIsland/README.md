@@ -8,7 +8,7 @@ then settles back down.
 | --- | --- | --- |
 | <img src="docs/screenshots/1_pill.png" width="260" alt="Resting pill around a centred camera" /> | <img src="docs/screenshots/2_compact.png" width="260" alt="Compact now-playing readout" /> | <img src="docs/screenshots/3_medium.png" width="260" alt="Small card with title and artist" /> |
 
-<img src="docs/screenshots/4_expanded.png" width="420" alt="Fully open now-playing panel with scrubber, controls, volume and quick toggles" />
+<img src="docs/screenshots/4_expanded.png" width="420" alt="Fully open now-playing panel with scrubber, controls, up next, volume with an output button, and quick toggles" />
 
 These are real renders of `IslandView`, drawn by Robolectric with native graphics — not mockups.
 The dark circle with a red rim is where the phone's camera sits.
@@ -34,9 +34,12 @@ past it, and the open panel starts below it.
 outline — so it is right for any phone, listed or not. There are also presets for Pixel 6 and the
 rest of the Pixel 4a-9 range, Galaxy S23 FE and the S21-S25 and A52-A55 lines, Honor X9b 5G,
 OnePlus 9-12, Nothing Phone (1), (2) and (2a), and more, matched automatically from the phone's
-model. Presets know *where* each camera is; their sizes are close starting points, and the app
-says so. A camera near the middle gets the island wrapped around it; one in a corner leaves the
-island centred.
+model. Picking one sets the island's whole shape, not just the camera: the resting pill's width
+and height, the corner, the offsets, and the compact, small-card and open widths — scaled from the
+iPhone 14 Pro's proportions to that camera and your screen (a Pixel 6 comes out at 122 × 36 dp,
+206 compact, 388 open). Presets know *where* each camera is; the camera sizes are close starting
+points, and the app says so. A camera near the middle gets the island wrapped around it; one in a
+corner leaves the island centred on the same row.
 
 **Shaped to your phone, not a guess.** *Look → Shape → Calibrate to my punch hole* opens a
 full-screen aligner that draws into the cutout area with the system bars hidden. Drag the pill
@@ -67,6 +70,7 @@ priority queue and shows the winner:
 | --- | --- | --- |
 | Call | highest | until the call ends |
 | Notification preview | | 1.5–12 s (configurable) |
+| Automation message | | 1–600 s, as sent |
 | Unlock confirmation | | 1.4 s |
 | Privacy indicator (mic / camera) | | while the sensor is live |
 | Volume change | | 1.6 s |
@@ -76,6 +80,7 @@ priority queue and shows the winner:
 | Stopwatch | | until reset |
 | Timer countdown | | until it finishes |
 | Ongoing activity (navigation, download, delivery) | | until its notification goes |
+| Next calendar event | | from the lead time until 5 min in |
 | Now playing | lowest | while a media session exists |
 
 The ordering rules live in `ActivityQueue`, which has no Android dependencies and is covered by
@@ -86,8 +91,25 @@ Transient activities fade back to whatever sticky activity is underneath — pau
 through a notification and the island returns to the now-playing readout, not to nothing.
 
 **Now playing.** Album art on the left, dancing waveform on the right. Expand for a scrubbable
-progress bar, previous / play / next, and a media volume slider. With the accent set to *Match
-what's playing*, the colour is pulled out of the album art with Palette.
+progress bar, previous / play / next, what is *up next* (when the player publishes its queue), a
+media volume slider, and an output button beside it — like AirPlay's — that opens the system's
+picker for where the sound goes. With the accent set to *Match what's playing*, the colour is
+pulled out of the album art with Palette.
+
+**Your next meeting.** Switch on *Next calendar event* and the island counts down to it — "12m" in
+the pill, the time and place when opened, the event itself on a tap. It comes up once when the
+event enters its window (5–60 minutes ahead, your choice) and again when it starts. All-day,
+cancelled and declined events are left alone. Off until you turn it on, since it needs calendar
+access.
+
+**Staying out of the way.** The island steps aside when a video or game goes full screen — it
+watches the status bar through its own window insets, so that needs no permission — and comes
+straight back when the bar does. A call still breaks through. The sideloaded build can also hide
+in apps you pick and while a keyboard is open, through an optional helper described under
+[Permissions](#permissions).
+
+**Automation.** Tasker, Automate, MacroDroid or a shortcut can put their own messages on the
+island — see [Automation](#automation). Off unless you switch it on.
 
 **Notifications, handled rather than just shown.** App icon, title preview and — when expanded —
 the body, the notification's own action buttons, Open and Dismiss. On top of that:
@@ -103,7 +125,8 @@ the body, the notification's own action buttons, Open and Dismiss. On top of tha
 - **Ongoing activities.** Navigation, downloads, deliveries and recordings stay in the island
   with a live progress bar instead of flashing past.
 - **Recent.** The last dozen notifications are kept for a history panel you can pull back up.
-- **Per-app rules.** Block an app entirely, or mark it to expand the island on arrival.
+- **Per-app rules.** Block an app entirely, mark it to expand the island on arrival, or (with the
+  helper) keep the island hidden while that app is open.
 
 **Quick panel.** Expanding the idle island gives you a clock, date, brightness and volume
 sliders, and round toggles for flashlight, Wi-Fi, Bluetooth, Do Not Disturb, ringer mode,
@@ -127,15 +150,15 @@ Four tabs plus two sub-screens, all Material 3 Compose:
 
 - **Island** — master switch, a live interactive preview of the three states, a permission
   checklist with one-tap grant buttons, and test actions.
-- **Activities** — a switch per live activity, notification preview style and duration, blocked
-  apps, and behaviour (always-on pill, hide in landscape, lock screen, dim when expanded, start
-  on boot).
+- **Activities** — a switch per live activity, notification preview style and duration, per-app
+  rules, behaviour (always-on pill, hide in landscape, hide in full screen, hide while typing,
+  lock screen, dim when expanded, start on boot) and automation.
 - **Look** — device preset and iOS mode, anchor and touch strip, resting/compact/expanded widths, height, corner radius, X/Y
   offset, colour sources (wallpaper / album art / manual) with wallpaper-first swatches, opacity,
   outline, shadow, animation speed, app theme.
 - **Gestures** — tap behaviour (step or straight open), the seven gesture mappings, haptics and
   strength, auto-collapse delay.
-- **Blocked apps** — searchable list of launchable apps.
+- **Per-app rules** — searchable list of launchable apps, with Block, Open and (sideload) Hide.
 - **About** — how priority works, why nothing can draw above the status bar, battery
   optimisation, privacy, and **export / restore** of every setting as a JSON file.
 
@@ -149,12 +172,21 @@ changes land on screen as you drag the slider.
 
 ## Where the island sits
 
-Android layers windows by type, and an app overlay — the only kind an app without system
-privileges can create — is **always placed below the status bar**. The status bar consumes every
-touch inside its own band. No permission, flag or window type changes that. This is why the first
-build looked fine and ignored every tap: the whole island was inside the dead band.
+Android layers windows by type, and an ordinary app overlay is **always placed below the status
+bar**. Two things follow: notification and system icons are drawn *across* the island wherever it
+reaches into the bar, and the status bar consumes every touch inside its own band. This is why the
+first build looked fine and ignored every tap: the whole island was inside the dead band.
 
-There are two honest ways to live with that, and *Look → Position → Anchor* picks between them:
+**The fix: draw above it.** The one window an app can place above the status bar is an
+*accessibility overlay*. In the sideloaded build, turn on the helper (*Island → Permissions →
+Helper service*) and, with *Look → Position → Draw above the status bar* on — the default — the
+island moves into one: icons go *under* the island instead of across it, every part of it takes
+taps, and the touch strip below is no longer needed. Because that window is also above the
+notification shade, the island steps aside while the shade is pulled down. The Play build cannot
+do this: Play reserves accessibility services for disability tools.
+
+Without the helper there are two honest ways to live with the status bar, and *Look → Position →
+Anchor* picks between them:
 
 | Anchor | Looks like | Touch |
 | --- | --- | --- |
@@ -169,12 +201,10 @@ height is a slider. Centre the island and the system clock and icons sit either 
 than drawing through it. Once the island expands it grows well past the bar, so the whole panel
 takes touches normally.
 
-The strip is the one trade-off: a small band of screen just under the status bar, as wide as the
-strip, belongs to the island rather than the app behind it. Shrink it to taste, or use the default
-anchor and give up the cutout look.
-
-Anything that genuinely draws *above* the status bar is a system app, a launcher, or a build with
-elevated privileges.
+The strip is one trade-off: a small band of screen just under the status bar, as wide as the strip,
+belongs to the island rather than the app behind it. The other is the icons — without the helper,
+notification icons are drawn over the part of the island inside the bar. Shrink the pill to fit
+between them, turn on the helper, or use the default anchor and give up the cutout look.
 
 ## Permissions
 
@@ -184,10 +214,52 @@ elevated privileges.
 | Notification access | media sessions, notification previews | for those features |
 | Modify system settings | brightness and auto-rotate toggles | optional |
 | Do Not Disturb access | the DND toggle | optional |
+| Read calendar | the next-event countdown | only if you switch it on |
+| Helper accessibility service | drawing above the status bar; hiding in chosen apps and while typing | sideload build, optional |
 | Post notifications | the ongoing service notification | Android 13+ |
 
 Nothing leaves the device. Notification content is rendered straight into the overlay and is
 never stored, logged or uploaded.
+
+**About the helper.** Two things need an accessibility service: drawing the island *above* the
+status bar (see [Where the island sits](#where-the-island-sits)), and knowing which app is in front
+and whether a keyboard or the shade is open, for hiding. The helper asks for window changes and
+nothing else: it never reads a view or any text, and it stores and sends nothing. The app explains
+this before sending you to the setting. It is only in the sideloaded build, because Google Play
+reserves accessibility services for tools that help people with disabilities. Full-screen hiding
+does not need it.
+
+On Android 13 and later, a sideloaded app's accessibility service is a *restricted setting*: the
+switch is greyed out until you allow it. Open *App info* (the helper dialog has a button), tap
+**⋮ → Allow restricted settings**, then switch the helper on.
+
+## Automation
+
+Off by default. Switch on *Activities → Automation → Let other apps post to the island*, and while
+the island is running it listens for two broadcasts:
+
+| Action | Extras |
+| --- | --- |
+| `com.joyboard.notchisland.action.SHOW` | `title` (required), `text`, `duration` in seconds (default 5, 1–600), `color` as `#RRGGBB`, `icon`, `expand` (`true` to open it) |
+| `com.joyboard.notchisland.action.DISMISS` | none |
+
+`icon` is one of `bell`, `timer`, `music`, `calendar`, `battery`, `wifi`, `bluetooth`, `torch` or
+`island`. Numbers and flags may be sent as text, which is how Tasker sends them. Titles are cut
+at 80 characters and text at 240.
+
+In Tasker: *System → Send Intent*, Action `com.joyboard.notchisland.action.SHOW`, Extra
+`title:Laundry done`, another `duration:10`, Target *Broadcast Receiver*. From a shell:
+
+```bash
+adb shell am broadcast -a com.joyboard.notchisland.action.SHOW \
+  --es title "Laundry done" --es text "Drum's stopped" --ei duration 10 --es color "#34C759"
+```
+
+Messages are text only and carry no tap target: another app can make the island say something,
+but never make it open anything. Nothing is registered while the setting is off. The settings
+screen has a button that sends a test message.
+
+Launcher shortcuts cover the rest — a 5-minute timer, the stopwatch, recent notifications.
 
 ## Builds
 
@@ -196,16 +268,22 @@ never stored, logged or uploaded.
 | `sideload` | downloaded from here | yes, in-app | ~2 MB release |
 | `play` | the Play Store | no — Play forbids the permission | ~2 MB |
 
+The sideload build also carries the optional helper service; the Play build has neither.
+
 The release build runs R8 with resource shrinking, which takes it from 12.6 MB to under 2 MB. The
 app's own classes are deliberately kept whole: nearly all the shrinking comes from dead library
 code, so keeping them costs about 65 kB and removes a whole class of release-only crash, while
 leaving stack traces readable.
 
 ```bash
-gradle assembleSideloadRelease     # the APK published here
-gradle bundlePlayRelease           # the AAB for the Play Store
+./gradlew assembleSideloadRelease  # the APK published here
+./gradlew bundlePlayRelease        # the AAB for the Play Store
 ./publish.sh                       # tests, lint, every artifact, and update.json
 ```
+
+Both carry a startup profile (`app/src/main/baseline-prof.txt`) compiled ahead of time, which
+`profileinstaller` applies to sideloaded installs too, so the first taps after an install are not
+spent in the interpreter.
 
 ## Install
 
@@ -216,7 +294,7 @@ other apps*, and flip the master switch.
 under a separate package id (`…notchisland.debug`), which is handy for development and useless
 otherwise.
 
-Minimum Android 8.0 (API 26), targets Android 14 (API 34).
+Minimum Android 8.0 (API 26), targets Android 16 (API 36).
 
 ## Updating
 
@@ -266,11 +344,13 @@ manifest is small enough to write by hand:
 ## Build from source
 
 ```bash
-export ANDROID_HOME=/path/to/android-sdk    # needs platform 34 + build-tools 34.0.0
+export ANDROID_HOME=/path/to/android-sdk    # needs platforms 36 and 37, build-tools 37
 cd NotchIsland
-gradle testDebugUnitTest      # the pure-logic suite
-gradle assembleDebug          # or: gradle assembleRelease
+./gradlew testSideloadDebugUnitTest   # the whole suite, JVM and Robolectric
+./gradlew assembleSideloadDebug       # or assembleSideloadRelease, bundlePlayRelease
 ```
+
+JDK 17 or newer; the builds here are verified with 21.
 
 Output lands in `app/build/outputs/apk/`. `./publish.sh` does the whole release chore: runs the
 tests, builds both APKs, copies them into `apks/` and rewrites `update.json` with the new version
@@ -279,18 +359,22 @@ every push to `notch`.
 
 ### Tests
 
-90 tests in two layers.
+143 tests in two layers.
 
 **Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
-policy, tap stepping, camera clearance geometry, device presets and model matching, the
-notification filter, the spring curve's overshoot and settling, passcode detection, formatting,
-quiet hours, and the settings backup round trip.
+policy, when the island hides, tap stepping, camera clearance geometry, which screen a camera
+belongs to on a foldable, device presets and model matching, the notification filter, the spring
+curve's overshoot and settling, passcode detection, the calendar countdown, the media queue,
+automation request cleaning, formatting, quiet hours, and the settings backup round trip — which
+fails if any setting is ever added without its line in the backup.
 
 **Robolectric** — the real code on an Android 16 runtime under a controlled clock: the timer and
 stopwatch; the whole `IslandController`, overlay window and all, including regression tests for
-the island refusing to go back to its resting size (verified to fail against the old code); and
-screenshot tests that render `IslandView` in every size with native graphics. CI uploads those
-renders on every push.
+the island refusing to go back to its resting size (verified to fail against the old code),
+hiding in a chosen app with a call breaking through, and automation broadcasts arriving only while
+switched on; the calendar reader against a stand-in provider; every string resource resolving;
+the island's accessibility actions; and screenshot tests that render `IslandView` in every size
+with native graphics. CI uploads those renders on every push.
 
 What still needs a phone: real window layering against the system status bar, touch delivery,
 and anything that depends on another app's notifications.
@@ -301,23 +385,33 @@ and anything that depends on another app's notifications.
 NotchIsland/app/src/main/java/com/joyboard/notchisland/
 ├── data/            IslandSettings + DataStore repository
 ├── island/
-│   ├── IslandController.kt   overlay window, all the wiring
+│   ├── IslandController.kt   what to show and when: activities, gestures, visibility
+│   ├── OverlayWindow.kt      the window: attaching, touch strip, focus, insets, the hole
+│   ├── Presentations.kt      each live activity as something the island can draw
+│   ├── IslandView.kt         the morphing view: sizes, gestures, springs, accessibility
+│   ├── IslandPanels.kt       the expanded panels, one builder per activity
 │   ├── ActivityQueue.kt      priority ordering and expiry (tested)
-│   ├── OtpExtractor.kt       passcode detection (tested)
-│   ├── StopwatchEngine.kt    laps and elapsed time
-│   ├── IslandView.kt         the morphing view: three modes, gestures, panels
-│   ├── MediaMonitor.kt       MediaSessionManager + Palette accent extraction
+│   ├── RestPolicy.kt         when the island settles back to rest (tested)
+│   ├── VisibilityPolicy.kt   when it steps off the screen (tested)
+│   ├── HoleGeometry.kt       keeping content clear of the camera (tested)
+│   ├── HoleResolver.kt       which camera applies to this screen (tested)
+│   ├── MediaMonitor.kt       MediaSessionManager, queue, Palette accent extraction
+│   ├── CalendarMonitor.kt    the next event, off the main thread
 │   ├── SystemMonitors.kt     battery, volume, ringer, screen, mic/camera
 │   ├── QuickActions.kt       torch, DND, rotation, brightness, settings panels
 │   ├── TimerEngine.kt        countdown live activity
+│   ├── StopwatchEngine.kt    laps and elapsed time
+│   ├── OtpExtractor.kt       passcode detection (tested)
+│   ├── AutomationRequest.kt  cleaning up what other apps send (tested)
 │   ├── WaveformView.kt       the dancing bars
 │   └── RingProgressView.kt   charging and timer rings
 ├── service/
 │   ├── NotchOverlayService.kt     foreground service that hosts the overlay
 │   ├── NotchNotificationListener.kt
 │   ├── IslandTileService.kt       the quick settings tile
-│   ├── IslandBus.kt               listener → controller hand-off
+│   ├── IslandBus.kt               listener and helper → controller hand-off
 │   └── BootReceiver.kt
+├── (sideload)/service/IslandHelperService.kt   the optional accessibility helper
 ├── update/          manifest check, APK download, installer hand-off
 └── ui/              Compose app: theme, view model, components, six screens
 ```
@@ -347,12 +441,16 @@ progress rings skip no-op updates instead of starting an animator each time.
   only offer "open to reply" cannot be replied to from anywhere but their own UI.
 - Answering a call means firing the notification's own action. An app that does not publish one
   can only be opened, not answered.
-- There is no per-app *hiding by foreground app* — that needs an accessibility service, which is
-  a heavier permission than this app currently asks for.
-- The user-facing copy is English only. Strings live in Kotlin rather than `strings.xml`, so a
-  translation pass means extracting them first.
-- Everything here is verified by compilation and the unit suite. There is no instrumented or
-  on-device test coverage, and no screenshot tests.
+- Drawing above the status bar, and hiding in chosen apps and while typing, need the helper, so
+  they are sideload-only. Full-screen hiding works everywhere, but relies on Android telling
+  overlays when the status bar hides, which has not been checked on every maker's build. The
+  shade is recognised as a large system window, which a maker's own edge panels could mimic.
+- The copy is English only for now, but every string is in `strings.xml` with plurals and
+  locale-aware clocks, so a translation is a `values-xx` folder away.
+- The audio output button opens the system volume panel rather than a device list: Android only
+  lets an app switch outputs for its own audio, not another player's.
+- Everything here is verified by compilation, the JVM and Robolectric suites and rendered
+  screenshots. There is no instrumented or on-device test coverage.
 - Brightness and auto-rotate need *Modify system settings*, which Android grants per app.
 - Aggressive battery managers on some OEM skins can stop the overlay service; exclude the app
   from battery optimisation (there is a button in About).

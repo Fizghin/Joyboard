@@ -26,6 +26,9 @@ import com.joyboard.notchisland.island.AutomationRequest
 import android.view.WindowManager
 import com.joyboard.notchisland.data.PositionMode
 import android.content.res.Configuration
+import com.joyboard.notchisland.BuildConfig
+import org.junit.Assume.assumeFalse
+import org.junit.Assume.assumeTrue
 
 /**
  * The whole controller — overlay window, activity queue, timers — under Robolectric's clock.
@@ -147,6 +150,7 @@ class ControllerRestTest {
 
     @Test
     fun `with the helper the island moves above the status bar, and back without it`() {
+        assumeTrue("sideload build only", BuildConfig.HELPER_AVAILABLE)
         val overlap = settings.copy(positionMode = PositionMode.OVERLAP_STATUS_BAR, touchStripHeight = 20)
         controller.applySettings(overlap)
         IslandBus.controller = controller
@@ -175,12 +179,22 @@ class ControllerRestTest {
 
     @Test
     fun `switching it off keeps the island an ordinary overlay even with the helper on`() {
+        assumeTrue("sideload build only", BuildConfig.HELPER_AVAILABLE)
         IslandBus.controller = controller
         IslandBus.setHelperWindowManager(helperWindowManager())
         idle(50)
         assertEquals(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, controller.windowType)
 
         controller.applySettings(settings.copy(drawAboveStatusBar = false))
+        idle(50)
+        assertEquals(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, controller.windowType)
+    }
+
+    @Test
+    fun `the Play build always stays an ordinary overlay`() {
+        assumeFalse("Play build only", BuildConfig.HELPER_AVAILABLE)
+        IslandBus.controller = controller
+        IslandBus.setHelperWindowManager(helperWindowManager())
         idle(50)
         assertEquals(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, controller.windowType)
     }

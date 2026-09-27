@@ -23,9 +23,16 @@ ongoing activities like navigation or a download sit underneath and come back wh
 free again.
 
 **Music that actually works**
-Album art, a dancing waveform, a scrubbable progress bar and transport controls. The accent
-colour can be pulled out of the album art, taken from your wallpaper with Material You, or picked
-by hand.
+Album art, a dancing waveform, a scrubbable progress bar, transport controls, what is up next and
+a button for where the sound plays. The accent colour can be pulled out of the album art, taken
+from your wallpaper with Material You, or picked by hand.
+
+**Your next meeting, counting down**
+Optional: the island counts down to your next calendar event and opens it with a tap.
+
+**Out of the way when it should be**
+The island steps aside for full-screen videos and games, for quiet hours and in landscape — and a
+call still comes through.
 
 **Notifications it does something with**
 Reply to a message without leaving the island. Copy a one-time passcode with a single tap. Answer
@@ -38,7 +45,8 @@ offsets, colour, opacity, outline, shadow and animation speed are all yours.
 
 **Yours to drive**
 Tap, double tap, long press and all four swipes remap to a dozen actions. A tap can step through
-the sizes or open everything at once. There is a quick settings tile and launcher shortcuts.
+the sizes or open everything at once. There is a quick settings tile, launcher shortcuts, and an
+opt-in intent for Tasker and other automation apps to post their own messages.
 
 **Honest about one thing**
 Android layers app overlays below the status bar, and the status bar swallows touches in its own
@@ -57,6 +65,10 @@ Everything stays on your phone. No account, no analytics, no ads.
 Declare notification access under the Play policy for notification listeners: the app reads
 notifications to display them in its overlay and to power its media controls, and the data is
 neither stored nor transmitted.
+
+Calendar (READ_CALENDAR) is requested only when the user switches on the next-event countdown;
+event details are read on the device to draw it and are neither stored nor transmitted. The Play
+build contains no accessibility service.
 
 ## Content rating
 
