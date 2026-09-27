@@ -657,6 +657,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     override fun onMediaSeek(positionMs: Long) = mediaMonitor.seekTo(positionMs)
 
+    override fun onMediaOutput() {
+        haptics.tick()
+        // The picker opens over everything; the island folds away rather than sit on top of it.
+        if (MediaOutput.show(context)) {
+            userStage = null
+            render()
+        }
+    }
+
     override fun onTimerCommand(command: TimerCommand) {
         when (command) {
             TimerCommand.PAUSE -> timer.pause()

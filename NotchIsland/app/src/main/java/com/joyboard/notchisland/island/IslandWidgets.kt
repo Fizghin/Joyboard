@@ -87,6 +87,7 @@ internal class IslandWidgets(private val context: Context) {
         value: Int,
         max: Int,
         accent: Int,
+        trailing: View? = null,
         onChange: (Int) -> Unit,
     ): View {
         val row = LinearLayout(context).apply {
@@ -117,6 +118,7 @@ internal class IslandWidgets(private val context: Context) {
                 override fun onStopTrackingTouch(sb: SeekBar) = Unit
             })
         })
+        trailing?.let { row.addView(it) }
         return row
     }
 }

@@ -88,6 +88,8 @@ data class MediaSnapshot(
     val canSkipNext: Boolean = true,
     val canSkipPrev: Boolean = true,
     val canSeek: Boolean = true,
+    /** The next title in the app's queue, when it publishes one. */
+    val upNext: String? = null,
 )
 
 data class NotificationItem(

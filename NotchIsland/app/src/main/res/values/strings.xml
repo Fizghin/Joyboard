@@ -417,6 +417,8 @@
     <string name="continue_label">Continue</string>
     <string name="hide">Hide</string>
     <string name="per_app_rules_help_helper">Block keeps an app out of the island. Open makes the island expand on its own when that app sends something. Hide keeps the island off screen while that app is open — that one needs the helper service.</string>
+    <string name="up_next">Up next · %1$s</string>
+    <string name="choose_audio_output">Choose where audio plays</string>
     <plurals name="blocked_apps">
         <item quantity="one">%1$d app blocked</item>
         <item quantity="other">%1$d apps blocked</item>

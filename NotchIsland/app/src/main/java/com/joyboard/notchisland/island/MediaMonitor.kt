@@ -135,6 +135,12 @@ class MediaMonitor(
             canSkipNext = actions and PlaybackState.ACTION_SKIP_TO_NEXT != 0L || actions == 0L,
             canSkipPrev = actions and PlaybackState.ACTION_SKIP_TO_PREVIOUS != 0L || actions == 0L,
             canSeek = actions and PlaybackState.ACTION_SEEK_TO != 0L,
+            upNext = runCatching {
+                MediaQueue.nextTitle(
+                    c.queue?.map { it.queueId to it.description.title?.toString() },
+                    state?.activeQueueItemId ?: -1L,
+                )
+            }.getOrNull(),
         )
     }
 

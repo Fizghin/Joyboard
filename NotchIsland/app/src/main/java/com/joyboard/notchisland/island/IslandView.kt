@@ -63,6 +63,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         fun quickToggleState(toggle: QuickToggle): Boolean
         fun currentVolume(): Pair<Int, Int>
         fun currentBrightness(): Int
+        /** The audio output picker, from the media panel. */
+        fun onMediaOutput() = Unit
     }
 
     // ------------------------------------------------------------------ state
@@ -744,7 +746,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
      */
     private fun bodyKey(p: Presentation, accent: Int): String = when (val body = p.body) {
         is ExpandedBody.Media -> with(body.media) {
-            "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$accent"
+            "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$upNext|$accent"
         }
         is ExpandedBody.Notification -> with(body.item) {
             "notification|$key|${actions.size}|${settings.quickReplyEnabled && reply != null}|" +

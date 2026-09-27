@@ -54,6 +54,7 @@ class IslandScreenshotTest {
             packageName = "com.example.music", appLabel = "Music", title = "Midnight City",
             artist = "M83", album = "Hurry Up, We're Dreaming", artwork = art(), appIcon = null,
             playing = true, positionMs = 96_000, durationMs = 243_000, accent = Color.rgb(255, 55, 95),
+            upNext = "Wait",
         )
         return Presentation(
             kind = ActivityKind.MEDIA,

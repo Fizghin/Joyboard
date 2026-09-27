@@ -144,7 +144,18 @@ internal class IslandPanels(
         controls.addView(next)
         into.addView(controls)
 
-        into.addView(buildVolumeRow(accent))
+        media.upNext?.let { next ->
+            into.addView(widgets.smallLabel(context.getString(R.string.up_next, next)).apply {
+                maxLines = 1
+                ellipsize = TextUtils.TruncateAt.END
+                gravity = Gravity.CENTER_HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 6.dp }
+            })
+        }
+
+        into.addView(buildVolumeRow(accent, withOutput = true))
     }
 
     private fun buildNotificationBody(item: NotificationItem, accent: Int, into: LinearLayout, refs: PanelRefs) {
@@ -506,9 +517,19 @@ internal class IslandPanels(
         into.addView(buildVolumeRow(accent))
     }
 
-    private fun buildVolumeRow(accent: Int): View {
+    private fun buildVolumeRow(accent: Int, withOutput: Boolean = false): View {
         val (current, max) = host.listener.currentVolume()
-        return widgets.sliderRow(R.drawable.ic_volume_up, current, max, accent) { host.listener.onVolumeChange(it) }
+        // Next to the volume, the way iOS puts AirPlay: where the sound goes, beside how loud.
+        val output = if (!withOutput) null else {
+            widgets.circleButton(R.drawable.ic_output, 32.dp, context.getString(R.string.choose_audio_output)) {
+                host.listener.onMediaOutput()
+            }.apply {
+                layoutParams = LinearLayout.LayoutParams(32.dp, 32.dp).apply { marginStart = 8.dp }
+            }
+        }
+        return widgets.sliderRow(R.drawable.ic_volume_up, current, max, accent, output) {
+            host.listener.onVolumeChange(it)
+        }
     }
 
     private fun buildBrightnessRow(accent: Int): View =
