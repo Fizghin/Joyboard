@@ -18,6 +18,8 @@ enum class IslandMode { HIDDEN, PILL, COMPACT, MEDIUM, EXPANDED }
 enum class ActivityKind(val priority: Int) {
     IDLE(0),
     MEDIA(20),
+    /** The next calendar event, counting down. Above music, below anything more urgent. */
+    CALENDAR(22),
     /** Someone else's long-running notification: navigation, a download, a delivery. */
     ONGOING(25),
     TIMER(30),

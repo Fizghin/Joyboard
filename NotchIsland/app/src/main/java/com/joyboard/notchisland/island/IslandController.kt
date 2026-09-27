@@ -77,6 +77,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val haptics = Haptics(context)
     private val quickActions = QuickActions(context)
     private val mediaMonitor = MediaMonitor(context) { snapshot -> onMediaSnapshot(snapshot) }
+    private val calendarMonitor = CalendarMonitor(context) { event -> onCalendar(event) }
+    /** The event on the island, and whether its start has been announced, so each surfaces once. */
+    private var calendarShownId: Long? = null
+    private var calendarStartAnnounced = false
     private val stopwatch = StopwatchEngine { elapsed, running -> onStopwatchTick(elapsed, running) }
     private val timer = TimerEngine(
         onTick = { remaining, total, running -> onTimerTick(remaining, total, running) },
@@ -139,6 +143,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         screenMonitor.start()
         if (settings.featurePrivacy) privacyMonitor.start()
         if (settings.featureMedia) mediaMonitor.start()
+        if (settings.featureCalendar) calendarMonitor.start(settings.calendarLeadMinutes)
         render()
     }
 
@@ -150,6 +155,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { screenMonitor.stop() }
         runCatching { privacyMonitor.stop() }
         mediaMonitor.stop()
+        calendarMonitor.release()
         quickActions.release()
         window.detach()
     }
@@ -167,6 +173,14 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 mediaMonitor.stop()
                 activities.remove(ActivityKind.MEDIA)
             }
+        }
+        if (next.featureCalendar) {
+            // Also picks up a new lead time, and calendar access granted since the last start.
+            calendarMonitor.start(next.calendarLeadMinutes)
+        } else if (before.featureCalendar) {
+            calendarMonitor.stop()
+            activities.remove(ActivityKind.CALENDAR)
+            calendarShownId = null
         }
         if (before.featurePrivacy != next.featurePrivacy) {
             if (next.featurePrivacy) privacyMonitor.start() else {
@@ -261,6 +275,35 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 expiresAt = Long.MAX_VALUE,
             ))
         }
+        render()
+    }
+
+    private fun onCalendar(event: CalendarEvent?) {
+        if (!settings.featureCalendar || event == null) {
+            calendarShownId = null
+            if (activities.remove(ActivityKind.CALENDAR)) render()
+            return
+        }
+        val now = System.currentTimeMillis()
+        val started = CalendarPicker.minutesUntil(event, now) == 0
+        // A new event surfaces once, and again when it begins; the minutes between just tick.
+        if (event.id != calendarShownId) {
+            calendarShownId = event.id
+            calendarStartAnnounced = started
+            markActivityChanged()
+            haptics.tick()
+        } else if (started && !calendarStartAnnounced) {
+            calendarStartAnnounced = true
+            markActivityChanged()
+            haptics.pop()
+        }
+        activities.put(
+            LiveActivity(
+                kind = ActivityKind.CALENDAR,
+                presentation = presentations.calendar(event, now),
+                expiresAt = Long.MAX_VALUE,
+            )
+        )
         render()
     }
 

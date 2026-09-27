@@ -8,6 +8,12 @@ import com.joyboard.notchisland.R
 import com.joyboard.notchisland.data.NotificationStyle
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.util.formatStopwatch
+import android.app.PendingIntent
+import android.content.ContentUris
+import android.content.Intent
+import android.provider.CalendarContract
+import android.text.format.DateFormat
+import java.util.Date
 
 /**
  * What each kind of live activity looks like: icon, readout, colours, titles and the panel it
@@ -229,6 +235,39 @@ internal class Presentations(
         subtitle = context.resources.getQuantityString(R.plurals.notification_count, items.size, items.size),
         body = ExpandedBody.History(items),
     )
+
+    /** The next calendar event, counting down to its start. Tapping opens it. */
+    fun calendar(event: CalendarEvent, nowMs: Long): Presentation {
+        val minutes = CalendarPicker.minutesUntil(event, nowMs)
+        val countdown = if (minutes == 0) context.getString(R.string.calendar_now)
+        else context.resources.getQuantityString(R.plurals.calendar_in_minutes, minutes, minutes)
+        val short = if (minutes == 0) context.getString(R.string.calendar_now)
+        else context.getString(R.string.calendar_short_minutes, minutes)
+        val time = DateFormat.getTimeFormat(context)
+        val span = context.getString(
+            R.string.calendar_span, time.format(Date(event.beginMs)), time.format(Date(event.endMs))
+        )
+        val where = event.location?.let { context.getString(R.string.calendar_span_location, span, it) } ?: span
+        val title = event.title.ifBlank { context.getString(R.string.calendar_untitled) }
+        val open = Intent(
+            Intent.ACTION_VIEW,
+            ContentUris.withAppendedId(CalendarContract.Events.CONTENT_URI, event.id),
+        ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        return Presentation(
+            kind = ActivityKind.CALENDAR,
+            leadingIcon = drawable(R.drawable.ic_calendar),
+            leadingTint = accent(),
+            trailing = Trailing.Text(short, accent()),
+            accent = accent(),
+            title = title,
+            subtitle = countdown,
+            body = ExpandedBody.Message(title, context.getString(R.string.calendar_detail, countdown, where)),
+            tapIntent = PendingIntent.getActivity(
+                context, event.id.toInt(), open,
+                PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+            ),
+        )
+    }
 
     private fun drawable(res: Int): Drawable? = ContextCompat.getDrawable(context, res)
 }

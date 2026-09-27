@@ -21,6 +21,9 @@ import com.joyboard.notchisland.R
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import com.joyboard.notchisland.BuildConfig
+import android.Manifest
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 
 private fun formatMinutes(minuteOfDay: Int): String {
     val hours = (minuteOfDay / 60) % 24
@@ -121,6 +124,39 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.featureStopwatch,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureStopwatch = value) } }
             )
+            // Asked for in place, so switching this on is the whole setup.
+            val calendarPermission = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                viewModel.refreshPermissions()
+                if (granted) viewModel.update { it.copy(featureCalendar = true) }
+            }
+            SwitchRow(
+                title = stringResource(R.string.next_calendar_event),
+                subtitle = stringResource(
+                    if (permissions.calendar) R.string.next_calendar_event_desc else R.string.needs_calendar_access
+                ),
+                checked = settings.featureCalendar && permissions.calendar,
+                onCheckedChange = { value ->
+                    if (value && !permissions.calendar) {
+                        calendarPermission.launch(Manifest.permission.READ_CALENDAR)
+                    } else {
+                        viewModel.update { it.copy(featureCalendar = value) }
+                    }
+                }
+            )
+            if (settings.featureCalendar && permissions.calendar) {
+                SliderRow(
+                    title = stringResource(R.string.count_down_from),
+                    value = settings.calendarLeadMinutes.toFloat(),
+                    range = 5f..60f,
+                    steps = 10,
+                    valueLabel = stringResource(R.string.n_min, settings.calendarLeadMinutes),
+                    onValueChange = { value ->
+                        viewModel.update { it.copy(calendarLeadMinutes = value.roundToInt()) }
+                    }
+                )
+            }
             SwitchRow(
                 title = stringResource(R.string.recent_notifications),
                 subtitle = stringResource(R.string.keeps_last_dozen_you_can),

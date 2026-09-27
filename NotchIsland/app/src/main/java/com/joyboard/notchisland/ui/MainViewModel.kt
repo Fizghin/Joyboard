@@ -43,6 +43,9 @@ import com.joyboard.notchisland.R
 import androidx.annotation.StringRes
 import com.joyboard.notchisland.util.describe
 import com.joyboard.notchisland.util.helperServiceEnabled
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.core.content.ContextCompat
 
 data class PermissionState(
     val overlay: Boolean = false,
@@ -50,6 +53,7 @@ data class PermissionState(
     val writeSettings: Boolean = false,
     val dndAccess: Boolean = false,
     val helper: Boolean = false,
+    val calendar: Boolean = false,
 ) {
     val essentialsGranted: Boolean get() = overlay
     val allGranted: Boolean get() = overlay && notificationAccess && writeSettings && dndAccess
@@ -95,6 +99,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             writeSettings = context.canWriteSettings(),
             dndAccess = nm?.isNotificationPolicyAccessGranted == true,
             helper = BuildConfig.HELPER_AVAILABLE && context.helperServiceEnabled(),
+            calendar = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
+                PackageManager.PERMISSION_GRANTED,
         )
     }
 
