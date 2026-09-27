@@ -77,6 +77,8 @@ class IslandScreenshotTest {
         settings: IslandSettings,
         hole: Hole?,
         presentation: Presentation = mediaPresentation(),
+        glow: Float = 0f,
+        glowColor: Int = Color.rgb(52, 199, 89),
     ) {
         val island = IslandView(activity, FakeListener())
         val screen = FrameLayout(activity).apply { setBackgroundColor(Color.rgb(242, 242, 247)) }
@@ -90,6 +92,7 @@ class IslandScreenshotTest {
         hole?.let { island.setHole(it, it.centerX - settings.offsetX, it.centerY - settings.offsetY) }
         island.snapToMode(mode)
         shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        if (glow > 0f) island.showGlowFrame(glowColor, glow)
 
         // The real camera, drawn on top the way the hardware would be.
         if (hole != null) {
@@ -140,6 +143,15 @@ class IslandScreenshotTest {
             LyricLine(101_000, "The night city grows"),
         )
         render("7_expanded_lyrics", IslandMode.EXPANDED, iosAround(centred), centred, mediaPresentation(lines))
+    }
+
+    @Test
+    fun arrivalGlowAndFlashlight() {
+        render("8_compact_glow", IslandMode.COMPACT, iosAround(centred), centred, glow = 1f)
+        val flashlight = com.joyboard.notchisland.island.Presentations(
+            activity, accent = { Color.WHITE }, settings = { iosAround(centred) }
+        ).flashlight()
+        render("9_expanded_flashlight", IslandMode.EXPANDED, iosAround(centred), centred, flashlight)
     }
 
     @Test

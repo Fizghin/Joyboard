@@ -30,6 +30,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.ui.platform.LocalContext
 import com.joyboard.notchisland.island.AutomationRequest
+import androidx.compose.animation.AnimatedVisibility
 
 private fun formatMinutes(minuteOfDay: Int): String {
     val hours = (minuteOfDay / 60) % 24
@@ -158,17 +159,19 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                     }
                 }
             )
-            if (settings.featureCalendar && permissions.calendar) {
-                SliderRow(
-                    title = stringResource(R.string.count_down_from),
-                    value = settings.calendarLeadMinutes.toFloat(),
-                    range = 5f..60f,
-                    steps = 10,
-                    valueLabel = stringResource(R.string.n_min, settings.calendarLeadMinutes),
-                    onValueChange = { value ->
-                        viewModel.update { it.copy(calendarLeadMinutes = value.roundToInt()) }
-                    }
-                )
+            AnimatedVisibility(visible = settings.featureCalendar && permissions.calendar) {
+                Column {
+                    SliderRow(
+                        title = stringResource(R.string.count_down_from),
+                        value = settings.calendarLeadMinutes.toFloat(),
+                        range = 5f..60f,
+                        steps = 10,
+                        valueLabel = stringResource(R.string.n_min, settings.calendarLeadMinutes),
+                        onValueChange = { value ->
+                            viewModel.update { it.copy(calendarLeadMinutes = value.roundToInt()) }
+                        }
+                    )
+                }
             }
             val locationPermission = rememberLauncherForActivityResult(
                 ActivityResultContracts.RequestPermission()
@@ -203,14 +206,40 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                     }
                 }
             )
-            if (settings.featureWeather) {
-                SwitchRow(
-                    title = stringResource(R.string.rain_alerts),
-                    subtitle = stringResource(R.string.rain_alerts_desc),
-                    checked = settings.rainAlerts,
-                    onCheckedChange = { value -> viewModel.update { it.copy(rainAlerts = value) } }
-                )
+            AnimatedVisibility(visible = settings.featureWeather) {
+                Column {
+                    SwitchRow(
+                        title = stringResource(R.string.rain_alerts),
+                        subtitle = stringResource(R.string.rain_alerts_desc),
+                        checked = settings.rainAlerts,
+                        onCheckedChange = { value -> viewModel.update { it.copy(rainAlerts = value) } }
+                    )
+                }
             }
+            SwitchRow(
+                title = stringResource(R.string.headphones),
+                subtitle = stringResource(R.string.headphones_desc),
+                checked = settings.featureHeadphones,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureHeadphones = value) } }
+            )
+            SwitchRow(
+                title = stringResource(R.string.flashlight_on),
+                subtitle = stringResource(R.string.flashlight_desc),
+                checked = settings.featureFlashlight,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureFlashlight = value) } }
+            )
+            SwitchRow(
+                title = stringResource(R.string.do_not_disturb),
+                subtitle = stringResource(R.string.focus_desc),
+                checked = settings.featureFocus,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureFocus = value) } }
+            )
+            SwitchRow(
+                title = stringResource(R.string.next_alarm),
+                subtitle = stringResource(R.string.next_alarm_desc),
+                checked = settings.showNextAlarm,
+                onCheckedChange = { value -> viewModel.update { it.copy(showNextAlarm = value) } }
+            )
             SwitchRow(
                 title = stringResource(R.string.recent_notifications),
                 subtitle = stringResource(R.string.keeps_last_dozen_you_can),
@@ -408,28 +437,30 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.externalApiEnabled,
                 onCheckedChange = { value -> viewModel.update { it.copy(externalApiEnabled = value) } }
             )
-            if (settings.externalApiEnabled) {
-                Text(
-                    stringResource(R.string.automation_how),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
-                )
-                val context = LocalContext.current
-                val testTitle = stringResource(R.string.test_message_title)
-                val testText = stringResource(R.string.test_message_text)
-                OutlinedButton(
-                    onClick = {
-                        context.sendBroadcast(
-                            Intent(AutomationRequest.ACTION_SHOW)
-                                .setPackage(context.packageName)
-                                .putExtra(AutomationRequest.EXTRA_TITLE, testTitle)
-                                .putExtra(AutomationRequest.EXTRA_TEXT, testText)
-                                .putExtra(AutomationRequest.EXTRA_ICON, "island")
-                        )
-                    },
-                    modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
-                ) { Text(stringResource(R.string.send_test_message)) }
+            AnimatedVisibility(visible = settings.externalApiEnabled) {
+                Column {
+                    Text(
+                        stringResource(R.string.automation_how),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+                    )
+                    val context = LocalContext.current
+                    val testTitle = stringResource(R.string.test_message_title)
+                    val testText = stringResource(R.string.test_message_text)
+                    OutlinedButton(
+                        onClick = {
+                            context.sendBroadcast(
+                                Intent(AutomationRequest.ACTION_SHOW)
+                                    .setPackage(context.packageName)
+                                    .putExtra(AutomationRequest.EXTRA_TITLE, testTitle)
+                                    .putExtra(AutomationRequest.EXTRA_TEXT, testText)
+                                    .putExtra(AutomationRequest.EXTRA_ICON, "island")
+                            )
+                        },
+                        modifier = Modifier.padding(horizontal = 18.dp, vertical = 6.dp)
+                    ) { Text(stringResource(R.string.send_test_message)) }
+                }
             }
         }
     }

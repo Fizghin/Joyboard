@@ -62,6 +62,11 @@ object SettingsCodec {
         put("hiddenInPackages", JSONArray(settings.hiddenInPackages.toList()))
         put("featureCalendar", settings.featureCalendar)
         put("featureLyrics", settings.featureLyrics)
+        put("effects", settings.effects)
+        put("featureHeadphones", settings.featureHeadphones)
+        put("featureFlashlight", settings.featureFlashlight)
+        put("featureFocus", settings.featureFocus)
+        put("showNextAlarm", settings.showNextAlarm)
         put("featureWeather", settings.featureWeather)
         put("rainAlerts", settings.rainAlerts)
         put("weatherArea", settings.weatherArea)
@@ -167,6 +172,11 @@ object SettingsCodec {
             hiddenInPackages = strings("hiddenInPackages") ?: base.hiddenInPackages,
             featureCalendar = o.optBoolean("featureCalendar", base.featureCalendar),
             featureLyrics = o.optBoolean("featureLyrics", base.featureLyrics),
+            effects = o.optBoolean("effects", base.effects),
+            featureHeadphones = o.optBoolean("featureHeadphones", base.featureHeadphones),
+            featureFlashlight = o.optBoolean("featureFlashlight", base.featureFlashlight),
+            featureFocus = o.optBoolean("featureFocus", base.featureFocus),
+            showNextAlarm = o.optBoolean("showNextAlarm", base.showNextAlarm),
             featureWeather = o.optBoolean("featureWeather", base.featureWeather),
             rainAlerts = o.optBoolean("rainAlerts", base.rainAlerts),
             weatherArea = o.optString("weatherArea", base.weatherArea),

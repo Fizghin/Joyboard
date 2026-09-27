@@ -22,9 +22,13 @@ class QuickActions(private val context: Context) {
     var torchOn: Boolean = false
         private set
 
+    /** Told whenever the torch goes on or off, whoever switched it. */
+    var onTorchChanged: ((Boolean) -> Unit)? = null
+
     private val torchCallback = object : CameraManager.TorchCallback() {
         override fun onTorchModeChanged(cameraId: String, enabled: Boolean) {
             torchOn = enabled
+            onTorchChanged?.invoke(enabled)
         }
     }
 

@@ -79,7 +79,7 @@ internal class IslandPanels(
             is ExpandedBody.Notification -> buildNotificationBody(body.item, accent, into, refs)
             is ExpandedBody.Charging -> buildChargingBody(body, accent, into, refs)
             is ExpandedBody.Timer -> buildTimerBody(body, accent, into, refs)
-            is ExpandedBody.Message -> buildMessageBody(body, into, refs)
+            is ExpandedBody.Message -> buildMessageBody(body, accent, into, refs)
             is ExpandedBody.Ongoing -> buildOngoingBody(body.item, accent, into, refs)
             is ExpandedBody.Call -> buildCallBody(body.item, accent, into, refs)
             is ExpandedBody.Stopwatch -> buildStopwatchBody(body, accent, into, refs)
@@ -532,13 +532,28 @@ internal class IslandPanels(
         into.addView(row)
     }
 
-    private fun buildMessageBody(body: ExpandedBody.Message, into: LinearLayout, refs: PanelRefs) {
-        into.addView(TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            text = body.title
-        })
+    private fun buildMessageBody(body: ExpandedBody.Message, accent: Int, into: LinearLayout, refs: PanelRefs) {
+        // A blank title means the header already says it all and only the button is needed.
+        if (body.title.isNotBlank()) {
+            into.addView(TextView(context).apply {
+                setTextColor(Color.WHITE)
+                textSize = 15f
+                text = body.title
+            })
+        }
         body.subtitle?.let { into.addView(widgets.smallLabel(it)) }
+        body.actionLabel?.let { label ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 10.dp }
+            }
+            row.addView(widgets.pillButton(label, accent, filled = true) {
+                host.listener.onOpenPresentationTarget()
+            })
+            into.addView(row)
+        }
     }
 
     private fun buildQuickPanelBody(accent: Int, into: LinearLayout, refs: PanelRefs) {
@@ -555,6 +570,24 @@ internal class IslandPanels(
         val date = widgets.smallLabel(DateFormat.format(datePattern, now).toString())
         into.addView(clock)
         into.addView(date)
+        host.listener.nextAlarm()?.let { at ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 4.dp }
+            }
+            row.addView(ImageView(context).apply {
+                setImageDrawable(widgets.icon(R.drawable.ic_alarm))
+                setColorFilter(0xCCFFFFFF.toInt())
+                layoutParams = LinearLayout.LayoutParams(16.dp, 16.dp).apply { marginEnd = 6.dp }
+            })
+            row.addView(widgets.smallLabel(
+                context.getString(R.string.alarm_at, DateFormat.getTimeFormat(context).format(Date(at)))
+            ))
+            into.addView(row)
+        }
         host.listener.currentWeather()?.let { weather ->
             val row = LinearLayout(context).apply {
                 orientation = LinearLayout.HORIZONTAL

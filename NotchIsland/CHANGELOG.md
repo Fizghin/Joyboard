@@ -1,5 +1,27 @@
 # Changelog
 
+## 2.5
+
+Motion
+- A ripple spreads from wherever you touch the island, clipped to its shape; a swipe does not
+  leave one behind.
+- Something arriving — a notification, a call, charging, headphones, an automation message —
+  makes the island bounce and runs an edge light of its colour round it. It grows downward from
+  the top edge, never up into the screen's edge. A volume step or an unlock does not.
+- A new activity's icon springs in instead of just appearing.
+- *Look → Ripples and glows* turns all of it off; so does switching off animations in Android.
+- In the app, screens slide in and out, and rows that depend on a switch expand and fade in
+  rather than jumping.
+
+New
+- **Headphones**: earbuds or headphones connecting and disconnecting, by name.
+- **Flashlight**: stays in the island while the torch is on, with a *Turn off* button.
+- **Do Not Disturb**: a short notice when it turns on or off.
+- **Next alarm** in the quick panel, when it is within a day.
+- None of these needs a new permission.
+
+- 182 tests.
+
 ## 2.4.1
 
 - Fixed: turning on the helper made the island disappear. A window above the status bar is never

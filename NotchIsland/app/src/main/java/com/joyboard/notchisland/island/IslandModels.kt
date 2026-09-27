@@ -22,13 +22,19 @@ enum class ActivityKind(val priority: Int) {
     CALENDAR(22),
     /** Someone else's long-running notification: navigation, a download, a delivery. */
     ONGOING(25),
+    /** The torch, while it is on. */
+    FLASHLIGHT(27),
     TIMER(30),
     STOPWATCH(32),
     /** Rain due within the hour: a short heads-up. */
     WEATHER(35),
     CHARGING(40),
     BATTERY_LOW(45),
+    /** Headphones or earbuds connecting or going. */
+    HEADPHONES(48),
     RINGER(50),
+    /** Do Not Disturb switching on or off. */
+    FOCUS(52),
     VOLUME(55),
     PRIVACY(60),
     UNLOCK(65),
@@ -60,7 +66,8 @@ sealed interface ExpandedBody {
     data class Notification(val item: NotificationItem) : ExpandedBody
     data class Charging(val level: Int, val plugged: Boolean, val fast: Boolean) : ExpandedBody
     data class Timer(val remainingMs: Long, val totalMs: Long, val running: Boolean) : ExpandedBody
-    data class Message(val title: String, val subtitle: String?) : ExpandedBody
+    /** A title and a line of detail, with an optional button that acts on the island's content. */
+    data class Message(val title: String, val subtitle: String?, val actionLabel: String? = null) : ExpandedBody
 }
 
 /** The complete description of what the island should be drawing. */

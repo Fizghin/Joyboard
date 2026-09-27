@@ -43,6 +43,7 @@ import kotlin.math.roundToInt
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
 import com.joyboard.notchisland.BuildConfig
+import androidx.compose.animation.AnimatedVisibility
 
 @Composable
 fun AppearanceScreen(viewModel: MainViewModel) {
@@ -278,24 +279,26 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
             )
-            if (settings.positionMode == PositionMode.OVERLAP_STATUS_BAR && !drawingAbove) {
-                SliderRow(
-                    title = stringResource(R.string.touch_strip),
-                    value = settings.touchStripHeight.toFloat(),
-                    range = 8f..48f,
-                    valueLabel = stringResource(R.string.dp, settings.touchStripHeight),
-                    onValueChange = { value ->
-                        viewModel.update { it.copy(touchStripHeight = value.roundToInt()) }
-                    }
-                )
-                SwitchRow(
-                    title = stringResource(R.string.show_hint_under_island),
-                    subtitle = stringResource(R.string.faint_handle_marking_where_taps),
-                    checked = settings.showTouchHint,
-                    onCheckedChange = { value ->
-                        viewModel.update { it.copy(showTouchHint = value) }
-                    }
-                )
+            AnimatedVisibility(visible = settings.positionMode == PositionMode.OVERLAP_STATUS_BAR && !drawingAbove) {
+                Column {
+                    SliderRow(
+                        title = stringResource(R.string.touch_strip),
+                        value = settings.touchStripHeight.toFloat(),
+                        range = 8f..48f,
+                        valueLabel = stringResource(R.string.dp, settings.touchStripHeight),
+                        onValueChange = { value ->
+                            viewModel.update { it.copy(touchStripHeight = value.roundToInt()) }
+                        }
+                    )
+                    SwitchRow(
+                        title = stringResource(R.string.show_hint_under_island),
+                        subtitle = stringResource(R.string.faint_handle_marking_where_taps),
+                        checked = settings.showTouchHint,
+                        onCheckedChange = { value ->
+                            viewModel.update { it.copy(showTouchHint = value) }
+                        }
+                    )
+                }
             }
             SliderRow(
                 title = stringResource(R.string.horizontal_offset),
@@ -393,6 +396,12 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 range = 0.5f..2f,
                 valueLabel = "${(settings.animationSpeed * 10).roundToInt() / 10f}x",
                 onValueChange = { value -> viewModel.update { it.copy(animationSpeed = value) } }
+            )
+            SwitchRow(
+                title = stringResource(R.string.effects),
+                subtitle = stringResource(R.string.effects_desc),
+                checked = settings.effects,
+                onCheckedChange = { value -> viewModel.update { it.copy(effects = value) } }
             )
             DropdownRow(
                 title = stringResource(R.string.app_theme),

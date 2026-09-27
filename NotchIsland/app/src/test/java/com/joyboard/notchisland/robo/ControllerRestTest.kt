@@ -32,6 +32,7 @@ import org.junit.Assume.assumeTrue
 import androidx.core.view.WindowInsetsCompat
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import com.joyboard.notchisland.island.ActivityKind
 
 /**
  * The whole controller — overlay window, activity queue, timers — under Robolectric's clock.
@@ -243,6 +244,40 @@ class ControllerRestTest {
         IslandBus.setHelperWindowManager(helperWindowManager())
         idle(50)
         assertEquals(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, controller.windowType)
+    }
+
+    @Test
+    fun `the flashlight stays while the torch is on and goes when it goes off`() {
+        controller.torchChanged(true)
+        idle(100)
+        assertEquals(ActivityKind.FLASHLIGHT, controller.topKind)
+        assertEquals(IslandMode.COMPACT, controller.currentMode)
+        idle(60_000)
+        assertEquals("sticky while on", ActivityKind.FLASHLIGHT, controller.topKind)
+
+        controller.torchChanged(false)
+        idle(100)
+        assertEquals(null, controller.topKind)
+        assertEquals(IslandMode.PILL, controller.currentMode)
+    }
+
+    @Test
+    fun `headphones are announced briefly, then the island rests`() {
+        controller.headphonesChanged("Pixel Buds", connected = true)
+        idle(100)
+        assertEquals(ActivityKind.HEADPHONES, controller.topKind)
+        idle(3_500)
+        assertEquals(null, controller.topKind)
+        assertEquals(IslandMode.PILL, controller.currentMode)
+    }
+
+    @Test
+    fun `switched off, headphones and the torch stay out of the island`() {
+        controller.applySettings(settings.copy(featureHeadphones = false, featureFlashlight = false))
+        controller.headphonesChanged("Pixel Buds", connected = true)
+        controller.torchChanged(true)
+        idle(100)
+        assertEquals(null, controller.topKind)
     }
 
     @Test

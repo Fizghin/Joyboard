@@ -120,6 +120,11 @@ class SettingsRepository private constructor(context: Context) {
         val hiddenInPackages = stringSetPreferencesKey("hidden_in_packages")
         val featureCalendar = booleanPreferencesKey("feature_calendar")
         val featureLyrics = booleanPreferencesKey("feature_lyrics")
+        val effects = booleanPreferencesKey("effects")
+        val featureHeadphones = booleanPreferencesKey("feature_headphones")
+        val featureFlashlight = booleanPreferencesKey("feature_flashlight")
+        val featureFocus = booleanPreferencesKey("feature_focus")
+        val showNextAlarm = booleanPreferencesKey("show_next_alarm")
         val featureWeather = booleanPreferencesKey("feature_weather")
         val rainAlerts = booleanPreferencesKey("rain_alerts")
         val weatherArea = stringPreferencesKey("weather_area")
@@ -238,6 +243,11 @@ class SettingsRepository private constructor(context: Context) {
             hiddenInPackages = this[K.hiddenInPackages] ?: d.hiddenInPackages,
             featureCalendar = this[K.featureCalendar] ?: d.featureCalendar,
             featureLyrics = this[K.featureLyrics] ?: d.featureLyrics,
+            effects = this[K.effects] ?: d.effects,
+            featureHeadphones = this[K.featureHeadphones] ?: d.featureHeadphones,
+            featureFlashlight = this[K.featureFlashlight] ?: d.featureFlashlight,
+            featureFocus = this[K.featureFocus] ?: d.featureFocus,
+            showNextAlarm = this[K.showNextAlarm] ?: d.showNextAlarm,
             featureWeather = this[K.featureWeather] ?: d.featureWeather,
             rainAlerts = this[K.rainAlerts] ?: d.rainAlerts,
             weatherArea = this[K.weatherArea] ?: d.weatherArea,
@@ -381,6 +391,11 @@ class SettingsRepository private constructor(context: Context) {
         this[K.hiddenInPackages] = s.hiddenInPackages
         this[K.featureCalendar] = s.featureCalendar
         this[K.featureLyrics] = s.featureLyrics
+        this[K.effects] = s.effects
+        this[K.featureHeadphones] = s.featureHeadphones
+        this[K.featureFlashlight] = s.featureFlashlight
+        this[K.featureFocus] = s.featureFocus
+        this[K.showNextAlarm] = s.showNextAlarm
         this[K.featureWeather] = s.featureWeather
         this[K.rainAlerts] = s.rainAlerts
         this[K.weatherArea] = s.weatherArea

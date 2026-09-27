@@ -105,6 +105,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private lateinit var ringerMonitor: RingerMonitor
     private lateinit var screenMonitor: ScreenMonitor
     private lateinit var privacyMonitor: PrivacyMonitor
+    private val headphoneMonitor = HeadphoneMonitor(context) { name, connected -> onHeadphones(name, connected) }
+    private val focusMonitor = FocusMonitor(context) { on -> onFocus(on) }
+    private val alarms = context.getSystemService(android.app.AlarmManager::class.java)
 
     private val expiryRunnable = Runnable { render() }
     private val settleRunnable = Runnable { render() }
@@ -148,6 +151,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         )
         privacyMonitor = PrivacyMonitor(context) { mic, camera -> onPrivacy(mic, camera) }
 
+        quickActions.onTorchChanged = { on -> onTorch(on) }
         window.attach(initial, accessibilityHost())
         applySettings(initial)
         batteryMonitor.start()
@@ -169,6 +173,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { privacyMonitor.stop() }
         mediaMonitor.stop()
         calendarMonitor.release()
+        headphoneMonitor.stop()
+        focusMonitor.stop()
+        quickActions.onTorchChanged = null
         lyrics.release()
         weatherMonitor.release()
         setAutomationListening(false)
@@ -202,6 +209,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
             calendarShownId = null
         }
         updateWeatherWatch()
+        if (next.featureHeadphones) headphoneMonitor.start() else headphoneMonitor.stop()
+        if (next.featureFocus) focusMonitor.start() else focusMonitor.stop()
+        if (!next.featureFlashlight) activities.remove(ActivityKind.FLASHLIGHT)
+        else if (quickActions.torchOn && activities.peek(ActivityKind.FLASHLIGHT) == null) onTorch(true)
         if (before.featureLyrics != next.featureLyrics && next.featureMedia) {
             onMediaSnapshot(mediaMonitor.snapshot())
         }
@@ -272,6 +283,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
     @VisibleForTesting
     internal val touchStripHeight: Int get() = window.touchStripHeight
 
+    /** Stand-ins for the torch and audio callbacks, which tests cannot fire. */
+    @VisibleForTesting
+    internal fun torchChanged(on: Boolean) = onTorch(on)
+
+    @VisibleForTesting
+    internal fun headphonesChanged(name: String, connected: Boolean) = onHeadphones(name, connected)
+
+    @VisibleForTesting
+    internal val topKind: ActivityKind? get() = currentTop()?.kind
+
     @VisibleForTesting
     internal val statusBarProbe: android.view.View? get() = window.probe
 
@@ -316,6 +337,47 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (activity.autoExpand) userStage = IslandMode.EXPANDED
         render()
         haptics.tick()
+        // Arrivals worth a flourish; a volume step or an unlock would make it tiresome.
+        if (activity.kind in ANNOUNCED) island?.announce(activity.presentation.accent)
+    }
+
+    private fun onHeadphones(name: String, connected: Boolean) {
+        if (!settings.featureHeadphones) return
+        push(
+            LiveActivity(
+                ActivityKind.HEADPHONES,
+                presentations.headphones(name, connected),
+                expiresAt = SystemClock.elapsedRealtime() + 3_000,
+            )
+        )
+    }
+
+    private fun onFocus(on: Boolean) {
+        if (!settings.featureFocus) return
+        push(
+            LiveActivity(
+                ActivityKind.FOCUS,
+                presentations.focus(on),
+                expiresAt = SystemClock.elapsedRealtime() + 2_000,
+            )
+        )
+    }
+
+    /** The torch stays in the island while it is on, and leaves when it goes off. */
+    private fun onTorch(on: Boolean) {
+        if (!on || !settings.featureFlashlight) {
+            if (activities.remove(ActivityKind.FLASHLIGHT)) render()
+            return
+        }
+        if (activities.peek(ActivityKind.FLASHLIGHT) != null) return
+        push(LiveActivity(ActivityKind.FLASHLIGHT, presentations.flashlight(), expiresAt = Long.MAX_VALUE))
+    }
+
+    override fun nextAlarm(): Long? {
+        if (!settings.showNextAlarm) return null
+        val at = runCatching { alarms?.nextAlarmClock?.triggerTime }.getOrNull() ?: return null
+        val until = at - System.currentTimeMillis()
+        return at.takeIf { until in 0..DAY_MS }
     }
 
     fun drop(kind: ActivityKind) {
@@ -434,6 +496,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             calendarStartAnnounced = started
             markActivityChanged()
             haptics.tick()
+            handler.post { island?.announce(islandAccent()) }
         } else if (started && !calendarStartAnnounced) {
             calendarStartAnnounced = true
             markActivityChanged()
@@ -792,6 +855,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
         /** How many notifications the island remembers for its history panel. */
         const val HISTORY_LIMIT = 12
 
+        /** Arrivals that get the bounce and edge glow. */
+        val ANNOUNCED = setOf(
+            ActivityKind.NOTIFICATION, ActivityKind.CALL, ActivityKind.CHARGING,
+            ActivityKind.BATTERY_LOW, ActivityKind.EXTERNAL, ActivityKind.WEATHER,
+            ActivityKind.CALENDAR, ActivityKind.HEADPHONES, ActivityKind.FOCUS,
+            ActivityKind.FLASHLIGHT,
+        )
+
+        const val DAY_MS = 24 * 60 * 60_000L
+
         /** Rain starts closer together than this are one shower, announced once. */
         const val RAIN_SAME_SHOWER_MS = 90 * 60_000L
     }
@@ -1037,6 +1110,13 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     private fun openPresentationTarget() {
+        // The flashlight's button, and a tap on it, turn the torch off rather than open anything.
+        if (currentTop()?.kind == ActivityKind.FLASHLIGHT) {
+            quickActions.perform(QuickToggle.TORCH)
+            userStage = null
+            render()
+            return
+        }
         val top = currentTop()?.presentation
         val intent = top?.tapIntent ?: lastNotification?.contentIntent
         if (intent == null || !PendingIntents.send(context, intent)) openApp()

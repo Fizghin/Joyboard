@@ -107,6 +107,16 @@ from [Open-Meteo](https://open-meteo.com), which needs no account. The app asks 
 location once, rounds it to about 10 km before storing it, and only updates it while the app
 itself is open — the island never uses location in the background. Off until you turn it on.
 
+**Small things done well.** A ripple spreads from where you touch the island; anything arriving
+makes it bounce and runs a glow of its colour round the edge, the way the Dynamic Island flashes;
+a new activity's icon springs in. *Look → Ripples and glows* turns them off, and they follow
+Android's own animation setting.
+
+**Headphones, the torch, Do Not Disturb, alarms.** Earbuds connecting or leaving are announced by
+name. While the flashlight is on it stays in the island with a *Turn off* button. Do Not Disturb
+switching on or off gets a brief notice, and the quick panel shows your next alarm. No extra
+permissions.
+
 **Your next meeting.** Switch on *Next calendar event* and the island counts down to it — "12m" in
 the pill, the time and place when opened, the event itself on a tap. It comes up once when the
 event enters its window (5–60 minutes ahead, your choice) and again when it starts. All-day,
@@ -373,7 +383,7 @@ every push to `notch`.
 
 ### Tests
 
-163 tests in two layers.
+182 tests in two layers.
 
 **Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
 policy, when the island hides, tap stepping, camera clearance geometry, which screen a camera
@@ -387,7 +397,7 @@ stopwatch; the whole `IslandController`, overlay window and all, including regre
 the island refusing to go back to its resting size (verified to fail against the old code),
 hiding in a chosen app with a call breaking through, and automation broadcasts arriving only while
 switched on; the calendar reader against a stand-in provider; the weather fetcher with the network swapped out; every string resource resolving;
-the island's accessibility actions; and screenshot tests that render `IslandView` in every size
+the island's accessibility actions; the ripple, glow and their off switch; the torch and headphone activities; and screenshot tests that render `IslandView` in every size
 with native graphics. CI uploads those renders on every push.
 
 What still needs a phone: real window layering against the system status bar, touch delivery,

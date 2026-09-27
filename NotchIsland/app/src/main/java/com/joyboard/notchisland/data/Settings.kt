@@ -75,6 +75,8 @@ data class IslandSettings(
     val backgroundSource: ColorSource = ColorSource.MANUAL,
     val accentColor: Int = 0xFF3B82F6.toInt(),
     val animationSpeed: Float = 1f,
+    /** A ripple under the finger, and a bounce and edge glow when something arrives. */
+    val effects: Boolean = true,
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
 
     // ---- behaviour ----
@@ -124,6 +126,14 @@ data class IslandSettings(
     val featureOngoing: Boolean = true,
     val featureStopwatch: Boolean = true,
     val featureHistory: Boolean = true,
+    /** Headphones or earbuds connecting and disconnecting. */
+    val featureHeadphones: Boolean = true,
+    /** The torch, for as long as it is on, with a button to turn it off. */
+    val featureFlashlight: Boolean = true,
+    /** Do Not Disturb turning on or off. */
+    val featureFocus: Boolean = true,
+    /** The next alarm's time in the quick panel. */
+    val showNextAlarm: Boolean = true,
     /** Synced lyrics in the open media panel, looked up online. Off unless turned on. */
     val featureLyrics: Boolean = false,
     /** Weather in the quick panel, looked up online for [weatherArea]. Off unless turned on. */

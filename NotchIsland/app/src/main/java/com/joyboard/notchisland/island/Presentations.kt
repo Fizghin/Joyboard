@@ -14,6 +14,7 @@ import android.content.Intent
 import android.provider.CalendarContract
 import android.text.format.DateFormat
 import java.util.Date
+import android.graphics.Color
 
 /**
  * What each kind of live activity looks like: icon, readout, colours, titles and the panel it
@@ -235,6 +236,59 @@ internal class Presentations(
         subtitle = context.resources.getQuantityString(R.plurals.notification_count, items.size, items.size),
         body = ExpandedBody.History(items),
     )
+
+    /** Headphones arriving or leaving, by name. */
+    fun headphones(name: String, connected: Boolean): Presentation {
+        val tint = if (connected) 0xFF34C759.toInt() else 0xFF8E8E93.toInt()
+        val status = context.getString(
+            if (connected) R.string.headphones_connected else R.string.headphones_disconnected
+        )
+        val title = name.ifBlank { context.getString(R.string.headphones) }
+        return Presentation(
+            kind = ActivityKind.HEADPHONES,
+            leadingIcon = drawable(R.drawable.ic_headphones),
+            leadingTint = Color.WHITE,
+            trailing = Trailing.Icon(drawable(R.drawable.ic_headphones), tint),
+            accent = tint,
+            title = title,
+            subtitle = status,
+            body = ExpandedBody.Message(title, status),
+        )
+    }
+
+    /** The torch, for as long as it is on. */
+    fun flashlight(): Presentation {
+        val amber = 0xFFFFCC00.toInt()
+        return Presentation(
+            kind = ActivityKind.FLASHLIGHT,
+            leadingIcon = drawable(R.drawable.ic_torch),
+            leadingTint = amber,
+            trailing = Trailing.Icon(drawable(R.drawable.ic_torch), amber),
+            accent = amber,
+            title = context.getString(R.string.flashlight_on),
+            subtitle = context.getString(R.string.flashlight_tap_off),
+            // The header already names it; the panel below only needs the switch.
+            body = ExpandedBody.Message("", null, actionLabel = context.getString(R.string.turn_off_flashlight)),
+        )
+    }
+
+    /** Do Not Disturb switching on or off. */
+    fun focus(on: Boolean): Presentation {
+        val purple = 0xFF7D7AFF.toInt()
+        val tint = if (on) purple else 0xFF8E8E93.toInt()
+        val state = context.getString(if (on) R.string.dnd_on else R.string.dnd_off)
+        val title = context.getString(R.string.do_not_disturb)
+        return Presentation(
+            kind = ActivityKind.FOCUS,
+            leadingIcon = drawable(R.drawable.ic_dnd),
+            leadingTint = tint,
+            trailing = Trailing.Text(state, tint),
+            accent = tint,
+            title = title,
+            subtitle = state,
+            body = ExpandedBody.Message(title, state),
+        )
+    }
 
     /** Rain due soon. */
     fun rainSoon(startMs: Long, nowMs: Long): Presentation {

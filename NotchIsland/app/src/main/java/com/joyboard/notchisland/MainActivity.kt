@@ -55,6 +55,11 @@ import com.joyboard.notchisland.ui.screens.HomeScreen
 import com.joyboard.notchisland.ui.components.UpdateDialog
 import com.joyboard.notchisland.ui.theme.NotchIslandTheme
 import androidx.compose.ui.res.stringResource
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 
 class MainActivity : ComponentActivity() {
 
@@ -190,7 +195,21 @@ private fun NotchIslandApp(
                 .fillMaxSize()
                 .padding(padding)
         ) {
-            NavHost(navController = navController, startDestination = "home") {
+            // Screens slide a little and fade, forwards and back, rather than cutting.
+            NavHost(
+                navController = navController,
+                startDestination = "home",
+                enterTransition = {
+                    fadeIn(tween(220, delayMillis = 40)) + slideInHorizontally(tween(280)) { it / 12 }
+                },
+                exitTransition = { fadeOut(tween(140)) },
+                popEnterTransition = {
+                    fadeIn(tween(220, delayMillis = 40)) + slideInHorizontally(tween(280)) { -it / 12 }
+                },
+                popExitTransition = {
+                    fadeOut(tween(140)) + slideOutHorizontally(tween(280)) { it / 12 }
+                },
+            ) {
                 composable("home") {
                     HomeScreen(viewModel) { navController.navigate("appearance") }
                 }

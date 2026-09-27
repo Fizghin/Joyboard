@@ -35,6 +35,16 @@ import com.joyboard.notchisland.util.visible
 import kotlin.math.abs
 import androidx.core.view.isNotEmpty
 import androidx.core.view.isVisible
+import android.animation.Animator
+import android.animation.AnimatorListenerAdapter
+import android.content.res.ColorStateList
+import android.graphics.Canvas
+import android.graphics.drawable.RippleDrawable
+import android.view.animation.DecelerateInterpolator
+import android.view.animation.OvershootInterpolator
+import androidx.annotation.VisibleForTesting
+import android.view.animation.LinearInterpolator
+import androidx.core.graphics.drawable.toDrawable
 
 /**
  * The island itself: a rounded, animated container that morphs between a bare pill, a compact
@@ -67,6 +77,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         fun onMediaOutput() = Unit
         /** The latest weather, when it is switched on and has arrived. */
         fun currentWeather(): WeatherReport? = null
+        /** The next alarm, in epoch ms, when it is switched on and within a day. */
+        fun nextAlarm(): Long? = null
     }
 
     // ------------------------------------------------------------------ state
@@ -84,6 +96,18 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         setColor(Color.BLACK)
     }
     private var sizeAnimator: ValueAnimator? = null
+
+    // ---- effects ----
+    /** The touch ripple. The island's outline clips it to the island's own shape. */
+    private val ripple = RippleDrawable(ColorStateList.valueOf(0x38FFFFFF), null, Color.WHITE.toDrawable())
+    /** The edge light that runs round the island in the colour of whatever just arrived. */
+    private val glowEdge = GradientDrawable().apply { setColor(Color.TRANSPARENT) }
+    private val glowHalo = GradientDrawable().apply { setColor(Color.TRANSPARENT) }
+    private var glowStrength = 0f
+    private var glowAnimator: ValueAnimator? = null
+    /** What the leading icon last showed, so it pops only when that changes. */
+    private var lastLeadingKey: String? = null
+
     private var bodySignature: String? = null
     private var cachedExpandedKey: String? = null
     private var cachedExpandedHeight = 0
@@ -307,6 +331,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             bgDrawable.setStroke(0, Color.TRANSPARENT)
         }
         elevation = if (s.shadowEnabled && !s.iosMode) 10f.dp else 0f
+        foreground = if (effectsOn) ripple else null
         bgDrawable.cornerRadius = radiusFor(mode)
         invalidateOutline()
         requestLayout()
@@ -316,6 +341,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         presentation = p
         refreshAccessibility()
         val accent = resolveAccent(p)
+        popLeadingIconIfNew(p)
 
         // ---- compact side ----
         if (p.leadingBitmap != null) {
@@ -757,7 +783,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         }
         is ExpandedBody.Charging -> "charging|${body.level}|${body.plugged}|${body.fast}|$accent"
         is ExpandedBody.Timer -> "timer|${body.running}|$accent"
-        is ExpandedBody.Message -> "message|${body.title}|${body.subtitle}"
+        is ExpandedBody.Message -> "message|${body.title}|${body.subtitle}|${body.actionLabel}"
         is ExpandedBody.Ongoing -> with(body.item) {
             "ongoing|$key|$title|$text|$progress|$progressMax|$progressIndeterminate|$accent"
         }
@@ -768,7 +794,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         // The quick panel shows a clock, so it is allowed to go stale for at most a minute.
         ExpandedBody.QuickPanel ->
             "quick|$accent|${System.currentTimeMillis() / 60_000L}|" +
-                listener.currentWeather()?.let { "${it.degrees}${it.sky}" }
+                listener.currentWeather()?.let { "${it.degrees}${it.sky}" } + "|" + listener.nextAlarm()
     }
 
     private fun bindMediaHeader(media: MediaSnapshot, accent: Int) {
@@ -883,6 +909,10 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     override fun onTouchEvent(event: MotionEvent): Boolean {
         when (event.actionMasked) {
             MotionEvent.ACTION_DOWN -> {
+                if (effectsOn) {
+                    drawableHotspotChanged(event.x, event.y)
+                    isPressed = true
+                }
                 downX = event.rawX
                 downY = event.rawY
                 downTime = System.currentTimeMillis()
@@ -894,15 +924,19 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             MotionEvent.ACTION_MOVE -> {
                 if (abs(event.rawX - downX) > 16.dp || abs(event.rawY - downY) > 16.dp) {
                     removeCallbacks(longPressRunnable)
+                    // A swipe is not a press; let the ripple go.
+                    isPressed = false
                 }
                 return true
             }
             MotionEvent.ACTION_CANCEL -> {
+                isPressed = false
                 removeCallbacks(longPressRunnable)
                 animate().scaleX(1f).scaleY(1f).setDuration(dur(140)).start()
                 return true
             }
             MotionEvent.ACTION_UP -> {
+                isPressed = false
                 removeCallbacks(longPressRunnable)
                 animate().scaleX(1f).scaleY(1f).setDuration(dur(160)).start()
                 if (longPressFired) return true
@@ -937,6 +971,111 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     }
 
     private val singleTapRunnable = Runnable { performClick() }
+
+    // ------------------------------------------------------------------ effects
+
+    /** Ripples and glows are wanted, and the phone has not switched animations off. */
+    private val effectsOn: Boolean get() = settings.effects && systemAnimationScale > 0f
+
+    // Everything scales from the top centre: the island hangs from the top of the screen, so it
+    // should grow and squash downwards, never up into the edge of its window.
+    override fun onSizeChanged(w: Int, h: Int, oldw: Int, oldh: Int) {
+        super.onSizeChanged(w, h, oldw, oldh)
+        pivotX = w / 2f
+        pivotY = 0f
+    }
+
+    /**
+     * Something new arrived: a quick bounce, and a glow of its colour running round the edge,
+     * the way the Dynamic Island flashes for an incoming live activity.
+     */
+    fun announce(color: Int) {
+        if (!effectsOn || mode == IslandMode.HIDDEN) return
+        tintGlow(color)
+        glowAnimator?.cancel()
+        glowsStarted++
+        glowAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
+            duration = dur(GLOW_MS)
+            // The rise-and-fade shape below is the curve; the timeline under it must be even.
+            interpolator = LinearInterpolator()
+            addUpdateListener {
+                glowStrength = glowCurve(it.animatedValue as Float)
+                invalidate()
+            }
+            addListener(object : AnimatorListenerAdapter() {
+                override fun onAnimationEnd(animation: Animator) {
+                    glowStrength = 0f
+                    invalidate()
+                }
+            })
+            start()
+        }
+        if (!isPressed) {
+            animate().scaleX(1.045f).scaleY(1.07f).setDuration(dur(110))
+                .setInterpolator(DecelerateInterpolator())
+                .withEndAction {
+                    animate().scaleX(1f).scaleY(1f).setDuration(dur(420))
+                        .setInterpolator(OvershootInterpolator(3f)).start()
+                }
+                .start()
+        }
+    }
+
+    private fun tintGlow(color: Int) {
+        glowEdge.setStroke(2.dp, color)
+        glowHalo.setStroke(7.dp, color)
+    }
+
+    /** Freezes the glow at one strength, for rendering a single frame of it. */
+    @VisibleForTesting
+    internal fun showGlowFrame(color: Int, strength: Float) {
+        glowAnimator?.cancel()
+        tintGlow(color)
+        glowStrength = strength
+        invalidate()
+    }
+
+    /** How many arrival glows have started. For tests. */
+    @VisibleForTesting
+    internal var glowsStarted = 0
+        private set
+
+    /** The glow's current strength, 0 to 1. For tests and renders. */
+    @VisibleForTesting
+    internal var glowForTest: Float
+        get() = glowStrength
+        set(value) {
+            glowStrength = value
+            invalidate()
+        }
+
+    override fun dispatchDraw(canvas: Canvas) {
+        super.dispatchDraw(canvas)
+        if (glowStrength <= 0f) return
+        // Drawn over the content and inside the outline, so the light hugs the island's shape.
+        val radius = bgDrawable.cornerRadius
+        for ((drawable, peak) in listOf(glowHalo to 0.35f, glowEdge to 1f)) {
+            drawable.setBounds(0, 0, width, height)
+            drawable.cornerRadius = radius
+            drawable.alpha = (glowStrength * peak * 255).roundToInt().coerceIn(0, 255)
+            drawable.draw(canvas)
+        }
+    }
+
+    /** A new activity's icon springs in rather than just appearing. */
+    private fun popLeadingIconIfNew(p: Presentation) {
+        val key = "${p.kind}|${p.title}"
+        if (key == lastLeadingKey) return
+        val first = lastLeadingKey == null
+        lastLeadingKey = key
+        if (first || !effectsOn || mode == IslandMode.HIDDEN) return
+        leadingIcon.animate().cancel()
+        leadingIcon.scaleX = 0.4f
+        leadingIcon.scaleY = 0.4f
+        leadingIcon.alpha = 0f
+        leadingIcon.animate().scaleX(1f).scaleY(1f).alpha(1f).setDuration(dur(340))
+            .setInterpolator(OvershootInterpolator(2.2f)).start()
+    }
 
     /**
      * A tap. Routed through here rather than straight to the listener so a screen reader's
@@ -999,6 +1138,14 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     companion object {
         private const val DOUBLE_TAP_WINDOW = 230L
+        /** How long an arrival's edge glow takes to rise and fade. */
+        private const val GLOW_MS = 900L
+
+        /** The glow's strength through its run: a quick rise over the first fifth, a long fade. */
+        internal fun glowCurve(t: Float): Float {
+            val x = t.coerceIn(0f, 1f)
+            return if (x < 0.2f) x / 0.2f else 1f - (x - 0.2f) / 0.8f
+        }
         private const val ROW_PADDING = 12f
         private const val LEADING_WIDTH = 18f
         private const val PANEL_PADDING_TOP = 14f
