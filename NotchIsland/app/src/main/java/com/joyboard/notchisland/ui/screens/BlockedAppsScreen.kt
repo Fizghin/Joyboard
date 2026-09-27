@@ -27,6 +27,8 @@ import androidx.core.graphics.drawable.toBitmap
 import androidx.compose.foundation.Image
 import androidx.compose.material3.OutlinedTextField
 import com.joyboard.notchisland.ui.MainViewModel
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun BlockedAppsScreen(viewModel: MainViewModel) {
@@ -43,14 +45,13 @@ fun BlockedAppsScreen(viewModel: MainViewModel) {
             value = query,
             onValueChange = { query = it },
             singleLine = true,
-            label = { Text("Search apps") },
+            label = { Text(stringResource(R.string.search_apps)) },
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         )
         Text(
-            "Block keeps an app out of the island entirely. Open makes the island expand on its " +
-                "own when that app sends something.",
+            stringResource(R.string.block_keeps_app_out_island),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
@@ -63,13 +64,13 @@ fun BlockedAppsScreen(viewModel: MainViewModel) {
         ) {
             Spacer(modifier = Modifier.weight(1f))
             Text(
-                "Block",
+                stringResource(R.string.block),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(52.dp)
             )
             Text(
-                "Open",
+                stringResource(R.string.open),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(52.dp)

@@ -11,15 +11,17 @@ import android.view.Surface
 import android.view.WindowManager
 import androidx.annotation.RequiresApi
 import com.joyboard.notchisland.island.Hole
+import com.joyboard.notchisland.R
+import androidx.annotation.StringRes
 
 /** The camera cutout's size, for display in diagnostics. */
 data class CutoutInfo(val widthDp: Int, val heightDp: Int, val centerOffsetDp: Int, val topDp: Int)
 
 /** Why a detection did not produce a hole. */
-enum class DetectFailure(val message: String) {
-    UNSUPPORTED("This Android version does not report camera cutouts"),
-    NOT_PORTRAIT("Hold the phone upright and try again"),
-    NO_CUTOUT("This phone does not report a camera cutout at the top of the screen"),
+enum class DetectFailure(@StringRes val message: Int) {
+    UNSUPPORTED(R.string.android_version_does_not_report),
+    NOT_PORTRAIT(R.string.hold_phone_upright_try_again),
+    NO_CUTOUT(R.string.phone_does_not_report_camera),
 }
 
 /**
@@ -121,4 +123,8 @@ object CutoutDetector {
     private const val TOP_BAND_PX = 400f
 }
 
-class DetectionException(val reason: DetectFailure) : Exception(reason.message)
+class DetectionException(val reason: DetectFailure) : Exception(reason.name)
+
+/** A detection failure worded for the user; any other error keeps its own message. */
+fun Throwable.describe(context: Context): String? =
+    (this as? DetectionException)?.let { context.getString(it.reason.message) } ?: message

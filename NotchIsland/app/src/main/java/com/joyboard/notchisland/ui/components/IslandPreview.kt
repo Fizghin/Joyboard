@@ -45,6 +45,8 @@ import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.island.IslandMode
 import com.joyboard.notchisland.util.DynamicColors
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 private val STATUS_BAR_BAND = 26.dp
 
@@ -122,17 +124,17 @@ fun IslandPreview(
             ) {
                 Text(
                     when (settings.positionMode) {
-                        PositionMode.OVERLAP_STATUS_BAR -> "Over the status bar"
-                        PositionMode.CUSTOM -> "Custom offset"
-                        else -> "Below the status bar"
+                        PositionMode.OVERLAP_STATUS_BAR -> stringResource(R.string.over_status_bar)
+                        PositionMode.CUSTOM -> stringResource(R.string.custom_offset)
+                        else -> stringResource(R.string.below_status_bar)
                     },
                     color = Color.White.copy(alpha = 0.92f),
                     style = MaterialTheme.typography.titleSmall
                 )
                 Text(
                     if (settings.positionMode == PositionMode.OVERLAP_STATUS_BAR)
-                        "Taps land on the strip under the pill"
-                    else "The whole island takes taps",
+                        stringResource(R.string.taps_land_strip_under_pill)
+                    else stringResource(R.string.whole_island_takes_taps),
                     color = Color.White.copy(alpha = 0.6f),
                     style = MaterialTheme.typography.labelSmall
                 )
@@ -234,10 +236,10 @@ fun IslandPreview(
             horizontalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             listOf(
-                IslandMode.PILL to "Idle",
-                IslandMode.COMPACT to "Preview",
-                IslandMode.MEDIUM to "Small",
-                IslandMode.EXPANDED to "Full",
+                IslandMode.PILL to stringResource(R.string.idle),
+                IslandMode.COMPACT to stringResource(R.string.preview),
+                IslandMode.MEDIUM to stringResource(R.string.small),
+                IslandMode.EXPANDED to stringResource(R.string.full),
             ).forEach { (value, label) ->
                 val selected = mode == value
                 Box(

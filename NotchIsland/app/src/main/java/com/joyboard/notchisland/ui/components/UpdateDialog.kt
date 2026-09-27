@@ -22,6 +22,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.update.UpdateState
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 /**
  * The one dialog the updater needs: it announces the release, downloads it in place and hands
@@ -65,9 +67,9 @@ fun UpdateDialog(
         title = {
             Text(
                 when (state) {
-                    is UpdateState.ReadyToInstall -> "Ready to install"
-                    is UpdateState.Downloading -> "Downloading ${info.versionName}"
-                    else -> "Version ${info.versionName} is available"
+                    is UpdateState.ReadyToInstall -> stringResource(R.string.ready_install)
+                    is UpdateState.Downloading -> stringResource(R.string.downloading_2, info.versionName)
+                    else -> stringResource(R.string.version_available, info.versionName)
                 }
             )
         },
@@ -81,7 +83,7 @@ fun UpdateDialog(
                     )
                 } else if (info.notes.isNotEmpty()) {
                     Text(
-                        "What's new",
+                        stringResource(R.string.what_new),
                         style = MaterialTheme.typography.labelLarge,
                         fontWeight = FontWeight.SemiBold
                     )
@@ -96,7 +98,7 @@ fun UpdateDialog(
                 }
                 if (info.readableSize.isNotBlank() && state !is UpdateState.Failed) {
                     Text(
-                        "Download size ${info.readableSize}",
+                        stringResource(R.string.download_size, info.readableSize),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(top = 10.dp)
@@ -121,10 +123,10 @@ fun UpdateDialog(
             TextButton(onClick = onInstall, enabled = !downloading) {
                 Text(
                     when (state) {
-                        is UpdateState.ReadyToInstall -> "Install"
-                        is UpdateState.Failed -> "Try again"
-                        is UpdateState.Downloading -> "Downloading…"
-                        else -> "Update"
+                        is UpdateState.ReadyToInstall -> stringResource(R.string.install)
+                        is UpdateState.Failed -> stringResource(R.string.try_again)
+                        is UpdateState.Downloading -> stringResource(R.string.downloading_3)
+                        else -> stringResource(R.string.update)
                     }
                 )
             }
@@ -133,9 +135,9 @@ fun UpdateDialog(
             if (!downloading) {
                 Row {
                     if (state is UpdateState.Available && !info.mandatory) {
-                        TextButton(onClick = onSkip) { Text("Skip") }
+                        TextButton(onClick = onSkip) { Text(stringResource(R.string.skip)) }
                     }
-                    TextButton(onClick = onDismiss) { Text("Later") }
+                    TextButton(onClick = onDismiss) { Text(stringResource(R.string.later)) }
                 }
             }
         }

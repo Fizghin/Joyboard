@@ -19,6 +19,8 @@ import com.joyboard.notchisland.ui.components.SectionCard
 import com.joyboard.notchisland.ui.components.SliderRow
 import com.joyboard.notchisland.ui.components.SwitchRow
 import kotlin.math.roundToInt
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun GesturesScreen(viewModel: MainViewModel) {
@@ -32,24 +34,22 @@ fun GesturesScreen(viewModel: MainViewModel) {
             .padding(bottom = 32.dp)
     ) {
         SectionCard(
-            title = "Opening it",
-            subtitle = "How far a tap takes the island."
+            title = stringResource(R.string.opening),
+            subtitle = stringResource(R.string.how_far_tap_takes_island)
         ) {
             DropdownRow(
-                title = "Tap behaviour",
+                title = stringResource(R.string.tap_behaviour),
                 selected = settings.tapExpansion,
                 options = TapExpansion.entries.toList(),
-                label = { it.label },
+                label = { stringResource(it.label) },
                 onSelected = { value -> viewModel.update { it.copy(tapExpansion = value) } }
             )
             Text(
                 when (settings.tapExpansion) {
                     TapExpansion.STEP ->
-                        "Tap once for the compact preview, again for the small card, again for " +
-                            "everything, and once more to put it away. Swipe down to skip " +
-                            "straight to the full panel."
+                        stringResource(R.string.tap_once_compact_preview_again)
                     TapExpansion.DIRECT ->
-                        "A tap opens the full panel in one go."
+                        stringResource(R.string.tap_opens_full_panel_one)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -58,49 +58,49 @@ fun GesturesScreen(viewModel: MainViewModel) {
         }
 
         SectionCard(
-            title = "Gestures",
-            subtitle = "Every touch on the island can be remapped."
+            title = stringResource(R.string.gestures),
+            subtitle = stringResource(R.string.every_touch_island_can_be)
         ) {
-            DropdownRow("Tap", settings.tapAction, actions, { it.label }) { value ->
+            DropdownRow(stringResource(R.string.tap), settings.tapAction, actions, { stringResource(it.label) }) { value ->
                 viewModel.update { it.copy(tapAction = value) }
             }
-            DropdownRow("Double tap", settings.doubleTapAction, actions, { it.label }) { value ->
+            DropdownRow(stringResource(R.string.double_tap), settings.doubleTapAction, actions, { stringResource(it.label) }) { value ->
                 viewModel.update { it.copy(doubleTapAction = value) }
             }
-            DropdownRow("Long press", settings.longPressAction, actions, { it.label }) { value ->
+            DropdownRow(stringResource(R.string.long_press), settings.longPressAction, actions, { stringResource(it.label) }) { value ->
                 viewModel.update { it.copy(longPressAction = value) }
             }
-            DropdownRow("Swipe down", settings.swipeDownAction, actions, { it.label }) { value ->
+            DropdownRow(stringResource(R.string.swipe_down), settings.swipeDownAction, actions, { stringResource(it.label) }) { value ->
                 viewModel.update { it.copy(swipeDownAction = value) }
             }
-            DropdownRow("Swipe up", settings.swipeUpAction, actions, { it.label }) { value ->
+            DropdownRow(stringResource(R.string.swipe_up), settings.swipeUpAction, actions, { stringResource(it.label) }) { value ->
                 viewModel.update { it.copy(swipeUpAction = value) }
             }
-            DropdownRow("Swipe left", settings.swipeLeftAction, actions, { it.label }) { value ->
+            DropdownRow(stringResource(R.string.swipe_left), settings.swipeLeftAction, actions, { stringResource(it.label) }) { value ->
                 viewModel.update { it.copy(swipeLeftAction = value) }
             }
-            DropdownRow("Swipe right", settings.swipeRightAction, actions, { it.label }) { value ->
+            DropdownRow(stringResource(R.string.swipe_right), settings.swipeRightAction, actions, { stringResource(it.label) }) { value ->
                 viewModel.update { it.copy(swipeRightAction = value) }
             }
         }
 
-        SectionCard(title = "Feedback") {
+        SectionCard(title = stringResource(R.string.feedback)) {
             SwitchRow(
-                title = "Haptics",
-                subtitle = "A small tap whenever the island changes shape",
+                title = stringResource(R.string.haptics),
+                subtitle = stringResource(R.string.small_tap_whenever_island_changes),
                 checked = settings.hapticsEnabled,
                 onCheckedChange = { value -> viewModel.update { it.copy(hapticsEnabled = value) } }
             )
             if (settings.hapticsEnabled) {
                 SliderRow(
-                    title = "Haptic strength",
+                    title = stringResource(R.string.haptic_strength),
                     value = settings.hapticStrength.toFloat(),
                     range = 1f..3f,
                     steps = 1,
                     valueLabel = when (settings.hapticStrength) {
-                        1 -> "Light"
-                        3 -> "Strong"
-                        else -> "Medium"
+                        1 -> stringResource(R.string.light)
+                        3 -> stringResource(R.string.strong)
+                        else -> stringResource(R.string.medium)
                     },
                     onValueChange = { value ->
                         viewModel.update { it.copy(hapticStrength = value.roundToInt()) }
@@ -108,10 +108,10 @@ fun GesturesScreen(viewModel: MainViewModel) {
                 )
             }
             SliderRow(
-                title = "Close again after",
+                title = stringResource(R.string.close_again_after),
                 value = settings.autoCollapseSeconds.toFloat(),
                 range = 0f..20f,
-                valueLabel = if (settings.autoCollapseSeconds == 0) "Never"
+                valueLabel = if (settings.autoCollapseSeconds == 0) stringResource(R.string.never)
                 else "${settings.autoCollapseSeconds}s",
                 onValueChange = { value ->
                     viewModel.update { it.copy(autoCollapseSeconds = value.roundToInt()) }
@@ -120,13 +120,12 @@ fun GesturesScreen(viewModel: MainViewModel) {
         }
 
         SectionCard(
-            title = "Going back to rest",
-            subtitle = "What the island does when you stop touching it."
+            title = stringResource(R.string.going_back_rest),
+            subtitle = stringResource(R.string.what_island_does_when_you)
         ) {
             SwitchRow(
-                title = "Stay compact while something is live",
-                subtitle = "Keeps the readout up for as long as music, a call or an ongoing " +
-                    "notification exists, the way iOS does. Off means it settles back to the pill.",
+                title = stringResource(R.string.stay_compact_while_something_live),
+                subtitle = stringResource(R.string.keeps_readout_up_as_long),
                 checked = settings.stayCompactForActivities,
                 onCheckedChange = { value ->
                     viewModel.update { it.copy(stayCompactForActivities = value) }
@@ -134,18 +133,17 @@ fun GesturesScreen(viewModel: MainViewModel) {
             )
             if (!settings.stayCompactForActivities) {
                 SliderRow(
-                    title = "Settle back after",
+                    title = stringResource(R.string.settle_back_after),
                     value = settings.compactRestSeconds.toFloat(),
                     range = 0f..60f,
-                    valueLabel = if (settings.compactRestSeconds == 0) "Straight away"
+                    valueLabel = if (settings.compactRestSeconds == 0) stringResource(R.string.straight_away)
                     else "${settings.compactRestSeconds}s",
                     onValueChange = { value ->
                         viewModel.update { it.copy(compactRestSeconds = value.roundToInt()) }
                     }
                 )
                 Text(
-                    "Measured from the last time something actually happened, not from a " +
-                        "download ticking its progress or a track's playhead moving.",
+                    stringResource(R.string.measured_from_last_time_something),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)

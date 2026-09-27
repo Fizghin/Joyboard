@@ -39,6 +39,9 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.joyboard.notchisland.R
+import androidx.annotation.StringRes
+import com.joyboard.notchisland.util.describe
 
 data class PermissionState(
     val overlay: Boolean = false,
@@ -55,6 +58,9 @@ data class AppEntry(val packageName: String, val label: String, val icon: Drawab
 class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     private val repository = SettingsRepository.get(app)
+
+    private fun text(@StringRes id: Int, vararg args: Any): String =
+        getApplication<Application>().getString(id, *args)
 
     val settings: StateFlow<IslandSettings> = repository.settings
         .stateIn(viewModelScope, SharingStarted.Eagerly, IslandSettings())
@@ -197,7 +203,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         if (!updateService.canInstall()) {
             updateService.requestInstallPermission()
             _updateState.value = UpdateState.Failed(
-                "Allow Notch Island to install apps, then tap Try again.", info
+                text(R.string.allow_notch_island_install_apps), info
             )
             return
         }
@@ -215,7 +221,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }
                 .onFailure { error ->
                     _updateState.value = UpdateState.Failed(
-                        error.message ?: "The download failed", info
+                        error.message ?: text(R.string.download_failed), info
                     )
                 }
         }
@@ -224,7 +230,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     private fun launchInstaller(state: UpdateState.ReadyToInstall) {
         if (!updateService.install(state.file)) {
             _updateState.value = UpdateState.Failed(
-                "Android would not open the installer", state.info
+                text(R.string.android_would_not_open_installer), state.info
             )
         }
     }
@@ -268,7 +274,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         val width = CutoutDetector.screenWidthDp(getApplication())
         viewModelScope.launch {
             repository.update { preset.applyTo(it, width) }
-            _status.value = "Set up for ${preset.name}. Detect from this phone for exact placement."
+            _status.value = text(R.string.set_up_detect_from_phone, preset.name)
         }
     }
 
@@ -277,9 +283,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         CutoutDetector.detectHole(getApplication())
             .onSuccess { hole ->
                 viewModelScope.launch { repository.update { it.withHole(hole, CameraSource.DETECTED) } }
-                _status.value = "Found a ${hole.width.roundToInt()}×${hole.height.roundToInt()} dp camera cutout"
+                _status.value = text(R.string.found_dp_camera_cutout, hole.width.roundToInt(), hole.height.roundToInt())
             }
-            .onFailure { _status.value = it.message }
+            .onFailure { _status.value = it.describe(getApplication()) }
     }
 
     fun clearHole() {
@@ -296,7 +302,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     if (preset.isApple) it.copy(iosMode = true, showFauxCamera = true) else it
                 }
             }
-            _status.value = "Shaped to ${preset.label}"
+            _status.value = text(R.string.shaped, text(preset.label))
         }
     }
 
@@ -321,12 +327,12 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     repository.update { it.fittedTo(hole, CameraSource.DETECTED) }
                 }
                 _status.value = if (kotlin.math.abs(hole.centerX) > CENTRED_WITHIN_DP) {
-                    "Your camera is off to the side, so the island stays centred and keeps clear of it"
+                    text(R.string.camera_off_side_island_stays)
                 } else {
-                    "Wrapped the island around a ${hole.width.roundToInt()}×${hole.height.roundToInt()} dp camera"
+                    text(R.string.wrapped_island_around_dp_camera, hole.width.roundToInt(), hole.height.roundToInt())
                 }
             }
-            .onFailure { _status.value = it.message }
+            .onFailure { _status.value = it.describe(getApplication()) }
     }
 
     /** Everything worth pasting into a bug report, including any crash since the last clear. */
@@ -351,7 +357,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun clearCrashLog() {
         CrashReporter.clear(getApplication())
-        _status.value = "Crash log cleared"
+        _status.value = text(R.string.crash_log_cleared)
     }
 
     fun exportSettings(uri: Uri) {
@@ -364,7 +370,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                     } ?: error("could not open the file")
                 }.isSuccess
             }
-            _status.value = if (ok) "Settings exported" else "Could not write that file"
+            _status.value = if (ok) text(R.string.settings_exported) else text(R.string.could_not_write_file)
         }
     }
 
@@ -377,17 +383,17 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
                 }.getOrNull()
             }
             if (json.isNullOrBlank()) {
-                _status.value = "Could not read that file"
+                _status.value = text(R.string.could_not_read_file)
                 return@launch
             }
             val restored = runCatching { SettingsCodec.fromJson(json, settings.value) }.getOrNull()
             if (restored == null) {
-                _status.value = "That file is not a Notch Island backup"
+                _status.value = text(R.string.file_not_notch_island_backup)
                 return@launch
             }
             repository.update { restored }
             restartOverlay()
-            _status.value = "Settings restored"
+            _status.value = text(R.string.settings_restored)
         }
     }
 

@@ -1,11 +1,14 @@
 package com.joyboard.notchisland.data
 
+import com.joyboard.notchisland.R
+import androidx.annotation.StringRes
+
 /**
  * Exact geometry for the hardware each preset imitates. iOS points and Android dp are both
  * roughly a 160th of an inch, so the numbers carry across one to one.
  */
 enum class IslandPreset(
-    val label: String,
+    @StringRes val label: Int,
     val collapsedWidth: Int,
     val collapsedHeight: Int,
     val cornerRadius: Int,
@@ -13,18 +16,18 @@ enum class IslandPreset(
     val compactWidth: Int,
     val expandedWidth: Int,
 ) {
-    CUSTOM("Custom", 118, 30, 18, 4, 190, 330),
+    CUSTOM(R.string.custom, 118, 30, 18, 4, 190, 330),
 
     /** 126 × 37 pt housing, 11 pt below the top edge. */
-    IPHONE_14_PRO("iPhone 14 Pro / 15 Pro", 126, 37, 19, 11, 206, 371),
-    IPHONE_14_PRO_MAX("iPhone 14 Pro Max / 15 Pro Max", 126, 37, 19, 11, 212, 391),
+    IPHONE_14_PRO(R.string.iphone_14_pro_15_pro, 126, 37, 19, 11, 206, 371),
+    IPHONE_14_PRO_MAX(R.string.iphone_14_pro_max_15, 126, 37, 19, 11, 212, 391),
 
     /** The 16 Pro housing is fractionally shorter against a taller display. */
-    IPHONE_16_PRO("iPhone 16 Pro", 125, 36, 18, 13, 208, 378),
-    IPHONE_16_PRO_MAX("iPhone 16 Pro Max", 125, 36, 18, 13, 214, 398),
+    IPHONE_16_PRO(R.string.iphone_16_pro, 125, 36, 18, 13, 208, 378),
+    IPHONE_16_PRO_MAX(R.string.iphone_16_pro_max, 125, 36, 18, 13, 214, 398),
 
     /** A centred punch-hole camera, the common Android shape. */
-    ANDROID_PUNCH_HOLE("Android punch-hole", 96, 28, 14, 6, 180, 330);
+    ANDROID_PUNCH_HOLE(R.string.android_punch_hole, 96, 28, 14, 6, 180, 330);
 
     /** The settings this preset implies, on top of whatever is already configured. */
     fun applyTo(settings: IslandSettings): IslandSettings = settings.copy(

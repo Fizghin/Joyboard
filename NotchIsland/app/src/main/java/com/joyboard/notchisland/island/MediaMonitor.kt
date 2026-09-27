@@ -12,6 +12,7 @@ import android.os.Looper
 import androidx.palette.graphics.Palette
 import com.joyboard.notchisland.service.NotchNotificationListener
 import com.joyboard.notchisland.util.dp
+import com.joyboard.notchisland.R
 
 /**
  * Watches every active media session on the device and folds the most relevant one into a
@@ -98,7 +99,7 @@ class MediaMonitor(
         val metadata = c.metadata
         val state = c.playbackState
         val title = metadata?.getString(MediaMetadata.METADATA_KEY_TITLE)?.takeIf { it.isNotBlank() }
-            ?: "Playing"
+            ?: context.getString(R.string.playing)
         val artist = metadata?.getString(MediaMetadata.METADATA_KEY_ARTIST)
             ?: metadata?.getString(MediaMetadata.METADATA_KEY_ALBUM_ARTIST)
             ?: appLabel(c.packageName)

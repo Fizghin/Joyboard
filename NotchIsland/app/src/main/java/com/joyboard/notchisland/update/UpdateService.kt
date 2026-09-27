@@ -2,8 +2,6 @@ package com.joyboard.notchisland.update
 
 import android.content.Context
 import android.content.Intent
-import android.net.Uri
-import android.os.Build
 import android.provider.Settings
 import com.joyboard.notchisland.BuildConfig
 import androidx.core.content.FileProvider
@@ -14,6 +12,8 @@ import java.io.File
 import java.io.FileOutputStream
 import java.net.HttpURLConnection
 import java.net.URL
+import androidx.core.net.toUri
+import com.joyboard.notchisland.R
 
 /**
  * Checks a small JSON manifest published alongside the APKs, downloads the matching build and
@@ -51,7 +51,7 @@ class UpdateService(private val context: Context) {
                     UpdateState.UpToDate(currentVersionName)
                 }
             }.getOrElse { error ->
-                UpdateState.Failed(error.friendlyMessage())
+                UpdateState.Failed(error.friendlyMessage(context))
             }
         }
 
@@ -62,7 +62,7 @@ class UpdateService(private val context: Context) {
     ): Result<File> = withContext(Dispatchers.IO) {
         runCatching {
             val url = info.downloadUrl(debugBuild)
-                ?: error("This release has no APK for your build type")
+                ?: error(context.getString(R.string.release_has_no_apk_build))
             val directory = File(context.cacheDir, "updates").apply {
                 deleteRecursively()
                 mkdirs()
@@ -91,24 +91,21 @@ class UpdateService(private val context: Context) {
                 }
             }
             connection.disconnect()
-            if (target.length() <= 0L) error("The download came back empty")
+            if (target.length() <= 0L) error(context.getString(R.string.download_came_back_empty))
             onProgress(1f)
             target
         }
     }
 
     /** True when the installer can be launched; false means the user must allow this app first. */
-    fun canInstall(): Boolean =
-        Build.VERSION.SDK_INT < Build.VERSION_CODES.O ||
-            context.packageManager.canRequestPackageInstalls()
+    fun canInstall(): Boolean = context.packageManager.canRequestPackageInstalls()
 
     fun requestInstallPermission() {
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
         runCatching {
             context.startActivity(
                 Intent(
                     Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES,
-                    Uri.parse("package:${context.packageName}")
+                    "package:${context.packageName}".toUri()
                 ).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         }
@@ -148,7 +145,7 @@ class UpdateService(private val context: Context) {
             if (code in 300..399 && redirects < MAX_REDIRECTS) {
                 val location = connection.getHeaderField("Location")
                 connection.disconnect()
-                if (location.isNullOrBlank()) error("Redirect without a destination")
+                if (location.isNullOrBlank()) error(context.getString(R.string.redirect_without_destination))
                 current = URL(URL(current), location).toString()
                 redirects++
                 continue
@@ -157,10 +154,9 @@ class UpdateService(private val context: Context) {
                 connection.disconnect()
                 error(
                     when (code) {
-                        404 -> "No manifest at that address — if it is a GitHub repository, " +
-                            "it has to be public for your phone to read it"
-                        401, 403 -> "The update source refused the request (is it private?)"
-                        else -> "Server returned $code"
+                        404 -> context.getString(R.string.no_manifest_at_address_if)
+                        401, 403 -> context.getString(R.string.update_source_refused_request_private)
+                        else -> context.getString(R.string.server_returned, code)
                     }
                 )
             }
@@ -174,8 +170,8 @@ class UpdateService(private val context: Context) {
     }
 }
 
-private fun Throwable.friendlyMessage(): String = when (this) {
-    is java.net.UnknownHostException -> "No internet connection"
-    is java.net.SocketTimeoutException -> "The update server timed out"
-    else -> message ?: "Could not check for updates"
+private fun Throwable.friendlyMessage(context: Context): String = when (this) {
+    is java.net.UnknownHostException -> context.getString(R.string.no_internet_connection)
+    is java.net.SocketTimeoutException -> context.getString(R.string.update_server_timed_out)
+    else -> message ?: context.getString(R.string.could_not_check_updates)
 }

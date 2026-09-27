@@ -115,7 +115,7 @@ class NotchOverlayService : LifecycleService() {
             .setContentTitle(getString(R.string.service_running))
             .setContentText(getString(R.string.service_running_desc))
             .setContentIntent(open)
-            .addAction(0, "Turn off", stop)
+            .addAction(0, getString(R.string.turn_off), stop)
             .setOngoing(true)
             .setSilent(true)
             .setPriority(NotificationCompat.PRIORITY_MIN)

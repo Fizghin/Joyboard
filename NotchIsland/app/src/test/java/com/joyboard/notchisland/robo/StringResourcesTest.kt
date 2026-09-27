@@ -1,0 +1,47 @@
+package com.joyboard.notchisland.robo
+
+import android.content.Context
+import androidx.test.core.app.ApplicationProvider
+import com.joyboard.notchisland.R
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
+import org.junit.Test
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+
+/** Every string resolves, and the escaped and formatted ones come out as written. */
+@RunWith(RobolectricTestRunner::class)
+class StringResourcesTest {
+
+    private val context: Context = ApplicationProvider.getApplicationContext()
+
+    @Test
+    fun everyStringResolvesToText() {
+        R.string::class.java.fields.forEach { field ->
+            val text = context.getString(field.getInt(null))
+            assertTrue("${field.name} is blank", text.isNotBlank())
+            assertTrue("${field.name} kept an escape: $text", !text.contains("\\'") && !text.contains("\\\""))
+        }
+    }
+
+    @Test
+    fun apostrophesAndQuotesSurvive() {
+        assertEquals("You're on the latest version", context.getString(R.string.you_re_latest_version))
+        assertTrue(context.getString(R.string.over_status_bar_done_by).startsWith("So \"over the status bar\""))
+    }
+
+    @Test
+    fun formattedStringsTakeTheirArguments() {
+        assertEquals("Downloading 42%", context.getString(R.string.downloading, 42))
+        assertEquals("Found a 24×30 dp cutout", context.getString(R.string.found_dp_cutout, 24, 30))
+        assertEquals("Lap 3   00:12.40", context.getString(R.string.lap, 3, "00:12.40"))
+    }
+
+    @Test
+    fun pluralsPickTheRightForm() {
+        val res = context.resources
+        assertEquals("1 notification", res.getQuantityString(R.plurals.notification_count, 1, 1))
+        assertEquals("4 notifications", res.getQuantityString(R.plurals.notification_count, 4, 4))
+        assertEquals(" · 1 app opens the island", res.getQuantityString(R.plurals.auto_expand_apps, 1, 1))
+    }
+}

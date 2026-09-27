@@ -41,7 +41,7 @@ internal class Presentations(
         trailing = Trailing.Waveform(true, 0xFF34C759.toInt()),
         accent = 0xFF34C759.toInt(),
         title = item.title.ifBlank { item.appLabel },
-        subtitle = item.text.ifBlank { "Call" },
+        subtitle = item.text.ifBlank { context.getString(R.string.call) },
         body = ExpandedBody.Call(item),
         tapIntent = item.contentIntent,
         notificationKey = item.key,
@@ -96,8 +96,8 @@ internal class Presentations(
         leadingTint = 0xFFFF453A.toInt(),
         trailing = Trailing.Ring(state.level / 100f, 0xFFFF453A.toInt()),
         accent = 0xFFFF453A.toInt(),
-        title = "Low battery",
-        subtitle = "${state.level}% remaining",
+        title = context.getString(R.string.low_battery),
+        subtitle = context.getString(R.string.remaining, state.level),
         body = ExpandedBody.Charging(state.level, state.plugged, state.fast),
     )
 
@@ -115,12 +115,12 @@ internal class Presentations(
         ),
         accent = if (state.plugged) 0xFF34C759.toInt() else 0xFF8E8E93.toInt(),
         title = when {
-            state.full -> "Fully charged"
-            state.plugged && state.fast -> "Fast charging"
-            state.plugged -> "Charging"
-            else -> "Unplugged"
+            state.full -> context.getString(R.string.fully_charged)
+            state.plugged && state.fast -> context.getString(R.string.fast_charging)
+            state.plugged -> context.getString(R.string.charging)
+            else -> context.getString(R.string.unplugged)
         },
-        subtitle = "Battery ${state.level}%",
+        subtitle = context.getString(R.string.battery, state.level),
         body = ExpandedBody.Charging(state.level, state.plugged, state.fast),
     )
 
@@ -132,7 +132,7 @@ internal class Presentations(
         ),
         trailing = Trailing.Ring(fraction, accent(), "${(fraction * 100).toInt()}"),
         accent = accent(),
-        title = if (stream == AudioManager.STREAM_MUSIC) "Media volume" else "Ring volume",
+        title = if (stream == AudioManager.STREAM_MUSIC) context.getString(R.string.media_volume) else context.getString(R.string.ring_volume),
         subtitle = "${(fraction * 100).toInt()}%",
         body = ExpandedBody.QuickPanel,
     )
@@ -144,8 +144,8 @@ internal class Presentations(
         trailing = Trailing.Text(title),
         accent = accent(),
         title = title,
-        subtitle = "Ringer mode",
-        body = ExpandedBody.Message(title, "Ringer mode changed"),
+        subtitle = context.getString(R.string.ringer_mode),
+        body = ExpandedBody.Message(title, context.getString(R.string.ringer_mode_changed)),
     )
 
     /** The unlock confirmation. */
@@ -153,11 +153,11 @@ internal class Presentations(
         kind = ActivityKind.UNLOCK,
         leadingIcon = drawable(R.drawable.ic_unlock),
         leadingTint = 0xFF34C759.toInt(),
-        trailing = Trailing.Text("Unlocked", 0xFF34C759.toInt()),
+        trailing = Trailing.Text(context.getString(R.string.unlocked), 0xFF34C759.toInt()),
         accent = 0xFF34C759.toInt(),
-        title = "Unlocked",
+        title = context.getString(R.string.unlocked),
         subtitle = null,
-        body = ExpandedBody.Message("Unlocked", null),
+        body = ExpandedBody.Message(context.getString(R.string.unlocked), null),
     )
 
     /** The microphone or camera going live. */
@@ -168,8 +168,8 @@ internal class Presentations(
         trailing = Trailing.Icon(drawable(iconRes), 0xFF34C759.toInt()),
         accent = 0xFF34C759.toInt(),
         title = label,
-        subtitle = "Privacy indicator",
-        body = ExpandedBody.Message(label, "An app is using a sensor right now"),
+        subtitle = context.getString(R.string.privacy_indicator),
+        body = ExpandedBody.Message(label, context.getString(R.string.app_using_sensor_right_now)),
     )
 
     /** A running countdown. */
@@ -179,7 +179,7 @@ internal class Presentations(
         leadingTint = accent(),
         trailing = Trailing.Text(IslandView.formatDuration(remaining, true), accent()),
         accent = accent(),
-        title = "Timer",
+        title = context.getString(R.string.timer),
         subtitle = IslandView.formatDuration(remaining, true),
         body = ExpandedBody.Timer(remaining, total, running),
     )
@@ -189,11 +189,11 @@ internal class Presentations(
         kind = ActivityKind.NOTIFICATION,
         leadingIcon = drawable(R.drawable.ic_timer),
         leadingTint = accent(),
-        trailing = Trailing.Text("Done", accent()),
+        trailing = Trailing.Text(context.getString(R.string.done), accent()),
         accent = accent(),
-        title = "Timer finished",
+        title = context.getString(R.string.timer_finished),
         subtitle = null,
-        body = ExpandedBody.Message("Timer finished", null),
+        body = ExpandedBody.Message(context.getString(R.string.timer_finished), null),
     )
 
     /** Nothing happening: the resting island. */
@@ -202,7 +202,7 @@ internal class Presentations(
         leadingIcon = drawable(R.drawable.ic_island),
         trailing = Trailing.None,
         accent = accent(),
-        title = "Notch Island",
+        title = context.getString(R.string.app_name),
         subtitle = null,
         body = ExpandedBody.QuickPanel,
     )
@@ -214,7 +214,7 @@ internal class Presentations(
         leadingTint = accent(),
         trailing = Trailing.Text(formatStopwatch(elapsed), accent()),
         accent = accent(),
-        title = "Stopwatch",
+        title = context.getString(R.string.stopwatch),
         subtitle = formatStopwatch(elapsed),
         body = ExpandedBody.Stopwatch(elapsed, running, laps),
     )
@@ -225,8 +225,8 @@ internal class Presentations(
         leadingIcon = drawable(R.drawable.ic_bell),
         leadingTint = accent(),
         accent = accent(),
-        title = "Recent",
-        subtitle = "${items.size} notification(s)",
+        title = context.getString(R.string.recent),
+        subtitle = context.resources.getQuantityString(R.plurals.notification_count, items.size, items.size),
         body = ExpandedBody.History(items),
     )
 

@@ -39,6 +39,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.util.DynamicColors
 import kotlin.math.roundToInt
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun SectionCard(
@@ -157,7 +159,7 @@ fun <T> DropdownRow(
     title: String,
     selected: T,
     options: List<T>,
-    label: (T) -> String,
+    label: @Composable (T) -> String,
     onSelected: (T) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -214,7 +216,7 @@ fun ColorRow(title: String, selected: Int, onSelected: (Int) -> Unit) {
         )
         if (DynamicColors.supported) {
             Text(
-                "From your wallpaper first, then the presets",
+                stringResource(R.string.from_wallpaper_first_then_presets),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)

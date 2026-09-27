@@ -1,6 +1,8 @@
 package com.joyboard.notchisland.data
 
 import android.graphics.Color
+import com.joyboard.notchisland.R
+import androidx.annotation.StringRes
 
 /** Everything the island knows about how it should look and behave. */
 data class IslandSettings(
@@ -142,11 +144,11 @@ const val DEFAULT_UPDATE_MANIFEST_URL =
     "https://raw.githubusercontent.com/Fizghin/Joyboard/notch/update.json"
 
 /** Where the known camera position came from. */
-enum class CameraSource(val label: String) {
-    NONE("Not set"),
-    DETECTED("Reported by this phone"),
-    PRESET("From a device preset"),
-    MANUAL("Calibrated by hand"),
+enum class CameraSource(@StringRes val label: Int) {
+    NONE(R.string.not_set),
+    DETECTED(R.string.reported_by_phone),
+    PRESET(R.string.from_device_preset),
+    MANUAL(R.string.calibrated_by_hand),
 }
 
 /** The hole as geometry, or null when none is known. */
@@ -166,22 +168,22 @@ fun IslandSettings.withHole(hole: com.joyboard.notchisland.island.Hole?, source:
 )
 
 /** Where the island is anchored, and therefore what can be touched. */
-enum class PositionMode(val label: String) {
+enum class PositionMode(@StringRes val label: Int) {
     /** Entirely below the status bar: every pixel of the island is tappable. */
-    BELOW_STATUS_BAR("Below the status bar"),
+    BELOW_STATUS_BAR(R.string.below_status_bar),
 
     /** Drawn up in the status bar for the notch look, with a touch strip hanging below. */
-    OVERLAP_STATUS_BAR("Over the status bar"),
+    OVERLAP_STATUS_BAR(R.string.over_status_bar),
 
     /** Wherever the offsets put it, untouched by either rule. */
-    CUSTOM("Custom offset"),
+    CUSTOM(R.string.custom_offset),
 }
 
 /** Where a colour comes from: picked by hand, from the wallpaper, or from the album art. */
-enum class ColorSource(val label: String) {
-    MANUAL("Chosen colour"),
-    MATERIAL_YOU("Match my wallpaper"),
-    ARTWORK("Match what's playing"),
+enum class ColorSource(@StringRes val label: Int) {
+    MANUAL(R.string.chosen_colour),
+    MATERIAL_YOU(R.string.match_my_wallpaper),
+    ARTWORK(R.string.match_what_playing),
 }
 
 /** True when the wall-clock minute falls inside the quiet window, wrapping over midnight. */
@@ -196,32 +198,32 @@ fun IslandSettings.isQuietAt(minuteOfDay: Int): Boolean {
 }
 
 /** What a tap does to the island's size. */
-enum class TapExpansion(val label: String) {
+enum class TapExpansion(@StringRes val label: Int) {
     /** Pill → compact preview → small card → everything, one tap at a time. */
-    STEP("Step through the sizes"),
+    STEP(R.string.step_through_sizes),
 
     /** Straight to the full panel. */
-    DIRECT("Open everything at once"),
+    DIRECT(R.string.open_everything_at_once),
 }
 
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 enum class NotificationStyle { PREVIEW, MINIMAL, ICON_ONLY }
 
-enum class GestureAction(val label: String) {
-    NONE("Do nothing"),
-    EXPAND("Expand island"),
-    EXPAND_FULL("Open everything"),
-    COLLAPSE("Collapse island"),
-    MEDIA_PLAY_PAUSE("Play / pause"),
-    MEDIA_NEXT("Next track"),
-    MEDIA_PREVIOUS("Previous track"),
-    TOGGLE_TORCH("Toggle flashlight"),
-    TOGGLE_RINGER("Cycle ringer mode"),
-    OPEN_SETTINGS("Open Notch Island"),
-    OPEN_LAST_NOTIFICATION("Open last notification"),
-    SHOW_HISTORY("Show recent notifications"),
-    START_STOPWATCH("Start the stopwatch"),
-    SHOW_QUICK_PANEL("Show quick toggles"),
-    HIDE_TEMPORARILY("Hide for 30 seconds"),
+enum class GestureAction(@StringRes val label: Int) {
+    NONE(R.string.do_nothing),
+    EXPAND(R.string.expand_island),
+    EXPAND_FULL(R.string.open_everything),
+    COLLAPSE(R.string.collapse_island),
+    MEDIA_PLAY_PAUSE(R.string.play_pause),
+    MEDIA_NEXT(R.string.next_track),
+    MEDIA_PREVIOUS(R.string.previous_track),
+    TOGGLE_TORCH(R.string.toggle_flashlight),
+    TOGGLE_RINGER(R.string.cycle_ringer_mode),
+    OPEN_SETTINGS(R.string.open_notch_island),
+    OPEN_LAST_NOTIFICATION(R.string.open_last_notification),
+    SHOW_HISTORY(R.string.show_recent_notifications),
+    START_STOPWATCH(R.string.start_stopwatch),
+    SHOW_QUICK_PANEL(R.string.show_quick_toggles),
+    HIDE_TEMPORARILY(R.string.hide_30_seconds),
 }

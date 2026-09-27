@@ -40,6 +40,8 @@ import com.joyboard.notchisland.ui.components.SectionCard
 import com.joyboard.notchisland.ui.components.SliderRow
 import com.joyboard.notchisland.ui.components.SwitchRow
 import kotlin.math.roundToInt
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun AppearanceScreen(viewModel: MainViewModel) {
@@ -60,29 +62,27 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         )
 
         SectionCard(
-            title = "Shape",
-            subtitle = "Start from an iPhone's island, then adjust anything below."
+            title = stringResource(R.string.shape),
+            subtitle = stringResource(R.string.start_from_iphone_island_then)
         ) {
             DropdownRow(
-                title = "Style",
+                title = stringResource(R.string.style),
                 selected = settings.preset,
                 options = IslandPreset.entries.toList(),
-                label = { it.label },
+                label = { stringResource(it.label) },
                 onSelected = { value -> viewModel.applyPreset(value) }
             )
             SwitchRow(
-                title = "iOS mode",
-                subtitle = "Pure black, fully rounded, a 44 dp corner when open, and the same " +
-                    "damped-spring motion SwiftUI gives the real Dynamic Island. Overrides the " +
-                    "colour and shadow settings.",
+                title = stringResource(R.string.ios_mode),
+                subtitle = stringResource(R.string.pure_black_fully_rounded_44),
                 checked = settings.iosMode,
                 onCheckedChange = { value -> viewModel.update { it.copy(iosMode = value) } }
             )
         }
 
         SectionCard(
-            title = "Your phone's camera",
-            subtitle = "The camera is hardware: the island keeps its text and icons clear of it."
+            title = stringResource(R.string.phone_camera),
+            subtitle = stringResource(R.string.camera_hardware_island_keeps_its)
         ) {
             val suggested = viewModel.suggestedDevice
             if (suggested != null && settings.devicePresetId != suggested.id) {
@@ -93,37 +93,35 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        "This looks like a ${suggested.name}.",
+                        stringResource(R.string.looks_like, suggested.name),
                         style = MaterialTheme.typography.bodyMedium,
                         modifier = Modifier.weight(1f)
                     )
-                    Button(onClick = { viewModel.applyDevicePreset(suggested) }) { Text("Use it") }
+                    Button(onClick = { viewModel.applyDevicePreset(suggested) }) { Text(stringResource(R.string.use)) }
                 }
             }
             DropdownRow(
-                title = "Phone",
+                title = stringResource(R.string.phone),
                 selected = DevicePresets.byId(settings.devicePresetId),
                 options = listOf<DevicePreset?>(null) + DevicePresets.all,
                 label = { preset ->
                     when {
-                        preset == null -> "Choose…"
+                        preset == null -> stringResource(R.string.choose)
                         preset.maker == "Any phone" -> preset.name
                         else -> "${preset.maker} ${preset.name}".replace("Google Pixel", "Pixel")
                             .replace("Honor Honor", "Honor").replace("OnePlus OnePlus", "OnePlus")
-                            .replace("Nothing Phone", "Nothing Phone")
                     }
                 },
                 onSelected = { preset -> preset?.let { viewModel.applyDevicePreset(it) } }
             )
             Text(
                 when (settings.cameraSource) {
-                    CameraSource.NONE -> "No camera position set yet."
-                    else -> "${settings.cameraSource.label}: ${settings.holeWidth.roundToInt()}×" +
-                        "${settings.holeHeight.roundToInt()} dp, ${settings.holeCenterY.roundToInt()} dp down" +
+                    CameraSource.NONE -> stringResource(R.string.no_camera_position_set_yet)
+                    else -> stringResource(R.string.dp_dp_down, stringResource(settings.cameraSource.label), settings.holeWidth.roundToInt(), settings.holeHeight.roundToInt(), settings.holeCenterY.roundToInt()) +
                         when {
-                            settings.holeCenterX < -1f -> ", ${(-settings.holeCenterX).roundToInt()} dp left of centre"
-                            settings.holeCenterX > 1f -> ", ${settings.holeCenterX.roundToInt()} dp right of centre"
-                            else -> ", centred"
+                            settings.holeCenterX < -1f -> stringResource(R.string.dp_left_centre, (-settings.holeCenterX).roundToInt())
+                            settings.holeCenterX > 1f -> stringResource(R.string.dp_right_centre, settings.holeCenterX.roundToInt())
+                            else -> stringResource(R.string.centred)
                         }
                 },
                 style = MaterialTheme.typography.bodySmall,
@@ -135,30 +133,28 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(onClick = { viewModel.detectHole() }, modifier = Modifier.weight(1f)) {
-                    Text("Detect from this phone")
+                    Text(stringResource(R.string.detect_from_phone))
                 }
                 OutlinedButton(
                     onClick = { context.startActivity(Intent(context, CalibrationActivity::class.java)) },
                     modifier = Modifier.weight(1f)
-                ) { Text("Calibrate") }
+                ) { Text(stringResource(R.string.calibrate)) }
             }
             Text(
-                "Presets place the camera from the phone's design and are close, not exact. " +
-                    "Detect asks the phone itself, which knows precisely — use it for any phone, " +
-                    "listed or not, then fine-tune in Calibrate if you like.",
+                stringResource(R.string.presets_place_camera_from_phone),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
             )
             SwitchRow(
-                title = "Keep content clear of the camera",
-                subtitle = "Icons and text move aside instead of sitting under the lens",
+                title = stringResource(R.string.keep_content_clear_camera),
+                subtitle = stringResource(R.string.icons_text_move_aside_instead),
                 checked = settings.avoidHole,
                 onCheckedChange = { value -> viewModel.update { it.copy(avoidHole = value) } }
             )
             SwitchRow(
-                title = "Draw a lens over the camera",
-                subtitle = "A dark circle exactly over the hole, so it reads as one piece with the island",
+                title = stringResource(R.string.draw_lens_over_camera),
+                subtitle = stringResource(R.string.dark_circle_exactly_over_hole),
                 checked = settings.showFauxCamera,
                 onCheckedChange = { value -> viewModel.update { it.copy(showFauxCamera = value) } }
             )
@@ -166,74 +162,73 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 TextButton(
                     onClick = { viewModel.clearHole() },
                     modifier = Modifier.padding(horizontal = 8.dp)
-                ) { Text("Forget the camera position") }
+                ) { Text(stringResource(R.string.forget_camera_position)) }
             }
         }
 
-        SectionCard(title = "Size", subtitle = "Match your phone's camera cutout.") {
+        SectionCard(title = stringResource(R.string.size), subtitle = stringResource(R.string.match_phone_camera_cutout)) {
             OutlinedButton(
                 onClick = { viewModel.fitToCutout() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 6.dp)
-            ) { Text("Fit to my camera") }
+            ) { Text(stringResource(R.string.fit_my_camera)) }
             Text(
-                "Asks the phone where its camera is and wraps the island around it. A camera " +
-                    "off to one side is recorded instead, and the island stays centred.",
+                stringResource(R.string.asks_phone_where_its_camera),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 2.dp)
             )
             SliderRow(
-                title = "Resting width",
+                title = stringResource(R.string.resting_width),
                 value = settings.collapsedWidth.toFloat(),
                 range = 60f..260f,
-                valueLabel = "${settings.collapsedWidth} dp",
+                valueLabel = stringResource(R.string.dp, settings.collapsedWidth),
                 onValueChange = { value ->
                     viewModel.update { it.copy(collapsedWidth = value.roundToInt()) }
                 }
             )
             SliderRow(
-                title = "Height",
+                title = stringResource(R.string.height),
                 value = settings.collapsedHeight.toFloat(),
                 range = 18f..64f,
-                valueLabel = "${settings.collapsedHeight} dp",
+                valueLabel = stringResource(R.string.dp, settings.collapsedHeight),
                 onValueChange = { value ->
                     viewModel.update { it.copy(collapsedHeight = value.roundToInt()) }
                 }
             )
             SliderRow(
-                title = "Corner radius",
+                title = stringResource(R.string.corner_radius),
                 value = settings.cornerRadius.toFloat(),
                 range = 0f..40f,
-                valueLabel = "${settings.cornerRadius} dp",
+                valueLabel = stringResource(R.string.dp, settings.cornerRadius),
                 onValueChange = { value ->
                     viewModel.update { it.copy(cornerRadius = value.roundToInt()) }
                 }
             )
             SliderRow(
-                title = "Compact width",
+                title = stringResource(R.string.compact_width),
                 value = settings.compactWidth.toFloat(),
                 range = 120f..320f,
-                valueLabel = "${settings.compactWidth} dp",
+                valueLabel = stringResource(R.string.dp, settings.compactWidth),
                 onValueChange = { value ->
                     viewModel.update { it.copy(compactWidth = value.roundToInt()) }
                 }
             )
             SliderRow(
-                title = "Small card width",
+                title = stringResource(R.string.small_card_width),
                 value = settings.mediumWidth.toFloat(),
                 range = 150f..380f,
-                valueLabel = "${settings.mediumWidth} dp",
+                valueLabel = stringResource(R.string.dp, settings.mediumWidth),
                 onValueChange = { value ->
                     viewModel.update { it.copy(mediumWidth = value.roundToInt()) }
                 }
             )
             SliderRow(
-                title = "Expanded width",
+                title = stringResource(R.string.expanded_width),
                 value = settings.expandedWidth.toFloat(),
                 range = 240f..420f,
-                valueLabel = "${settings.expandedWidth} dp",
+                valueLabel = stringResource(R.string.dp, settings.expandedWidth),
                 onValueChange = { value ->
                     viewModel.update { it.copy(expandedWidth = value.roundToInt()) }
                 }
@@ -241,28 +236,24 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         }
 
         SectionCard(
-            title = "Position",
-            subtitle = "Where the island sits decides what can be touched."
+            title = stringResource(R.string.position),
+            subtitle = stringResource(R.string.where_island_sits_decides_what)
         ) {
             DropdownRow(
-                title = "Anchor",
+                title = stringResource(R.string.anchor),
                 selected = settings.positionMode,
                 options = PositionMode.entries.toList(),
-                label = { it.label },
+                label = { stringResource(it.label) },
                 onSelected = { value -> viewModel.update { it.copy(positionMode = value) } }
             )
             Text(
                 when (settings.positionMode) {
                     PositionMode.BELOW_STATUS_BAR ->
-                        "The whole island is tappable. Safest, and what most people want."
+                        stringResource(R.string.whole_island_tappable_safest_what)
                     PositionMode.OVERLAP_STATUS_BAR ->
-                        "The island is drawn up in the status bar for the notch look. Android " +
-                            "never delivers touches there, so a transparent strip hangs just " +
-                            "below it to catch them — the island looks like it comes from above " +
-                            "and still responds."
+                        stringResource(R.string.island_drawn_up_status_bar)
                     PositionMode.CUSTOM ->
-                        "Only the offsets below decide where it goes. Anything sitting inside " +
-                            "the status bar will not receive touches."
+                        stringResource(R.string.only_offsets_below_decide_where)
                 },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -270,17 +261,17 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             )
             if (settings.positionMode == PositionMode.OVERLAP_STATUS_BAR) {
                 SliderRow(
-                    title = "Touch strip",
+                    title = stringResource(R.string.touch_strip),
                     value = settings.touchStripHeight.toFloat(),
                     range = 8f..48f,
-                    valueLabel = "${settings.touchStripHeight} dp",
+                    valueLabel = stringResource(R.string.dp, settings.touchStripHeight),
                     onValueChange = { value ->
                         viewModel.update { it.copy(touchStripHeight = value.roundToInt()) }
                     }
                 )
                 SwitchRow(
-                    title = "Show a hint under the island",
-                    subtitle = "A faint handle marking where taps land",
+                    title = stringResource(R.string.show_hint_under_island),
+                    subtitle = stringResource(R.string.faint_handle_marking_where_taps),
                     checked = settings.showTouchHint,
                     onCheckedChange = { value ->
                         viewModel.update { it.copy(showTouchHint = value) }
@@ -288,19 +279,19 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 )
             }
             SliderRow(
-                title = "Horizontal offset",
+                title = stringResource(R.string.horizontal_offset),
                 value = settings.offsetX.toFloat(),
                 range = -120f..120f,
-                valueLabel = "${settings.offsetX} dp",
+                valueLabel = stringResource(R.string.dp, settings.offsetX),
                 onValueChange = { value ->
                     viewModel.update { it.copy(offsetX = value.roundToInt()) }
                 }
             )
             SliderRow(
-                title = "Vertical offset",
+                title = stringResource(R.string.vertical_offset),
                 value = settings.offsetY.toFloat(),
                 range = 0f..90f,
-                valueLabel = "${settings.offsetY} dp",
+                valueLabel = stringResource(R.string.dp, settings.offsetY),
                 onValueChange = { value ->
                     viewModel.update { it.copy(offsetY = value.roundToInt()) }
                 }
@@ -308,101 +299,100 @@ fun AppearanceScreen(viewModel: MainViewModel) {
         }
 
         SectionCard(
-            title = "Colour",
-            subtitle = if (DynamicColors.supported) "Material You pulls these from your wallpaper."
-            else "Material You needs Android 12 or newer, so the presets stand in for it."
+            title = stringResource(R.string.colour),
+            subtitle = if (DynamicColors.supported) stringResource(R.string.material_you_pulls_these_from)
+            else stringResource(R.string.material_you_needs_android_12)
         ) {
             DropdownRow(
-                title = "Accent",
+                title = stringResource(R.string.accent),
                 selected = settings.accentSource,
                 options = ColorSource.entries.toList(),
-                label = { it.label },
+                label = { stringResource(it.label) },
                 onSelected = { value -> viewModel.update { it.copy(accentSource = value) } }
             )
             if (settings.accentSource == ColorSource.MANUAL) {
                 ColorRow(
-                    title = "Accent colour",
+                    title = stringResource(R.string.accent_colour),
                     selected = settings.accentColor,
                     onSelected = { value -> viewModel.update { it.copy(accentColor = value) } }
                 )
             }
             DropdownRow(
-                title = "Island body",
+                title = stringResource(R.string.island_body),
                 selected = settings.backgroundSource,
                 options = listOf(ColorSource.MANUAL, ColorSource.MATERIAL_YOU),
-                label = { it.label },
+                label = { stringResource(it.label) },
                 onSelected = { value -> viewModel.update { it.copy(backgroundSource = value) } }
             )
             if (settings.backgroundSource == ColorSource.MANUAL) {
                 ColorRow(
-                    title = "Body colour",
+                    title = stringResource(R.string.body_colour),
                     selected = settings.backgroundColor,
                     onSelected = { value -> viewModel.update { it.copy(backgroundColor = value) } }
                 )
             }
             SliderRow(
-                title = "Opacity",
+                title = stringResource(R.string.opacity),
                 value = settings.opacity,
                 range = 0.2f..1f,
                 valueLabel = "${(settings.opacity * 100).roundToInt()}%",
                 onValueChange = { value -> viewModel.update { it.copy(opacity = value) } }
             )
             SwitchRow(
-                title = "Outline",
+                title = stringResource(R.string.outline),
                 checked = settings.borderEnabled,
                 onCheckedChange = { value -> viewModel.update { it.copy(borderEnabled = value) } }
             )
             if (settings.borderEnabled) {
                 ColorRow(
-                    title = "Outline colour",
+                    title = stringResource(R.string.outline_colour),
                     selected = settings.borderColor,
                     onSelected = { value -> viewModel.update { it.copy(borderColor = value) } }
                 )
                 SliderRow(
-                    title = "Outline width",
+                    title = stringResource(R.string.outline_width),
                     value = settings.borderWidth.toFloat(),
                     range = 1f..6f,
                     steps = 4,
-                    valueLabel = "${settings.borderWidth} dp",
+                    valueLabel = stringResource(R.string.dp, settings.borderWidth),
                     onValueChange = { value ->
                         viewModel.update { it.copy(borderWidth = value.roundToInt()) }
                     }
                 )
             }
             SwitchRow(
-                title = "Drop shadow",
+                title = stringResource(R.string.drop_shadow),
                 checked = settings.shadowEnabled,
                 onCheckedChange = { value -> viewModel.update { it.copy(shadowEnabled = value) } }
             )
         }
 
-        SectionCard(title = "Motion and theme") {
+        SectionCard(title = stringResource(R.string.motion_theme)) {
             SliderRow(
-                title = "Animation speed",
+                title = stringResource(R.string.animation_speed),
                 value = settings.animationSpeed,
                 range = 0.5f..2f,
                 valueLabel = "${(settings.animationSpeed * 10).roundToInt() / 10f}x",
                 onValueChange = { value -> viewModel.update { it.copy(animationSpeed = value) } }
             )
             DropdownRow(
-                title = "App theme",
+                title = stringResource(R.string.app_theme),
                 selected = settings.themeMode,
                 options = ThemeMode.entries.toList(),
                 label = {
                     when (it) {
-                        ThemeMode.SYSTEM -> "Follow system"
-                        ThemeMode.LIGHT -> "Light"
-                        ThemeMode.DARK -> "Dark"
+                        ThemeMode.SYSTEM -> stringResource(R.string.follow_system)
+                        ThemeMode.LIGHT -> stringResource(R.string.light)
+                        ThemeMode.DARK -> stringResource(R.string.dark)
                     }
                 },
                 onSelected = { value -> viewModel.update { it.copy(themeMode = value) } }
             )
         }
 
-        SectionCard(title = "Apply") {
+        SectionCard(title = stringResource(R.string.apply)) {
             Text(
-                "Size and position changes settle immediately, but restarting the overlay gives " +
-                    "the window a clean slate if anything looks off.",
+                stringResource(R.string.size_position_changes_settle_immediately),
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp),
                 style = MaterialTheme.typography.bodySmall,
             )
@@ -411,13 +401,13 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 8.dp)
-            ) { Text("Restart overlay") }
+            ) { Text(stringResource(R.string.restart_overlay)) }
             OutlinedButton(
                 onClick = { viewModel.resetToDefaults() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 4.dp)
-            ) { Text("Reset everything to defaults") }
+            ) { Text(stringResource(R.string.reset_everything_defaults)) }
         }
     }
 }

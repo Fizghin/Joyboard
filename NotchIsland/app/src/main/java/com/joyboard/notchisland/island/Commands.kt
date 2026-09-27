@@ -1,18 +1,21 @@
 package com.joyboard.notchisland.island
 
+import com.joyboard.notchisland.R
+import androidx.annotation.StringRes
+
 enum class MediaCommand { PLAY_PAUSE, NEXT, PREVIOUS }
 
 enum class TimerCommand { PAUSE, RESUME, ADD_MINUTE, CANCEL }
 
 enum class StopwatchCommand { START_PAUSE, LAP, RESET }
 
-enum class QuickToggle(val label: String) {
-    TORCH("Flashlight"),
-    WIFI("Wi-Fi"),
-    BLUETOOTH("Bluetooth"),
-    DND("Do Not Disturb"),
-    ROTATION("Auto-rotate"),
-    RINGER("Ringer mode"),
-    SETTINGS("System settings"),
-    APP_SETTINGS("Notch Island settings"),
+enum class QuickToggle(@StringRes val label: Int) {
+    TORCH(R.string.flashlight),
+    WIFI(R.string.wi_fi),
+    BLUETOOTH(R.string.bluetooth),
+    DND(R.string.do_not_disturb),
+    ROTATION(R.string.auto_rotate),
+    RINGER(R.string.ringer_mode),
+    SETTINGS(R.string.system_settings),
+    APP_SETTINGS(R.string.notch_island_settings),
 }

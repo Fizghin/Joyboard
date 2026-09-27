@@ -60,6 +60,7 @@
         <activity
             android:name=".CalibrationActivity"
             android:exported="false"
+            android:label="@string/calibrate_title"
             android:theme="@style/Theme.NotchIsland" />
 
         <activity

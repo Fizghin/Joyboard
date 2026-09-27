@@ -49,6 +49,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.Dp
@@ -69,6 +70,9 @@ import com.joyboard.notchisland.ui.screens.collectAsStateLifecycle
 import com.joyboard.notchisland.ui.theme.NotchIslandTheme
 import com.joyboard.notchisland.util.CutoutDetector
 import kotlin.math.roundToInt
+import androidx.compose.ui.res.stringResource
+import androidx.annotation.StringRes
+import com.joyboard.notchisland.util.describe
 
 /**
  * Lines the island up with the phone's real camera. The activity draws right into the cutout
@@ -115,7 +119,7 @@ class CalibrationActivity : ComponentActivity() {
     }
 }
 
-private enum class Target(val label: String) { ISLAND("Island"), CAMERA("Camera") }
+private enum class Target(@StringRes val label: Int) { ISLAND(R.string.move_island), CAMERA(R.string.move_camera) }
 
 @Composable
 private fun CalibrationScreen(
@@ -129,6 +133,7 @@ private fun CalibrationScreen(
     var message by remember { mutableStateOf<String?>(null) }
     val density = LocalDensity.current
     val context = LocalContext.current
+    val resources = LocalResources.current
 
     // In landscape the camera sits on a side edge, so anything measured here would be wrong for
     // the island. Rather than lock the orientation — which Android 16 ignores on large screens
@@ -143,15 +148,14 @@ private fun CalibrationScreen(
             contentAlignment = Alignment.Center
         ) {
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("Turn your phone upright", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
+                Text(stringResource(R.string.turn_phone_upright), style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.SemiBold)
                 Text(
-                    "The camera and the island both live at the top of the screen in portrait, so " +
-                        "that is where they have to be lined up.",
+                    stringResource(R.string.camera_island_both_live_at),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(top = 8.dp)
                 )
-                OutlinedButton(onClick = onCancel, modifier = Modifier.padding(top = 16.dp)) { Text("Close") }
+                OutlinedButton(onClick = onCancel, modifier = Modifier.padding(top = 16.dp)) { Text(stringResource(R.string.close)) }
             }
         }
         return
@@ -268,13 +272,12 @@ private fun CalibrationScreen(
                 .verticalScroll(rememberScrollState())
         ) {
             Text(
-                if (target == Target.CAMERA) "Put the red ring on your camera" else "Drag the island into place",
+                if (target == Target.CAMERA) stringResource(R.string.put_red_ring_camera) else stringResource(R.string.drag_island_into_place),
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.SemiBold
             )
             Text(
-                "Drag near the top of the screen. The camera is treated as hardware: text and " +
-                    "icons in the island move out of its way, as the blue and green markers show.",
+                stringResource(R.string.drag_near_top_screen_camera),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 4.dp, bottom = 8.dp)
@@ -285,7 +288,7 @@ private fun CalibrationScreen(
                     FilterChip(
                         selected = target == option,
                         onClick = { target = option },
-                        label = { Text("Move ${option.label.lowercase()}") }
+                        label = { Text(stringResource(option.label)) }
                     )
                 }
             }
@@ -299,10 +302,10 @@ private fun CalibrationScreen(
                         CutoutDetector.detectHole(context)
                             .onSuccess {
                                 draft = draft.withHole(it, CameraSource.DETECTED)
-                                message = "Found a ${it.width.roundToInt()}×${it.height.roundToInt()} dp cutout"
+                                message = resources.getString(R.string.found_dp_cutout, it.width.roundToInt(), it.height.roundToInt())
                             }
-                            .onFailure { message = it.message }
-                    }) { Text("Detect from this phone") }
+                            .onFailure { message = it.describe(context) }
+                    }) { Text(stringResource(R.string.detect_from_phone)) }
                     OutlinedButton(
                         enabled = hole != null,
                         onClick = {
@@ -317,45 +320,45 @@ private fun CalibrationScreen(
                                 offsetY = (h.centerY - height / 2f).roundToInt().coerceAtLeast(0),
                             )
                         }
-                    ) { Text("Wrap island") }
+                    ) { Text(stringResource(R.string.wrap_island)) }
                 }
                 message?.let {
                     Text(it, style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 4.dp))
                 }
                 if (hole != null) {
-                    CalibrationSlider("Size", hole.width.roundToInt(), 6..90) { size ->
+                    CalibrationSlider(stringResource(R.string.size), hole.width.roundToInt(), 6..90) { size ->
                         // Punch holes are round, so width and height move together; a pill or
                         // notch keeps its proportions.
                         val ratio = if (hole.width > 0f) hole.height / hole.width else 1f
                         draft = draft.withHole(hole.copy(width = size.toFloat(), height = size * ratio), CameraSource.MANUAL)
                     }
-                    CalibrationSlider("Across", hole.centerX.roundToInt(), -200..200) {
+                    CalibrationSlider(stringResource(R.string.across), hole.centerX.roundToInt(), -200..200) {
                         draft = draft.withHole(hole.copy(centerX = it.toFloat()), CameraSource.MANUAL)
                     }
-                    CalibrationSlider("Down", hole.centerY.roundToInt(), 0..140) {
+                    CalibrationSlider(stringResource(R.string.down), hole.centerY.roundToInt(), 0..140) {
                         draft = draft.withHole(hole.copy(centerY = it.toFloat()), CameraSource.MANUAL)
                     }
                 }
-                ToggleRow("Keep content clear of the camera", draft.avoidHole) {
+                ToggleRow(stringResource(R.string.keep_content_clear_camera), draft.avoidHole) {
                     draft = draft.copy(avoidHole = it)
                 }
-                ToggleRow("Draw a lens over it", draft.showFauxCamera) {
+                ToggleRow(stringResource(R.string.draw_lens_over), draft.showFauxCamera) {
                     draft = draft.copy(showFauxCamera = it)
                 }
             } else {
-                CalibrationSlider("Width", draft.collapsedWidth, 48..320) {
+                CalibrationSlider(stringResource(R.string.width), draft.collapsedWidth, 48..320) {
                     draft = draft.copy(collapsedWidth = it)
                 }
-                CalibrationSlider("Height", draft.collapsedHeight, 16..72) {
+                CalibrationSlider(stringResource(R.string.height), draft.collapsedHeight, 16..72) {
                     draft = draft.copy(collapsedHeight = it, cornerRadius = minOf(draft.cornerRadius, it / 2))
                 }
-                CalibrationSlider("Corner", draft.cornerRadius, 0..40) {
+                CalibrationSlider(stringResource(R.string.corner), draft.cornerRadius, 0..40) {
                     draft = draft.copy(cornerRadius = it)
                 }
-                CalibrationSlider("Left / right", draft.offsetX, -180..180) {
+                CalibrationSlider(stringResource(R.string.left_right), draft.offsetX, -180..180) {
                     draft = draft.copy(offsetX = it)
                 }
-                CalibrationSlider("Down", draft.offsetY, 0..120) {
+                CalibrationSlider(stringResource(R.string.down), draft.offsetY, 0..120) {
                     draft = draft.copy(offsetY = it)
                 }
             }
@@ -367,15 +370,15 @@ private fun CalibrationScreen(
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 OutlinedButton(onClick = { lightBackground = !lightBackground }, modifier = Modifier.weight(1f)) {
-                    Text(if (lightBackground) "Dark" else "Light")
+                    Text(if (lightBackground) stringResource(R.string.dark) else stringResource(R.string.light))
                 }
-                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text("Cancel") }
+                OutlinedButton(onClick = onCancel, modifier = Modifier.weight(1f)) { Text(stringResource(R.string.cancel)) }
                 Button(
                     // Over-the-status-bar keeps offsets exactly as measured here and hangs a
                     // touch strip below, so a calibrated island stays tappable.
                     onClick = { onSave(draft.copy(positionMode = PositionMode.OVERLAP_STATUS_BAR)) },
                     modifier = Modifier.weight(1f)
-                ) { Text("Save") }
+                ) { Text(stringResource(R.string.save)) }
             }
         }
     }

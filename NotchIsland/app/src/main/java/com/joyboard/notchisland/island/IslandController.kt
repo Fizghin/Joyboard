@@ -367,9 +367,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun onRinger(mode: Int) {
         if (!settings.featureRinger) return
         val (iconRes, title) = when (mode) {
-            AudioManager.RINGER_MODE_SILENT -> R.drawable.ic_bell_off to "Silent"
-            AudioManager.RINGER_MODE_VIBRATE -> R.drawable.ic_vibrate to "Vibrate"
-            else -> R.drawable.ic_bell to "Ring"
+            AudioManager.RINGER_MODE_SILENT -> R.drawable.ic_bell_off to context.getString(R.string.silent)
+            AudioManager.RINGER_MODE_VIBRATE -> R.drawable.ic_vibrate to context.getString(R.string.vibrate)
+            else -> R.drawable.ic_bell to context.getString(R.string.ring)
         }
         push(
             LiveActivity(
@@ -400,9 +400,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
         val iconRes = if (camera) R.drawable.ic_camera else R.drawable.ic_mic
         val label = when {
-            mic && camera -> "Camera and microphone in use"
-            camera -> "Camera in use"
-            else -> "Microphone in use"
+            mic && camera -> context.getString(R.string.camera_microphone_use)
+            camera -> context.getString(R.string.camera_use)
+            else -> context.getString(R.string.microphone_use)
         }
         push(
             LiveActivity(
@@ -704,7 +704,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         val results = Bundle().apply { putCharSequence(reply.resultKey, text) }
         val fill = Intent()
         RemoteInput.addResultsToIntent(reply.remoteInputs, fill, results)
-        if (!PendingIntents.send(context, intent, fill)) toast("Could not send the reply")
+        if (!PendingIntents.send(context, intent, fill)) toast(context.getString(R.string.could_not_send_reply))
         window.setFocusable(false)
         userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
@@ -725,8 +725,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
     override fun onCopyCode(code: String) {
         val clipboard = context.getSystemService(ClipboardManager::class.java)
         runCatching {
-            clipboard?.setPrimaryClip(ClipData.newPlainText("Passcode", code))
-            toast("Copied $code")
+            clipboard?.setPrimaryClip(ClipData.newPlainText(context.getString(R.string.passcode), code))
+            toast(context.getString(R.string.copied, code))
         }
         haptics.pop()
         userStage = null

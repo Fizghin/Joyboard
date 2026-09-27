@@ -16,6 +16,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.joyboard.notchisland.data.DEFAULT_UPDATE_MANIFEST_URL
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 /** Lets the update manifest live anywhere the phone can reach over HTTPS. */
 @Composable
@@ -27,13 +29,11 @@ fun UrlDialog(
     var value by remember { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Update source") },
+        title = { Text(stringResource(R.string.update_source)) },
         text = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    "The address of a JSON manifest describing the newest build. A GitHub raw " +
-                        "URL works only while the repository is public — otherwise point this at " +
-                        "a gist, a release asset or your own host.",
+                    stringResource(R.string.address_json_manifest_describing_newest),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -42,7 +42,7 @@ fun UrlDialog(
                     onValueChange = { value = it },
                     singleLine = false,
                     maxLines = 4,
-                    label = { Text("Manifest URL") },
+                    label = { Text(stringResource(R.string.manifest_url)) },
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(top = 12.dp)
@@ -50,10 +50,10 @@ fun UrlDialog(
                 TextButton(
                     onClick = { value = DEFAULT_UPDATE_MANIFEST_URL },
                     modifier = Modifier.padding(top = 4.dp)
-                ) { Text("Reset to default") }
+                ) { Text(stringResource(R.string.reset_default)) }
             }
         },
-        confirmButton = { TextButton(onClick = { onConfirm(value) }) { Text("Save") } },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
+        confirmButton = { TextButton(onClick = { onConfirm(value) }) { Text(stringResource(R.string.save)) } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } }
     )
 }

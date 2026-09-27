@@ -4,6 +4,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
+import androidx.annotation.StringRes
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -53,6 +54,7 @@ import com.joyboard.notchisland.ui.screens.GesturesScreen
 import com.joyboard.notchisland.ui.screens.HomeScreen
 import com.joyboard.notchisland.ui.components.UpdateDialog
 import com.joyboard.notchisland.ui.theme.NotchIslandTheme
+import androidx.compose.ui.res.stringResource
 
 class MainActivity : ComponentActivity() {
 
@@ -97,13 +99,13 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private data class Tab(val route: String, val label: String, val icon: ImageVector)
+private data class Tab(val route: String, @StringRes val label: Int, val icon: ImageVector)
 
 private val tabs = listOf(
-    Tab("home", "Island", Icons.Outlined.Home),
-    Tab("features", "Activities", Icons.Outlined.Bolt),
-    Tab("appearance", "Look", Icons.Outlined.Palette),
-    Tab("gestures", "Gestures", Icons.Outlined.TouchApp),
+    Tab("home", R.string.island, Icons.Outlined.Home),
+    Tab("features", R.string.activities, Icons.Outlined.Bolt),
+    Tab("appearance", R.string.look, Icons.Outlined.Palette),
+    Tab("gestures", R.string.gestures, Icons.Outlined.TouchApp),
 )
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -131,26 +133,26 @@ private fun NotchIslandApp(
                 title = {
                     Text(
                         when (currentRoute) {
-                            "features" -> "Live activities"
-                            "appearance" -> "Appearance"
-                            "gestures" -> "Gestures"
-                            "blocked" -> "Per-app rules"
-                            "about" -> "About"
-                            else -> "Notch Island"
+                            "features" -> stringResource(R.string.live_activities)
+                            "appearance" -> stringResource(R.string.appearance)
+                            "gestures" -> stringResource(R.string.gestures)
+                            "blocked" -> stringResource(R.string.per_app_rules)
+                            "about" -> stringResource(R.string.about)
+                            else -> stringResource(R.string.app_name)
                         }
                     )
                 },
                 navigationIcon = {
                     if (isSubScreen) {
                         IconButton(onClick = { navController.popBackStack() }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     }
                 },
                 actions = {
                     if (!isSubScreen) {
                         IconButton(onClick = { navController.navigate("about") }) {
-                            Icon(Icons.Default.Info, contentDescription = "About")
+                            Icon(Icons.Default.Info, contentDescription = stringResource(R.string.about))
                         }
                     }
                 }
@@ -173,8 +175,8 @@ private fun NotchIslandApp(
                                     restoreState = true
                                 }
                             },
-                            icon = { Icon(tab.icon, contentDescription = tab.label) },
-                            label = { Text(tab.label) }
+                            icon = { Icon(tab.icon, contentDescription = stringResource(tab.label)) },
+                            label = { Text(stringResource(tab.label)) }
                         )
                     }
                 }

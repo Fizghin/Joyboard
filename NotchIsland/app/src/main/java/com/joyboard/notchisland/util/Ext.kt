@@ -3,11 +3,11 @@ package com.joyboard.notchisland.util
 import android.content.Context
 import android.content.Intent
 import android.graphics.Color
-import android.net.Uri
 import android.provider.Settings
 import android.util.TypedValue
 import android.view.View
 import androidx.core.graphics.ColorUtils
+import androidx.core.net.toUri
 
 val Int.dp: Int
     get() = (this * android.content.res.Resources.getSystem().displayMetrics.density).toInt()
@@ -47,7 +47,7 @@ fun Context.hasNotificationAccess(): Boolean {
 fun Context.canWriteSettings(): Boolean = Settings.System.canWrite(this)
 
 fun Context.openOverlaySettings() = startActivity(
-    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, Uri.parse("package:$packageName"))
+    Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION, "package:$packageName".toUri())
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 )
 
@@ -56,7 +56,7 @@ fun Context.openNotificationAccessSettings() = startActivity(
 )
 
 fun Context.openWriteSettings() = startActivity(
-    Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, Uri.parse("package:$packageName"))
+    Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS, "package:$packageName".toUri())
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 )
 

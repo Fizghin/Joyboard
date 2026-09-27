@@ -17,6 +17,9 @@ import com.joyboard.notchisland.ui.components.SectionCard
 import com.joyboard.notchisland.ui.components.SliderRow
 import com.joyboard.notchisland.ui.components.SwitchRow
 import kotlin.math.roundToInt
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.pluralStringResource
+import androidx.compose.ui.res.stringResource
 
 private fun formatMinutes(minuteOfDay: Int): String {
     val hours = (minuteOfDay / 60) % 24
@@ -36,122 +39,121 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
             .padding(bottom = 32.dp)
     ) {
         SectionCard(
-            title = "Live activities",
-            subtitle = "Pick which events take over the island."
+            title = stringResource(R.string.live_activities),
+            subtitle = stringResource(R.string.pick_which_events_take_over)
         ) {
             SwitchRow(
-                title = "Now playing",
-                subtitle = if (permissions.notificationAccess) "Artwork, scrubbing and transport controls"
-                else "Needs notification access",
+                title = stringResource(R.string.now_playing),
+                subtitle = if (permissions.notificationAccess) stringResource(R.string.artwork_scrubbing_transport_controls)
+                else stringResource(R.string.needs_notification_access),
                 checked = settings.featureMedia,
                 enabled = permissions.notificationAccess,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureMedia = value) } }
             )
             SwitchRow(
-                title = "Notifications",
-                subtitle = if (permissions.notificationAccess) "Previews that slide out of the island"
-                else "Needs notification access",
+                title = stringResource(R.string.notifications),
+                subtitle = if (permissions.notificationAccess) stringResource(R.string.previews_slide_out_island)
+                else stringResource(R.string.needs_notification_access),
                 checked = settings.featureNotifications,
                 enabled = permissions.notificationAccess,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureNotifications = value) } }
             )
             SwitchRow(
-                title = "Charging",
-                subtitle = "Shows the level when you plug in or unplug",
+                title = stringResource(R.string.charging),
+                subtitle = stringResource(R.string.shows_level_when_you_plug),
                 checked = settings.featureCharging,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureCharging = value) } }
             )
             SwitchRow(
-                title = "Low battery",
-                subtitle = "A red warning under 15%",
+                title = stringResource(R.string.low_battery),
+                subtitle = stringResource(R.string.red_warning_under_15),
                 checked = settings.featureBatteryLow,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureBatteryLow = value) } }
             )
             SwitchRow(
-                title = "Volume",
-                subtitle = "Replaces nothing — it just adds a readout",
+                title = stringResource(R.string.volume),
+                subtitle = stringResource(R.string.replaces_nothing_just_adds_readout),
                 checked = settings.featureVolume,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureVolume = value) } }
             )
             SwitchRow(
-                title = "Ringer mode",
-                subtitle = "Ring, vibrate and silent changes",
+                title = stringResource(R.string.ringer_mode),
+                subtitle = stringResource(R.string.ring_vibrate_silent_changes),
                 checked = settings.featureRinger,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureRinger = value) } }
             )
             SwitchRow(
-                title = "Unlock",
-                subtitle = "A short confirmation after you unlock",
+                title = stringResource(R.string.unlock),
+                subtitle = stringResource(R.string.short_confirmation_after_you_unlock),
                 checked = settings.featureUnlock,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureUnlock = value) } }
             )
             SwitchRow(
-                title = "Timers",
-                subtitle = "Countdowns live in the island until they finish",
+                title = stringResource(R.string.timers),
+                subtitle = stringResource(R.string.countdowns_live_island_until_they),
                 checked = settings.featureTimer,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureTimer = value) } }
             )
             SwitchRow(
-                title = "Privacy indicators",
-                subtitle = "A green dot when the mic or camera goes live",
+                title = stringResource(R.string.privacy_indicators),
+                subtitle = stringResource(R.string.green_dot_when_mic_or),
                 checked = settings.featurePrivacy,
                 onCheckedChange = { value -> viewModel.update { it.copy(featurePrivacy = value) } }
             )
             SwitchRow(
-                title = "Calls",
-                subtitle = "Ringing and connected calls take over the island, with the caller's own answer and hang-up buttons",
+                title = stringResource(R.string.calls),
+                subtitle = stringResource(R.string.ringing_connected_calls_take_over),
                 checked = settings.featureCalls,
                 enabled = permissions.notificationAccess,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureCalls = value) } }
             )
             SwitchRow(
-                title = "Ongoing activities",
-                subtitle = "Navigation, downloads, deliveries and recordings stay in the island with their progress",
+                title = stringResource(R.string.ongoing_activities),
+                subtitle = stringResource(R.string.navigation_downloads_deliveries_recordings_stay),
                 checked = settings.featureOngoing,
                 enabled = permissions.notificationAccess,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureOngoing = value) } }
             )
             SwitchRow(
-                title = "Stopwatch",
-                subtitle = "Laps and all, live in the island",
+                title = stringResource(R.string.stopwatch),
+                subtitle = stringResource(R.string.laps_all_live_island),
                 checked = settings.featureStopwatch,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureStopwatch = value) } }
             )
             SwitchRow(
-                title = "Recent notifications",
-                subtitle = "Keeps the last dozen so you can pull them back up",
+                title = stringResource(R.string.recent_notifications),
+                subtitle = stringResource(R.string.keeps_last_dozen_you_can),
                 checked = settings.featureHistory,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureHistory = value) } }
             )
         }
 
         SectionCard(
-            title = "Smart handling",
-            subtitle = "What the island does with a notification beyond showing it."
+            title = stringResource(R.string.smart_handling),
+            subtitle = stringResource(R.string.what_island_does_with_notification)
         ) {
             SwitchRow(
-                title = "Quick reply",
-                subtitle = "Answer a message from the island; the keyboard opens over it",
+                title = stringResource(R.string.quick_reply),
+                subtitle = stringResource(R.string.answer_message_from_island_keyboard),
                 checked = settings.quickReplyEnabled,
                 onCheckedChange = { value ->
                     viewModel.update { it.copy(quickReplyEnabled = value) }
                 }
             )
             SwitchRow(
-                title = "Find passcodes",
+                title = stringResource(R.string.find_passcodes),
                 subtitle = if (android.os.Build.VERSION.SDK_INT >= 35) {
-                    "Spots one-time codes and offers a single tap to copy. Android 15 and " +
-                        "later hide many codes from apps like this one, so some will not appear."
+                    stringResource(R.string.spots_one_time_codes_offers)
                 } else {
-                    "Spots one-time codes and offers a single tap to copy"
+                    stringResource(R.string.spots_one_time_codes_offers_2)
                 },
                 checked = settings.otpDetection,
                 onCheckedChange = { value -> viewModel.update { it.copy(otpDetection = value) } }
             )
             if (settings.otpDetection) {
                 SwitchRow(
-                    title = "Open for a passcode",
-                    subtitle = "Expands on its own when a code arrives",
+                    title = stringResource(R.string.open_passcode),
+                    subtitle = stringResource(R.string.expands_its_own_when_code),
                     checked = settings.autoExpandOtp,
                     onCheckedChange = { value ->
                         viewModel.update { it.copy(autoExpandOtp = value) }
@@ -159,18 +161,18 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 )
             }
             SwitchRow(
-                title = "Open for a call",
+                title = stringResource(R.string.open_call),
                 checked = settings.autoExpandCalls,
                 onCheckedChange = { value -> viewModel.update { it.copy(autoExpandCalls = value) } }
             )
         }
 
         SectionCard(
-            title = "Quiet hours",
-            subtitle = "The island steps aside for a stretch of the day."
+            title = stringResource(R.string.quiet_hours),
+            subtitle = stringResource(R.string.island_steps_aside_stretch_day)
         ) {
             SwitchRow(
-                title = "Quiet hours",
+                title = stringResource(R.string.quiet_hours),
                 checked = settings.quietHoursEnabled,
                 onCheckedChange = { value ->
                     viewModel.update { it.copy(quietHoursEnabled = value) }
@@ -178,7 +180,7 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
             )
             if (settings.quietHoursEnabled) {
                 SliderRow(
-                    title = "From",
+                    title = stringResource(R.string.from),
                     value = settings.quietStartMinutes / 15f,
                     range = 0f..95f,
                     valueLabel = formatMinutes(settings.quietStartMinutes),
@@ -187,7 +189,7 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                     }
                 )
                 SliderRow(
-                    title = "Until",
+                    title = stringResource(R.string.until),
                     value = settings.quietEndMinutes / 15f,
                     range = 0f..95f,
                     valueLabel = formatMinutes(settings.quietEndMinutes),
@@ -197,8 +199,8 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 )
             }
             SwitchRow(
-                title = "Rest while the screen is off",
-                subtitle = "Stops watching media and sensors until the screen comes back",
+                title = stringResource(R.string.rest_while_screen_off),
+                subtitle = stringResource(R.string.stops_watching_media_sensors_until),
                 checked = settings.suspendWhenScreenOff,
                 onCheckedChange = { value ->
                     viewModel.update { it.copy(suspendWhenScreenOff = value) }
@@ -206,22 +208,22 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
             )
         }
 
-        SectionCard(title = "Notifications") {
+        SectionCard(title = stringResource(R.string.notifications)) {
             DropdownRow(
-                title = "Preview style",
+                title = stringResource(R.string.preview_style),
                 selected = settings.notificationStyle,
                 options = NotificationStyle.entries.toList(),
                 label = {
                     when (it) {
-                        NotificationStyle.PREVIEW -> "Title preview"
-                        NotificationStyle.MINIMAL -> "App name only"
-                        NotificationStyle.ICON_ONLY -> "Icon only"
+                        NotificationStyle.PREVIEW -> stringResource(R.string.title_preview)
+                        NotificationStyle.MINIMAL -> stringResource(R.string.app_name_only)
+                        NotificationStyle.ICON_ONLY -> stringResource(R.string.icon_only)
                     }
                 },
                 onSelected = { value -> viewModel.update { it.copy(notificationStyle = value) } }
             )
             SliderRow(
-                title = "How long previews stay",
+                title = stringResource(R.string.how_long_previews_stay),
                 value = settings.notificationDurationMs / 1000f,
                 range = 1.5f..12f,
                 valueLabel = "${(settings.notificationDurationMs / 1000f * 10).roundToInt() / 10f}s",
@@ -230,60 +232,60 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 }
             )
             SwitchRow(
-                title = "Show silent notifications",
-                subtitle = "Off means only notifications that would make a sound take over the island",
+                title = stringResource(R.string.show_silent_notifications),
+                subtitle = stringResource(R.string.off_means_only_notifications_would),
                 checked = settings.silentNotifications,
                 onCheckedChange = { value -> viewModel.update { it.copy(silentNotifications = value) } }
             )
             SwitchRow(
-                title = "Follow Do Not Disturb",
-                subtitle = "When Do Not Disturb keeps a notification quiet, the island stays quiet too",
+                title = stringResource(R.string.follow_do_not_disturb),
+                subtitle = stringResource(R.string.when_do_not_disturb_keeps),
                 checked = settings.respectDoNotDisturb,
                 onCheckedChange = { value -> viewModel.update { it.copy(respectDoNotDisturb = value) } }
             )
             NavRow(
-                title = "Per-app rules",
+                title = stringResource(R.string.per_app_rules),
                 subtitle = buildString {
                     append(
-                        if (settings.blockedPackages.isEmpty()) "Nothing blocked"
-                        else "${settings.blockedPackages.size} blocked"
+                        if (settings.blockedPackages.isEmpty()) stringResource(R.string.nothing_blocked)
+                        else pluralStringResource(R.plurals.blocked_apps, settings.blockedPackages.size, settings.blockedPackages.size)
                     )
                     if (settings.autoExpandPackages.isNotEmpty()) {
-                        append(" · ${settings.autoExpandPackages.size} auto-expand")
+                        append(pluralStringResource(R.plurals.auto_expand_apps, settings.autoExpandPackages.size, settings.autoExpandPackages.size))
                     }
                 },
                 onClick = onOpenBlockedApps
             )
         }
 
-        SectionCard(title = "Behaviour") {
+        SectionCard(title = stringResource(R.string.behaviour)) {
             SwitchRow(
-                title = "Always show the pill",
-                subtitle = "Keep a resting island when nothing is happening",
+                title = stringResource(R.string.always_show_pill),
+                subtitle = stringResource(R.string.keep_resting_island_when_nothing),
                 checked = settings.alwaysShowPill,
                 onCheckedChange = { value -> viewModel.update { it.copy(alwaysShowPill = value) } }
             )
             SwitchRow(
-                title = "Hide in landscape",
-                subtitle = "Stay out of the way in games and video",
+                title = stringResource(R.string.hide_landscape),
+                subtitle = stringResource(R.string.stay_out_way_games_video),
                 checked = settings.hideInLandscape,
                 onCheckedChange = { value -> viewModel.update { it.copy(hideInLandscape = value) } }
             )
             SwitchRow(
-                title = "Show on the lock screen",
+                title = stringResource(R.string.show_lock_screen),
                 checked = settings.showOnLockScreen,
                 onCheckedChange = { value -> viewModel.update { it.copy(showOnLockScreen = value) } }
             )
             SwitchRow(
-                title = "Dim the screen when expanded",
+                title = stringResource(R.string.dim_screen_when_expanded),
                 checked = settings.dimBackgroundWhenExpanded,
                 onCheckedChange = { value ->
                     viewModel.update { it.copy(dimBackgroundWhenExpanded = value) }
                 }
             )
             SwitchRow(
-                title = "Start on boot",
-                subtitle = "Bring the island back after a restart",
+                title = stringResource(R.string.start_boot),
+                subtitle = stringResource(R.string.bring_island_back_after_restart),
                 checked = settings.startOnBoot,
                 onCheckedChange = { value -> viewModel.update { it.copy(startOnBoot = value) } }
             )

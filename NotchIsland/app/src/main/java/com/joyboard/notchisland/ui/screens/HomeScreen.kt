@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -45,6 +44,8 @@ import com.joyboard.notchisland.util.openDndAccessSettings
 import com.joyboard.notchisland.util.openNotificationAccessSettings
 import com.joyboard.notchisland.util.openOverlaySettings
 import com.joyboard.notchisland.util.openWriteSettings
+import com.joyboard.notchisland.R
+import androidx.compose.ui.res.stringResource
 
 @Composable
 fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
@@ -68,15 +69,15 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Dynamic Island",
+                        stringResource(R.string.dynamic_island),
                         style = MaterialTheme.typography.titleLarge,
                         fontWeight = FontWeight.Bold
                     )
                     Text(
                         when {
-                            !permissions.overlay -> "Needs the display-over-apps permission"
-                            settings.enabled -> "Running · tap the island to expand it"
-                            else -> "Switched off"
+                            !permissions.overlay -> stringResource(R.string.needs_display_over_apps_permission)
+                            settings.enabled -> stringResource(R.string.running_tap_island_expand)
+                            else -> stringResource(R.string.switched_off)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -95,7 +96,7 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                         .fillMaxWidth()
                         .padding(horizontal = 18.dp, vertical = 6.dp)
                 ) {
-                    Text("Allow display over other apps")
+                    Text(stringResource(R.string.allow_display_over_other_apps))
                 }
             }
         }
@@ -107,36 +108,36 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
         )
 
         SectionCard(
-            title = "Permissions",
-            subtitle = "Each one unlocks a different part of the island."
+            title = stringResource(R.string.permissions),
+            subtitle = stringResource(R.string.each_one_unlocks_different_part)
         ) {
             PermissionRow(
-                title = "Display over other apps",
-                subtitle = "Required — draws the island itself",
+                title = stringResource(R.string.display_over_other_apps),
+                subtitle = stringResource(R.string.required_draws_island_itself),
                 granted = permissions.overlay,
                 onGrant = { context.openOverlaySettings() }
             )
             PermissionRow(
-                title = "Notification access",
-                subtitle = "Media controls, alerts and now-playing art",
+                title = stringResource(R.string.notification_access),
+                subtitle = stringResource(R.string.media_controls_alerts_now_playing),
                 granted = permissions.notificationAccess,
                 onGrant = { context.openNotificationAccessSettings() }
             )
             PermissionRow(
-                title = "Modify system settings",
-                subtitle = "Brightness and auto-rotate from the quick panel",
+                title = stringResource(R.string.modify_system_settings),
+                subtitle = stringResource(R.string.brightness_auto_rotate_from_quick),
                 granted = permissions.writeSettings,
                 onGrant = { context.openWriteSettings() }
             )
             PermissionRow(
-                title = "Do Not Disturb access",
-                subtitle = "Lets the DND toggle work in place",
+                title = stringResource(R.string.do_not_disturb_access),
+                subtitle = stringResource(R.string.lets_dnd_toggle_work_place),
                 granted = permissions.dndAccess,
                 onGrant = { context.openDndAccessSettings() }
             )
         }
 
-        SectionCard(title = "Try it out") {
+        SectionCard(title = stringResource(R.string.try_out)) {
             Row(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
@@ -144,11 +145,11 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                 OutlinedButton(
                     onClick = { viewModel.expandIsland() },
                     modifier = Modifier.weight(1f)
-                ) { Text("Expand") }
+                ) { Text(stringResource(R.string.expand)) }
                 OutlinedButton(
                     onClick = { viewModel.startTimer(1) },
                     modifier = Modifier.weight(1f)
-                ) { Text("1 min timer") }
+                ) { Text(stringResource(R.string.n_1_min_timer)) }
             }
             Row(
                 modifier = Modifier.padding(horizontal = 14.dp, vertical = 6.dp),
@@ -157,21 +158,21 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                 OutlinedButton(
                     onClick = { viewModel.startTimer(5) },
                     modifier = Modifier.weight(1f)
-                ) { Text("5 min timer") }
+                ) { Text(stringResource(R.string.n_5_min_timer)) }
                 OutlinedButton(
                     onClick = onOpenAppearance,
                     modifier = Modifier.weight(1f)
-                ) { Text("Customise") }
+                ) { Text(stringResource(R.string.customise)) }
             }
             Text(
-                "Timers and the expand action need the island to be switched on.",
+                stringResource(R.string.timers_expand_action_need_island),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
             )
         }
 
-        if (viewModel.updaterEnabled) SectionCard(title = "Updates") {
+        if (viewModel.updaterEnabled) SectionCard(title = stringResource(R.string.updates)) {
             val updateState by viewModel.updateState.collectAsStateLifecycle()
             Row(
                 modifier = Modifier
@@ -181,19 +182,19 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             ) {
                 Column(modifier = Modifier.weight(1f)) {
                     Text(
-                        "Version ${BuildConfig.VERSION_NAME}",
+                        stringResource(R.string.version_2, BuildConfig.VERSION_NAME),
                         style = MaterialTheme.typography.bodyLarge
                     )
                     Text(
                         when (val state = updateState) {
-                            is UpdateState.Checking -> "Checking…"
-                            is UpdateState.UpToDate -> "You're on the latest version"
-                            is UpdateState.Available -> "Version ${state.info.versionName} is ready"
+                            is UpdateState.Checking -> stringResource(R.string.checking)
+                            is UpdateState.UpToDate -> stringResource(R.string.you_re_latest_version)
+                            is UpdateState.Available -> stringResource(R.string.version_ready, state.info.versionName)
                             is UpdateState.Downloading ->
-                                "Downloading ${(state.progress * 100).toInt()}%"
-                            is UpdateState.ReadyToInstall -> "Downloaded — tap to install"
+                                stringResource(R.string.downloading, (state.progress * 100).toInt())
+                            is UpdateState.ReadyToInstall -> stringResource(R.string.downloaded_tap_install)
                             is UpdateState.Failed -> state.message
-                            UpdateState.Idle -> "Tap to check for a newer build"
+                            UpdateState.Idle -> stringResource(R.string.tap_check_newer_build)
                         },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -203,17 +204,17 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                     onClick = { viewModel.checkForUpdatesNow() },
                     enabled = updateState !is UpdateState.Checking &&
                         updateState !is UpdateState.Downloading
-                ) { Text("Check") }
+                ) { Text(stringResource(R.string.check)) }
             }
             SwitchRow(
-                title = "Check automatically",
-                subtitle = "Looks once every few hours while the app is open",
+                title = stringResource(R.string.check_automatically),
+                subtitle = stringResource(R.string.looks_once_every_few_hours),
                 checked = settings.autoCheckUpdates,
                 onCheckedChange = { value -> viewModel.update { it.copy(autoCheckUpdates = value) } }
             )
             var editingSource by remember { mutableStateOf(false) }
             NavRow(
-                title = "Update source",
+                title = stringResource(R.string.update_source),
                 subtitle = settings.updateManifestUrl,
                 onClick = { editingSource = true }
             )
@@ -229,11 +230,11 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
             }
         }
 
-        SectionCard(title = "Tips") {
-            Tip("Tap the island to expand it, swipe up to put it away.")
-            Tip("Double tap plays or pauses whatever is on the speakers.")
-            Tip("Swipe left or right on the island to change track.")
-            Tip("Long press opens this app — every gesture can be remapped.")
+        SectionCard(title = stringResource(R.string.tips)) {
+            Tip(stringResource(R.string.tap_island_expand_swipe_up))
+            Tip(stringResource(R.string.double_tap_plays_or_pauses))
+            Tip(stringResource(R.string.swipe_left_or_right_island))
+            Tip(stringResource(R.string.long_press_opens_app_every))
         }
     }
 }
@@ -281,7 +282,7 @@ private fun PermissionRow(
             )
         }
         if (!granted) {
-            OutlinedButton(onClick = onGrant) { Text("Grant") }
+            OutlinedButton(onClick = onGrant) { Text(stringResource(R.string.grant)) }
         }
     }
 }

@@ -33,6 +33,8 @@ import com.joyboard.notchisland.util.formatStopwatch
 import com.joyboard.notchisland.util.readableAccent
 import com.joyboard.notchisland.util.visible
 import kotlin.math.abs
+import androidx.core.view.isNotEmpty
+import androidx.core.view.isVisible
 
 /**
  * The island itself: a rounded, animated container that morphs between a bare pill, a compact
@@ -425,7 +427,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         expandedRoot.visible(opened)
         compactRow.visible(target == IslandMode.COMPACT || target == IslandMode.PILL)
         // Bars only cost frames while they can actually be seen.
-        trailingWave.visible(trailingWave.visibility == View.VISIBLE && target == IslandMode.COMPACT)
+        trailingWave.visible(trailingWave.isVisible && target == IslandMode.COMPACT)
         headerWave.playing = headerWave.playing && target == IslandMode.EXPANDED
 
         compactRow.animate().alpha(if (target == IslandMode.COMPACT) 1f else 0f)
@@ -546,7 +548,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     private fun trailingWidthDp(): Float {
         val density = resources.displayMetrics.density
         val visible = listOf(trailingText, trailingIcon, trailingRing, trailingWave)
-            .firstOrNull { it.visibility == View.VISIBLE } ?: return 0f
+            .firstOrNull { it.isVisible } ?: return 0f
         visible.measure(
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED),
             MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED)
@@ -728,7 +730,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     /** Returns true when the panel was actually rebuilt. */
     private fun buildBody(p: Presentation, accent: Int): Boolean {
         val signature = bodyKey(p, accent)
-        if (signature == bodySignature && bodyContainer.childCount > 0) return false
+        if (signature == bodySignature && bodyContainer.isNotEmpty()) return false
         bodySignature = signature
         bodyContainer.removeAllViews()
         refs = panels.build(p.body, accent, bodyContainer)
@@ -802,7 +804,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         )
         entries.forEachIndexed { index, (toggle, iconRes) ->
             if (index > 0) togglesRow.addView(widgets.spacer(8.dp))
-            val button = widgets.circleButton(iconRes, 38.dp, toggle.label) {
+            val button = widgets.circleButton(iconRes, 38.dp, context.getString(toggle.label)) {
                 listener.onQuickToggle(toggle)
             }
             toggleButtons[toggle] = button
@@ -955,20 +957,20 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         ViewCompat.setStateDescription(
             this,
             when (mode) {
-                IslandMode.EXPANDED -> "Open"
-                IslandMode.MEDIUM -> "Partly open"
-                IslandMode.COMPACT -> "Showing an activity"
-                else -> "Resting"
+                IslandMode.EXPANDED -> context.getString(R.string.open)
+                IslandMode.MEDIUM -> context.getString(R.string.partly_open)
+                IslandMode.COMPACT -> context.getString(R.string.showing_activity)
+                else -> context.getString(R.string.resting)
             }
         )
 
         val actions = buildList {
-            if (mode != IslandMode.EXPANDED) add("Open" to GestureAction.EXPAND_FULL)
-            if (mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM) add("Close" to GestureAction.COLLAPSE)
+            if (mode != IslandMode.EXPANDED) add(context.getString(R.string.open) to GestureAction.EXPAND_FULL)
+            if (mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM) add(context.getString(R.string.close) to GestureAction.COLLAPSE)
             if (p.body is ExpandedBody.Media) {
-                add("Play or pause" to GestureAction.MEDIA_PLAY_PAUSE)
-                add("Next track" to GestureAction.MEDIA_NEXT)
-                add("Previous track" to GestureAction.MEDIA_PREVIOUS)
+                add(context.getString(R.string.play_or_pause) to GestureAction.MEDIA_PLAY_PAUSE)
+                add(context.getString(R.string.next_track) to GestureAction.MEDIA_NEXT)
+                add(context.getString(R.string.previous_track) to GestureAction.MEDIA_PREVIOUS)
             }
         }
         accessibilityActionIds.forEach { ViewCompat.removeAccessibilityAction(this, it) }

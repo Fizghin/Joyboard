@@ -11,6 +11,7 @@ import com.joyboard.notchisland.island.NotificationFilter
 import com.joyboard.notchisland.island.NotificationItem
 import com.joyboard.notchisland.island.OtpExtractor
 import com.joyboard.notchisland.island.ReplyAction
+import com.joyboard.notchisland.R
 
 /**
  * Feeds notifications into the island and, just as importantly, is the component the system
@@ -79,7 +80,7 @@ class NotchNotificationListener : NotificationListenerService() {
             val inputs = action.remoteInputs?.filter { it.allowFreeFormInput }.orEmpty()
             val first = inputs.firstOrNull() ?: return@firstNotNullOfOrNull null
             ReplyAction(
-                title = action.title?.toString() ?: "Reply",
+                title = action.title?.toString() ?: getString(R.string.reply),
                 intent = action.actionIntent,
                 resultKey = first.resultKey,
                 remoteInputs = inputs.toTypedArray(),
