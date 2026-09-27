@@ -1,6 +1,10 @@
 package com.joyboard.notchisland.service
 
+import android.annotation.SuppressLint
+import android.content.Intent
 import android.graphics.drawable.Icon
+import android.os.Build
+import com.joyboard.notchisland.MainActivity
 import android.provider.Settings
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
@@ -37,15 +41,41 @@ class IslandTileService : TileService() {
         val context = applicationContext
         if (!Settings.canDrawOverlays(context)) {
             // Nothing can be drawn without the permission, so send them where it is granted.
-            runCatching { startActivityAndCollapse(MainActivityPendingIntent.of(context)) }
+            openApp()
             return
         }
         scope.launch {
             val repository = SettingsRepository.get(context)
             val enabled = !repository.settings.first().enabled
             repository.setEnabled(enabled)
-            if (enabled) NotchOverlayService.start(context) else NotchOverlayService.stop(context)
+            if (enabled) {
+                // A tile is not a foreground surface, so Android may refuse the service here.
+                // The app itself can always start it, so hand over rather than fail silently.
+                if (!NotchOverlayService.start(context)) openApp()
+            } else {
+                NotchOverlayService.stop(context)
+            }
             render(enabled)
+        }
+    }
+
+    /**
+     * The PendingIntent overload only exists from Android 14, and the Intent one throws for apps
+     * targeting 14 or later on those releases — so each release gets the one it accepts.
+     */
+    // The deprecated overload is used only below Android 14, where it is the only one there is.
+    @SuppressLint("StartActivityAndCollapseDeprecated")
+    @Suppress("DEPRECATION")
+    private fun openApp() {
+        runCatching {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                startActivityAndCollapse(MainActivityPendingIntent.of(applicationContext))
+            } else {
+                startActivityAndCollapse(
+                    Intent(applicationContext, MainActivity::class.java)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                )
+            }
         }
     }
 

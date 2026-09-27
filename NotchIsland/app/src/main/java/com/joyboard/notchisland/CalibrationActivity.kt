@@ -1,5 +1,6 @@
 package com.joyboard.notchisland
 
+import android.content.res.Configuration
 import android.os.Build
 import android.os.Bundle
 import android.view.WindowManager
@@ -12,6 +13,11 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.WindowInsetsSides
+import androidx.compose.foundation.layout.only
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -38,7 +44,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
@@ -63,9 +71,16 @@ class CalibrationActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         WindowCompat.setDecorFitsSystemWindows(window, false)
+        // The field itself only exists from Android 9, so it must not even be read below that.
+        // ALWAYS arrived in Android 11; SHORT_EDGES reaches the top cutout in portrait, which is
+        // the only orientation calibration means anything in.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
             window.attributes.layoutInDisplayCutoutMode =
-                WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
+                } else {
+                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
+                }
         }
         WindowInsetsControllerCompat(window, window.decorView).apply {
             hide(WindowInsetsCompat.Type.systemBars())
@@ -99,6 +114,39 @@ private fun CalibrationScreen(
     var lightBackground by remember { mutableStateOf(true) }
     val density = LocalDensity.current
 
+    // In landscape the cutout sits on a side edge, so offsets measured here would be wrong for the
+    // island. Rather than lock the orientation — which Android 16 ignores on large screens anyway
+    // — say what is needed.
+    if (LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE) {
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(MaterialTheme.colorScheme.background)
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .padding(24.dp),
+            contentAlignment = Alignment.Center
+        ) {
+            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(
+                    "Turn your phone upright",
+                    style = MaterialTheme.typography.titleLarge,
+                    fontWeight = FontWeight.SemiBold
+                )
+                Text(
+                    "The island lives at the top of the screen in portrait, so that is where it " +
+                        "has to be lined up.",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 8.dp)
+                )
+                OutlinedButton(onClick = onCancel, modifier = Modifier.padding(top = 16.dp)) {
+                    Text("Close")
+                }
+            }
+        }
+        return
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()
@@ -108,7 +156,7 @@ private fun CalibrationScreen(
         Box(
             modifier = Modifier
                 .align(Alignment.TopCenter)
-                .offset(x = draft.offsetX.dp, y = draft.offsetY.dp)
+                .offset { IntOffset(draft.offsetX.dp.roundToPx(), draft.offsetY.dp.roundToPx()) }
                 .size(draft.collapsedWidth.dp, draft.collapsedHeight.dp)
                 .clip(RoundedCornerShape(draft.cornerRadius.dp))
                 .background(Color.Black)
@@ -129,7 +177,9 @@ private fun CalibrationScreen(
                 Box(
                     modifier = Modifier
                         .align(Alignment.Center)
-                        .offset(x = draft.cameraOffsetX.dp, y = draft.cameraOffsetY.dp)
+                        .offset {
+                            IntOffset(draft.cameraOffsetX.dp.roundToPx(), draft.cameraOffsetY.dp.roundToPx())
+                        }
                         .size(draft.cameraSize.dp)
                         .background(Color(0xFF0A0A0C), CircleShape)
                 )
@@ -140,6 +190,7 @@ private fun CalibrationScreen(
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
+                .windowInsetsPadding(WindowInsets.safeDrawing.only(WindowInsetsSides.Bottom))
                 .padding(16.dp)
                 .clip(RoundedCornerShape(24.dp))
                 .background(MaterialTheme.colorScheme.surface)

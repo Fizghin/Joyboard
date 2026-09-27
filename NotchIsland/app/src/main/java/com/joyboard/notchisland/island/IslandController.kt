@@ -24,6 +24,8 @@ import android.graphics.drawable.GradientDrawable
 import android.widget.FrameLayout
 import android.widget.LinearLayout
 import android.widget.Toast
+import androidx.core.view.ViewCompat
+import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.MainActivity
 import com.joyboard.notchisland.R
@@ -34,6 +36,7 @@ import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.TapExpansion
 import com.joyboard.notchisland.service.NotchNotificationListener
 import com.joyboard.notchisland.data.isQuietAt
+import com.joyboard.notchisland.util.PendingIntents
 import com.joyboard.notchisland.util.dp
 import com.joyboard.notchisland.util.formatStopwatch
 
@@ -161,6 +164,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     fun onConfigurationChanged(configuration: Configuration) {
+        cachedStatusBar = 0
         updateVisibility()
         island?.let { view ->
             handler.post {
@@ -274,18 +278,31 @@ class IslandController(private val context: Context) : IslandView.Listener {
         PositionMode.CUSTOM -> settings.offsetY.dp
     }
 
-    /** Height of the system status bar, which is the band where touches never reach us. */
+    private var cachedStatusBar = 0
+
+    /**
+     * Height of the system status bar — the band where touches never reach us. Read from the
+     * platform's insets rather than the private status_bar_height resource, which is not an API
+     * and is not guaranteed to exist. Cached, and cleared when the configuration changes.
+     */
     private fun statusBarHeight(): Int {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            val insets = runCatching {
+        if (cachedStatusBar > 0) return cachedStatusBar
+        val fromMetrics = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            runCatching {
                 windowManager?.currentWindowMetrics?.windowInsets
                     ?.getInsets(WindowInsets.Type.statusBars())?.top
-            }.getOrNull()
-            if (insets != null && insets > 0) return insets
+            }.getOrNull() ?: 0
+        } else {
+            0
         }
-        val id = context.resources.getIdentifier("status_bar_height", "dimen", "android")
-        val fromResources = if (id > 0) context.resources.getDimensionPixelSize(id) else 0
-        return if (fromResources > 0) fromResources else 24.dp
+        val fromWindow = root?.let {
+            ViewCompat.getRootWindowInsets(it)
+                ?.getInsets(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout())
+                ?.top
+        } ?: 0
+        val measured = maxOf(fromMetrics, fromWindow)
+        // 24dp is the Material status bar height, and what these releases draw without a cutout.
+        return if (measured > 0) measured.also { cachedStatusBar = it } else 24.dp
     }
 
     /**
@@ -964,7 +981,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     override fun onOpenPresentationTarget() = openPresentationTarget()
 
     override fun onNotificationAction(action: NotificationAction) {
-        runCatching { action.intent?.send() }
+        action.intent?.let { PendingIntents.send(context, it) }
         userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
         render()
@@ -1008,8 +1025,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         val results = Bundle().apply { putCharSequence(reply.resultKey, text) }
         val fill = Intent()
         RemoteInput.addResultsToIntent(reply.remoteInputs, fill, results)
-        runCatching { intent.send(context, 0, fill) }
-            .onFailure { toast("Could not send the reply") }
+        if (!PendingIntents.send(context, intent, fill)) toast("Could not send the reply")
         setWindowFocusable(false)
         userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
@@ -1040,7 +1056,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     override fun onHistoryTap(item: NotificationItem) {
-        runCatching { item.contentIntent?.send() }
+        item.contentIntent?.let { PendingIntents.send(context, it) }
         userStage = null
         showingHistory = false
         render()
@@ -1101,8 +1117,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (params.flags == wantFlags) return
         params.flags = wantFlags
         params.softInputMode = if (focusable) {
-            WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE or
-                WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            // The keyboard rises from the bottom and the island lives at the top, so nothing
+            // needs resizing — just ask for the keyboard.
+            WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
         } else {
             WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
         }
@@ -1146,11 +1163,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun openPresentationTarget() {
         val top = currentTop()?.presentation
         val intent = top?.tapIntent ?: lastNotification?.contentIntent
-        if (intent != null) {
-            runCatching { intent.send() }
-        } else {
-            openApp()
-        }
+        if (intent == null || !PendingIntents.send(context, intent)) openApp()
         userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
         render()

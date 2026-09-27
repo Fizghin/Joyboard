@@ -140,13 +140,18 @@ class NotchOverlayService : LifecycleService() {
         const val EXTRA_TIMER_MINUTES = "timer_minutes"
         private const val NOTIFICATION_ID = 1001
 
-        fun start(context: Context) {
-            val intent = Intent(context, NotchOverlayService::class.java)
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+        /**
+         * Returns false when Android refuses. From Android 12 a foreground service cannot be
+         * started from the background, and from Android 15 holding the overlay permission is no
+         * longer an exemption unless an overlay is already on screen — which it is not when the
+         * island is being switched on. Callers fall back to opening the app, which can.
+         */
+        fun start(context: Context): Boolean = runCatching {
+            context.startForegroundService(Intent(context, NotchOverlayService::class.java))
+            true
+        }.getOrElse { error ->
+            android.util.Log.w("NotchIsland", "foreground service start refused", error)
+            false
         }
 
         fun stop(context: Context) {
@@ -157,11 +162,9 @@ class NotchOverlayService : LifecycleService() {
             if (!IslandBus.serviceRunning) return
             val intent = Intent(context, NotchOverlayService::class.java).setAction(action)
             intent.configure()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-                context.startForegroundService(intent)
-            } else {
-                context.startService(intent)
-            }
+            // The service is already in the foreground here, so a plain start is enough and
+            // cannot trip the background-start rules.
+            runCatching { context.startService(intent) }
         }
     }
 }

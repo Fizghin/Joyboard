@@ -12,7 +12,10 @@ import android.text.InputType
 import android.text.TextUtils
 import android.text.format.DateFormat
 import android.view.Gravity
+import android.os.Build
 import android.view.KeyEvent
+import android.window.OnBackInvokedCallback
+import android.window.OnBackInvokedDispatcher
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
@@ -522,6 +525,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     fun clearReplyFocus() {
         replyField?.clearFocus()
+        setBackHandled(false)
     }
 
     fun refreshToggleStates() {
@@ -1076,7 +1080,10 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             imeOptions = EditorInfo.IME_ACTION_SEND
             layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
             // The overlay window is normally unfocusable; it has to be told to accept the IME.
-            setOnFocusChangeListener { _, hasFocus -> listener.onReplyFocusChanged(hasFocus) }
+            setOnFocusChangeListener { _, hasFocus ->
+                listener.onReplyFocusChanged(hasFocus)
+                setBackHandled(hasFocus)
+            }
             setOnEditorActionListener { view, actionId, _ ->
                 if (actionId == EditorInfo.IME_ACTION_SEND) {
                     sendReply(item, view.text)
@@ -1279,13 +1286,39 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         listener.onGesture(settings.longPressAction)
     }
 
-    /** While the reply field has focus this window owns the back key, so give it a job. */
+    private var backCallback: Any? = null
+
+    /**
+     * Apps targeting Android 16 no longer receive KEYCODE_BACK — back arrives through
+     * OnBackInvokedDispatcher instead, window by window. The overlay registers for it only while
+     * the reply field is in use, so at every other moment back goes to whatever is underneath.
+     */
+    private fun setBackHandled(handled: Boolean) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) return
+        val dispatcher = findOnBackInvokedDispatcher() ?: return
+        val existing = backCallback as? OnBackInvokedCallback
+        if (handled && existing == null) {
+            val callback = OnBackInvokedCallback { closeReply() }
+            dispatcher.registerOnBackInvokedCallback(
+                OnBackInvokedDispatcher.PRIORITY_DEFAULT, callback
+            )
+            backCallback = callback
+        } else if (!handled && existing != null) {
+            dispatcher.unregisterOnBackInvokedCallback(existing)
+            backCallback = null
+        }
+    }
+
+    private fun closeReply() {
+        replyField?.clearFocus()
+        listener.onReplyFocusChanged(false)
+        setBackHandled(false)
+    }
+
+    /** Back on releases before the dispatcher existed, while the reply field has focus. */
     override fun dispatchKeyEventPreIme(event: KeyEvent): Boolean {
         if (event.keyCode == KeyEvent.KEYCODE_BACK && replyField?.hasFocus() == true) {
-            if (event.action == KeyEvent.ACTION_UP) {
-                replyField?.clearFocus()
-                listener.onReplyFocusChanged(false)
-            }
+            if (event.action == KeyEvent.ACTION_UP) closeReply()
             return true
         }
         return super.dispatchKeyEventPreIme(event)

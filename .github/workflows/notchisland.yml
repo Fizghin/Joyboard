@@ -21,21 +21,22 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: '17'
+          # AGP 9 runs on 17+, but 21 is what the builds here are verified with.
+          java-version: '21'
 
       - uses: android-actions/setup-android@v3
 
       - uses: gradle/actions/setup-gradle@v4
 
       - name: Unit tests
-        run: gradle --no-daemon testSideloadDebugUnitTest
+        run: ./gradlew --no-daemon testSideloadDebugUnitTest
 
       - name: Lint the release build
-        run: gradle --no-daemon lintVitalSideloadRelease
+        run: ./gradlew --no-daemon lintVitalSideloadRelease
 
       - name: Build the shipping artifacts
         run: >
-          gradle --no-daemon assembleSideloadDebug assembleSideloadRelease bundlePlayRelease
+          ./gradlew --no-daemon assembleSideloadDebug assembleSideloadRelease bundlePlayRelease
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v4

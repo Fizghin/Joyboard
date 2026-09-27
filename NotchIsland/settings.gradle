@@ -2,6 +2,8 @@ pluginManagement {
     repositories {
         google()
         mavenCentral()
+        // Maven Central throttles bursts with HTTP 429; JetBrains' cache fronts the same content.
+        maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
         gradlePluginPortal()
     }
 }
@@ -10,6 +12,8 @@ dependencyResolutionManagement {
     repositories {
         google()
         mavenCentral()
+        // Maven Central throttles bursts with HTTP 429; JetBrains' cache fronts the same content.
+        maven { url 'https://cache-redirector.jetbrains.com/maven-central' }
     }
 }
 rootProject.name = "NotchIsland"

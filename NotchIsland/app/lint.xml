@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<lint>
+    <!--
+      Lint suggests folding mipmap-anydpi-v26 into mipmap-anydpi now that minSdk is 26. Don't:
+      with AGP 9.4.1 the unqualified folder is recorded as anydpi-v4 and the adaptive icon is
+      then dropped from the build, so the manifest's launcher icon no longer resolves.
+    -->
+    <issue id="ObsoleteSdkInt">
+        <ignore path="src/main/res/mipmap-anydpi-v26" />
+    </issue>
+    <!--
+      compileSdk is 37 because current AndroidX requires it, but the target stays at 36: that is
+      what Play requires, and Android 17's behaviour changes have not been reviewed for this app.
+      Raise it deliberately, not to quiet a warning.
+    -->
+    <issue id="OldTargetApi" severity="ignore" />
+</lint>

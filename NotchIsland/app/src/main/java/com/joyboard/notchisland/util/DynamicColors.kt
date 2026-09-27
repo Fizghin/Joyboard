@@ -2,12 +2,14 @@ package com.joyboard.notchisland.util
 
 import android.content.Context
 import android.os.Build
+import androidx.annotation.ColorRes
+import androidx.annotation.RequiresApi
 import androidx.core.content.ContextCompat
 
 /**
- * The wallpaper-derived Material You palette. Android exposes it as a fixed set of system
- * colour resources from API 31; below that we fall back to a fixed palette so every screen
- * still has something sensible to show.
+ * The wallpaper-derived Material You palette, which Android exposes as public system colour
+ * resources from API 31. Below that a fixed palette stands in so every screen still has
+ * something sensible to show.
  */
 object DynamicColors {
 
@@ -20,40 +22,37 @@ object DynamicColors {
 
     /** The accent the island should use, bright enough to read on its dark body. */
     fun accent(context: Context, dark: Boolean = true): Int =
-        system(context, if (dark) ACCENT1_200 else ACCENT1_600) ?: fallbackAccents.first()
+        if (supported) {
+            color(context, if (dark) android.R.color.system_accent1_200 else android.R.color.system_accent1_600)
+        } else {
+            fallbackAccents.first()
+        }
 
     /** A neutral surface that matches the wallpaper, for the island body. */
     fun surface(context: Context, dark: Boolean = true): Int =
-        system(context, if (dark) NEUTRAL1_900 else NEUTRAL1_50) ?: 0xFF000000.toInt()
+        if (supported) {
+            color(context, if (dark) android.R.color.system_neutral1_900 else android.R.color.system_neutral1_50)
+        } else {
+            0xFF000000.toInt()
+        }
 
     /** Swatches for the picker: three accent families plus two neutrals. */
-    fun swatches(context: Context): List<Int> {
-        if (!supported) return fallbackAccents
-        val resources = listOf(
-            ACCENT1_100, ACCENT1_200, ACCENT1_400, ACCENT1_600,
-            ACCENT2_200, ACCENT2_400,
-            ACCENT3_200, ACCENT3_400,
-            NEUTRAL1_900, NEUTRAL1_50,
-        )
-        return resources.mapNotNull { system(context, it) }.distinct().ifEmpty { fallbackAccents }
-    }
+    fun swatches(context: Context): List<Int> =
+        if (supported) systemSwatches(context).distinct() else fallbackAccents
 
-    private fun system(context: Context, name: String): Int? {
-        if (!supported) return null
-        return runCatching {
-            val id = context.resources.getIdentifier(name, "color", "android")
-            if (id == 0) null else ContextCompat.getColor(context, id)
-        }.getOrNull()
-    }
+    @RequiresApi(Build.VERSION_CODES.S)
+    private fun systemSwatches(context: Context): List<Int> = listOf(
+        android.R.color.system_accent1_100,
+        android.R.color.system_accent1_200,
+        android.R.color.system_accent1_400,
+        android.R.color.system_accent1_600,
+        android.R.color.system_accent2_200,
+        android.R.color.system_accent2_400,
+        android.R.color.system_accent3_200,
+        android.R.color.system_accent3_400,
+        android.R.color.system_neutral1_900,
+        android.R.color.system_neutral1_50,
+    ).map { color(context, it) }
 
-    private const val ACCENT1_100 = "system_accent1_100"
-    private const val ACCENT1_200 = "system_accent1_200"
-    private const val ACCENT1_400 = "system_accent1_400"
-    private const val ACCENT1_600 = "system_accent1_600"
-    private const val ACCENT2_200 = "system_accent2_200"
-    private const val ACCENT2_400 = "system_accent2_400"
-    private const val ACCENT3_200 = "system_accent3_200"
-    private const val ACCENT3_400 = "system_accent3_400"
-    private const val NEUTRAL1_50 = "system_neutral1_50"
-    private const val NEUTRAL1_900 = "system_neutral1_900"
+    private fun color(context: Context, @ColorRes id: Int): Int = ContextCompat.getColor(context, id)
 }

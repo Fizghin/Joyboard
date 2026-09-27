@@ -139,7 +139,12 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
             )
             SwitchRow(
                 title = "Find passcodes",
-                subtitle = "Spots one-time codes and offers a single tap to copy",
+                subtitle = if (android.os.Build.VERSION.SDK_INT >= 35) {
+                    "Spots one-time codes and offers a single tap to copy. Android 15 and " +
+                        "later hide many codes from apps like this one, so some will not appear."
+                } else {
+                    "Spots one-time codes and offers a single tap to copy"
+                },
                 checked = settings.otpDetection,
                 onCheckedChange = { value -> viewModel.update { it.copy(otpDetection = value) } }
             )

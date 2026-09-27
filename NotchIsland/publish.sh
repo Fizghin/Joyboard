@@ -4,10 +4,10 @@
 set -euo pipefail
 
 cd "$(dirname "$0")"
-: "${ANDROID_HOME:?set ANDROID_HOME to an SDK with platform 34 and build-tools 34.0.0}"
+: "${ANDROID_HOME:?set ANDROID_HOME to an SDK with platforms 36 and 37 and build-tools 37}"
 
-gradle --no-daemon testSideloadDebugUnitTest lintVitalSideloadRelease
-gradle --no-daemon assembleSideloadDebug assembleSideloadRelease bundlePlayRelease
+./gradlew --no-daemon testSideloadDebugUnitTest lintVitalSideloadRelease
+./gradlew --no-daemon assembleSideloadDebug assembleSideloadRelease bundlePlayRelease
 
 cd ..
 cp NotchIsland/app/build/outputs/apk/sideload/debug/app-sideload-debug.apk \
