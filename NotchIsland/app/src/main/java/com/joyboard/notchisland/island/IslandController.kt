@@ -22,6 +22,7 @@ import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.GestureAction
 import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.TapExpansion
+import com.joyboard.notchisland.service.IslandBus
 import com.joyboard.notchisland.service.NotchNotificationListener
 import com.joyboard.notchisland.data.isQuietAt
 import com.joyboard.notchisland.util.DynamicColors
@@ -38,13 +39,25 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val keyguard = context.getSystemService(KeyguardManager::class.java)
 
     private var settings = IslandSettings()
-    private val window = OverlayWindow(context, this) {
-        if (userStage != null) {
-            userStage = null
-            showingHistory = false
-            render()
-        }
-    }
+    private val window = OverlayWindow(
+        context,
+        this,
+        onOutsideTouch = {
+            if (userStage != null) {
+                userStage = null
+                showingHistory = false
+                render()
+            }
+        },
+        onStatusBarVisibility = { visible ->
+            if (fullscreen == visible) {
+                fullscreen = !visible
+                updateVisibility()
+            }
+        },
+    )
+    /** Some app is showing without the status bar: a video, a game, a reader. */
+    private var fullscreen = false
     private val island: IslandView? get() = window.island
     private val presentations = Presentations(context, accent = { islandAccent() }, settings = { settings })
     private var hiddenUntil = 0L
@@ -93,6 +106,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
             handler.postDelayed(this, 500)
         }
     }
+
+    /** Whether the island is on screen at all. Read-only, for tests. */
+    @VisibleForTesting
+    internal val islandShowing: Boolean get() = window.isShowing
 
     /** The size the island is currently at. Read-only, for tests. */
     @VisibleForTesting
@@ -187,17 +204,32 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
     }
 
+    /** The helper service saw the app in front, or the keyboard, change. */
+    fun onContextChanged() = updateVisibility()
+
     private fun updateVisibility() {
-        val landscape =
-            context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
-        val lockedOut = !settings.showOnLockScreen && keyguard?.isKeyguardLocked == true
-        val temporarilyHidden = SystemClock.elapsedRealtime() < hiddenUntil
         val now = java.util.Calendar.getInstance()
-        val quiet = settings.isQuietAt(
-            now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+        val hide = VisibilityPolicy.shouldHide(
+            VisibilityPolicy.Inputs(
+                screenOn = screenOn,
+                lockedOut = !settings.showOnLockScreen && keyguard?.isKeyguardLocked == true,
+                temporarilyHidden = SystemClock.elapsedRealtime() < hiddenUntil,
+                quiet = settings.isQuietAt(
+                    now.get(java.util.Calendar.HOUR_OF_DAY) * 60 + now.get(java.util.Calendar.MINUTE)
+                ),
+                landscape = context.resources.configuration.orientation ==
+                    Configuration.ORIENTATION_LANDSCAPE,
+                hideInLandscape = settings.hideInLandscape,
+                fullscreen = fullscreen,
+                hideInFullscreen = settings.hideInFullscreen,
+                keyboardVisible = IslandBus.keyboardVisible,
+                hideWhileTyping = settings.hideWhileTyping,
+                replying = island?.isReplying() == true,
+                foregroundPackage = IslandBus.foregroundPackage,
+                hiddenInPackages = settings.hiddenInPackages,
+                urgent = currentTop()?.kind == ActivityKind.CALL,
+            )
         )
-        val hide = (settings.hideInLandscape && landscape) || lockedOut || !screenOn ||
-            temporarilyHidden || quiet
         window.setVisible(!hide)
     }
 

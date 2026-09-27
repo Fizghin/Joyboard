@@ -26,6 +26,40 @@ object IslandBus {
     @Volatile
     var serviceRunning: Boolean = false
 
+    /** The app in front, as last reported by the helper service; null when it is not running. */
+    @Volatile
+    var foregroundPackage: String? = null
+        private set
+
+    @Volatile
+    var keyboardVisible: Boolean = false
+        private set
+
+    /** Whether the helper service is connected right now. */
+    @Volatile
+    var helperConnected: Boolean = false
+
+    fun postForegroundApp(packageName: String?) {
+        if (packageName == foregroundPackage) return
+        foregroundPackage = packageName
+        val target = controller ?: return
+        handler.post { target.onContextChanged() }
+    }
+
+    fun postKeyboard(visible: Boolean) {
+        if (visible == keyboardVisible) return
+        keyboardVisible = visible
+        val target = controller ?: return
+        handler.post { target.onContextChanged() }
+    }
+
+    /** The helper went away, so what it last said can no longer be trusted. */
+    fun clearHelperState() {
+        helperConnected = false
+        postForegroundApp(null)
+        postKeyboard(false)
+    }
+
     fun postNotification(item: NotificationItem) {
         val target = controller ?: return
         handler.post { target.onNotification(item) }

@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedTextField
 import com.joyboard.notchisland.ui.MainViewModel
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
+import com.joyboard.notchisland.BuildConfig
 
 @Composable
 fun BlockedAppsScreen(viewModel: MainViewModel) {
@@ -51,7 +52,10 @@ fun BlockedAppsScreen(viewModel: MainViewModel) {
                 .padding(horizontal = 16.dp, vertical = 8.dp)
         )
         Text(
-            stringResource(R.string.block_keeps_app_out_island),
+            stringResource(
+                if (BuildConfig.HELPER_AVAILABLE) R.string.per_app_rules_help_helper
+                else R.string.block_keeps_app_out_island
+            ),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
@@ -75,6 +79,14 @@ fun BlockedAppsScreen(viewModel: MainViewModel) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.width(52.dp)
             )
+            if (BuildConfig.HELPER_AVAILABLE) {
+                Text(
+                    stringResource(R.string.hide),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.width(52.dp)
+                )
+            }
         }
         LazyColumn(modifier = Modifier.fillMaxSize()) {
             items(filtered, key = { it.packageName }) { app ->
@@ -119,6 +131,14 @@ fun BlockedAppsScreen(viewModel: MainViewModel) {
                             enabled = !blocked,
                             onCheckedChange = { viewModel.toggleAutoExpand(app.packageName) }
                         )
+                    }
+                    if (BuildConfig.HELPER_AVAILABLE) {
+                        Box(modifier = Modifier.width(52.dp)) {
+                            Checkbox(
+                                checked = app.packageName in settings.hiddenInPackages,
+                                onCheckedChange = { viewModel.toggleHidden(app.packageName) }
+                            )
+                        }
                     }
                 }
             }

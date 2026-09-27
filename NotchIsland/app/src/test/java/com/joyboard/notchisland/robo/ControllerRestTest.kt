@@ -18,6 +18,9 @@ import org.junit.runner.RunWith
 import org.robolectric.Shadows.shadowOf
 import org.robolectric.annotation.Config
 import java.time.Duration
+import com.joyboard.notchisland.service.IslandBus
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 
 /**
  * The whole controller — overlay window, activity queue, timers — under Robolectric's clock.
@@ -49,7 +52,11 @@ class ControllerRestTest {
     }
 
     @After
-    fun tearDown() = controller.stop()
+    fun tearDown() {
+        IslandBus.clearHelperState()
+        IslandBus.controller = null
+        controller.stop()
+    }
 
     private fun idle(ms: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
 
@@ -59,6 +66,50 @@ class ControllerRestTest {
         whenMs = System.currentTimeMillis(), contentIntent = null, actions = emptyList(),
         ongoing = ongoing, progress = progress, progressMax = if (progress >= 0) 100 else 0,
     )
+
+    @Test
+    fun `the island steps out of an app on the hide list and comes back after`() {
+        controller.applySettings(settings.copy(hiddenInPackages = setOf("com.game")))
+        IslandBus.controller = controller
+        assertTrue(controller.islandShowing)
+
+        IslandBus.postForegroundApp("com.game")
+        idle(50)
+        assertFalse(controller.islandShowing)
+
+        IslandBus.postForegroundApp("com.chat")
+        idle(50)
+        assertTrue(controller.islandShowing)
+    }
+
+    @Test
+    fun `a call comes through even inside a hidden app`() {
+        controller.applySettings(settings.copy(hiddenInPackages = setOf("com.game")))
+        IslandBus.controller = controller
+        IslandBus.postForegroundApp("com.game")
+        idle(50)
+        assertFalse(controller.islandShowing)
+
+        controller.onNotification(notification("call").copy(category = "call"))
+        idle(50)
+        assertTrue(controller.islandShowing)
+
+        controller.onNotificationRemoved("call")
+        idle(50)
+        assertFalse(controller.islandShowing)
+    }
+
+    @Test
+    fun `typing hides the island only when asked to`() {
+        IslandBus.controller = controller
+        IslandBus.postKeyboard(true)
+        idle(50)
+        assertTrue(controller.islandShowing)
+
+        controller.applySettings(settings.copy(hideWhileTyping = true))
+        idle(50)
+        assertFalse(controller.islandShowing)
+    }
 
     @Test
     fun `the island attaches and rests as a pill`() {

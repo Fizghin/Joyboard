@@ -20,6 +20,7 @@ import kotlin.math.roundToInt
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
+import com.joyboard.notchisland.BuildConfig
 
 private fun formatMinutes(minuteOfDay: Int): String {
     val hours = (minuteOfDay / 60) % 24
@@ -271,6 +272,22 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.hideInLandscape,
                 onCheckedChange = { value -> viewModel.update { it.copy(hideInLandscape = value) } }
             )
+            SwitchRow(
+                title = stringResource(R.string.hide_in_fullscreen),
+                subtitle = stringResource(R.string.hide_in_fullscreen_desc),
+                checked = settings.hideInFullscreen,
+                onCheckedChange = { value -> viewModel.update { it.copy(hideInFullscreen = value) } }
+            )
+            if (BuildConfig.HELPER_AVAILABLE) {
+                SwitchRow(
+                    title = stringResource(R.string.hide_while_typing),
+                    subtitle = stringResource(
+                        if (permissions.helper) R.string.hide_while_typing_desc else R.string.needs_helper
+                    ),
+                    checked = settings.hideWhileTyping,
+                    onCheckedChange = { value -> viewModel.update { it.copy(hideWhileTyping = value) } }
+                )
+            }
             SwitchRow(
                 title = stringResource(R.string.show_lock_screen),
                 checked = settings.showOnLockScreen,

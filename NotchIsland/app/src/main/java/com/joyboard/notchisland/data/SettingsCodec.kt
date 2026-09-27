@@ -31,6 +31,7 @@ object SettingsCodec {
         put("holeCenterY", settings.holeCenterY.toDouble())
         put("holeWidth", settings.holeWidth.toDouble())
         put("holeHeight", settings.holeHeight.toDouble())
+        put("holeScreenWidthDp", settings.holeScreenWidthDp.toDouble())
         put("cameraSource", settings.cameraSource.name)
         settings.devicePresetId?.let { put("devicePresetId", it) }
         put("avoidHole", settings.avoidHole)
@@ -55,6 +56,12 @@ object SettingsCodec {
         put("showOnLockScreen", settings.showOnLockScreen)
         put("dimBackgroundWhenExpanded", settings.dimBackgroundWhenExpanded)
         put("alwaysShowPill", settings.alwaysShowPill)
+        put("hideInFullscreen", settings.hideInFullscreen)
+        put("hideWhileTyping", settings.hideWhileTyping)
+        put("hiddenInPackages", JSONArray(settings.hiddenInPackages.toList()))
+        put("featureCalendar", settings.featureCalendar)
+        put("calendarLeadMinutes", settings.calendarLeadMinutes)
+        put("externalApiEnabled", settings.externalApiEnabled)
         put("tapAction", settings.tapAction.name)
         put("doubleTapAction", settings.doubleTapAction.name)
         put("longPressAction", settings.longPressAction.name)
@@ -121,6 +128,8 @@ object SettingsCodec {
             holeCenterY = o.optDouble("holeCenterY", base.holeCenterY.toDouble()).toFloat(),
             holeWidth = o.optDouble("holeWidth", base.holeWidth.toDouble()).toFloat(),
             holeHeight = o.optDouble("holeHeight", base.holeHeight.toDouble()).toFloat(),
+            holeScreenWidthDp =
+                o.optDouble("holeScreenWidthDp", base.holeScreenWidthDp.toDouble()).toFloat(),
             cameraSource = o.enum("cameraSource", base.cameraSource),
             devicePresetId = o.optString("devicePresetId").ifBlank { base.devicePresetId },
             avoidHole = o.optBoolean("avoidHole", base.avoidHole),
@@ -147,6 +156,12 @@ object SettingsCodec {
             dimBackgroundWhenExpanded =
                 o.optBoolean("dimBackgroundWhenExpanded", base.dimBackgroundWhenExpanded),
             alwaysShowPill = o.optBoolean("alwaysShowPill", base.alwaysShowPill),
+            hideInFullscreen = o.optBoolean("hideInFullscreen", base.hideInFullscreen),
+            hideWhileTyping = o.optBoolean("hideWhileTyping", base.hideWhileTyping),
+            hiddenInPackages = strings("hiddenInPackages") ?: base.hiddenInPackages,
+            featureCalendar = o.optBoolean("featureCalendar", base.featureCalendar),
+            calendarLeadMinutes = o.optInt("calendarLeadMinutes", base.calendarLeadMinutes),
+            externalApiEnabled = o.optBoolean("externalApiEnabled", base.externalApiEnabled),
             tapAction = o.enum("tapAction", base.tapAction),
             doubleTapAction = o.enum("doubleTapAction", base.doubleTapAction),
             longPressAction = o.enum("longPressAction", base.longPressAction),

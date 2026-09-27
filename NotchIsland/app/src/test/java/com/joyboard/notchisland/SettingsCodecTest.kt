@@ -49,6 +49,48 @@ class SettingsCodecTest {
         assertEquals(400, restored.quietEndMinutes)
     }
 
+    /**
+     * Changes every setting away from its default, by type, and checks the backup brings each
+     * one back — so a setting added without a line in the codec fails here instead of silently
+     * going missing from people's backups.
+     */
+    @Test
+    fun `every setting survives a round trip except per-device state`() {
+        val defaults = IslandSettings()
+        val components = IslandSettings::class.java.methods
+            .filter { it.name.matches(Regex("component\\d+")) }
+            .sortedBy { it.name.removePrefix("component").toInt() }
+        val changed = components.map { changedValue(it.invoke(defaults), it.returnType) }
+        val constructor = IslandSettings::class.java.constructors
+            .first { it.parameterCount == components.size }
+        val original = constructor.newInstance(*changed.toTypedArray()) as IslandSettings
+
+        val restored = SettingsCodec.fromJson(SettingsCodec.toJson(original))
+
+        // Fields are declared in constructor order, which is also componentN order.
+        val names = IslandSettings::class.java.declaredFields
+            .filterNot { java.lang.reflect.Modifier.isStatic(it.modifiers) }
+            .map { it.name }
+        assertEquals(components.size, names.size)
+        val lost = components.indices
+            .filter { i -> components[i].invoke(restored) != changed[i] }
+            .map { names[it] }
+            .toSet()
+        // These describe this phone and its update state, not a look, so they stay behind.
+        assertEquals(setOf("enabled", "lastUpdateCheck", "skippedVersion"), lost)
+    }
+
+    private fun changedValue(value: Any?, type: Class<*>): Any? = when {
+        type == java.lang.Boolean.TYPE -> !(value as Boolean)
+        type == Integer.TYPE -> (value as Int) + 3
+        type == java.lang.Float.TYPE -> (value as Float) + 0.25f
+        type == java.lang.Long.TYPE -> (value as Long) + 7L
+        type == String::class.java -> "changed-${value.hashCode()}"
+        Set::class.java.isAssignableFrom(type) -> setOf("com.changed.one", "com.changed.two")
+        type.isEnum -> type.enumConstants.first { it != value }
+        else -> error("no changed value for $type")
+    }
+
     @Test
     fun `a backup from an older build keeps current defaults for missing keys`() {
         val restored = SettingsCodec.fromJson("""{"format":1,"collapsedWidth":200}""")

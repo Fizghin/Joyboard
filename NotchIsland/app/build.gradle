@@ -49,12 +49,16 @@ android {
         sideload {
             dimension 'distribution'
             buildConfigField 'boolean', 'UPDATER_ENABLED', 'true'
+            // The optional accessibility helper, for hiding in chosen apps and while typing.
+            buildConfigField 'boolean', 'HELPER_AVAILABLE', 'true'
         }
         // Google Play forbids REQUEST_INSTALL_PACKAGES for a self-updater, and ships its own
         // update path anyway, so that whole feature is compiled out of this variant.
         play {
             dimension 'distribution'
             buildConfigField 'boolean', 'UPDATER_ENABLED', 'false'
+            // Play reserves accessibility services for disability tools, so no helper here.
+            buildConfigField 'boolean', 'HELPER_AVAILABLE', 'false'
         }
     }
 

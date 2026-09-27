@@ -51,6 +51,12 @@ class SettingsRepository private constructor(context: Context) {
         it.copy(autoExpandPackages = next)
     }
 
+    suspend fun toggleHidden(pkg: String) = update {
+        val next = it.hiddenInPackages.toMutableSet()
+        if (!next.add(pkg)) next.remove(pkg)
+        it.copy(hiddenInPackages = next)
+    }
+
     suspend fun toggleBlocked(pkg: String) = update {
         val next = it.blockedPackages.toMutableSet()
         if (!next.add(pkg)) next.remove(pkg)
@@ -83,6 +89,7 @@ class SettingsRepository private constructor(context: Context) {
         val holeCenterY = floatPreferencesKey("hole_center_y")
         val holeWidth = floatPreferencesKey("hole_width")
         val holeHeight = floatPreferencesKey("hole_height")
+        val holeScreenWidth = floatPreferencesKey("hole_screen_width")
         val cameraSource = stringPreferencesKey("camera_source")
         val devicePresetId = stringPreferencesKey("device_preset_id")
         val avoidHole = booleanPreferencesKey("avoid_hole")
@@ -107,6 +114,12 @@ class SettingsRepository private constructor(context: Context) {
         val showOnLockScreen = booleanPreferencesKey("show_on_lock_screen")
         val dimBackground = booleanPreferencesKey("dim_background")
         val alwaysShowPill = booleanPreferencesKey("always_show_pill")
+        val hideInFullscreen = booleanPreferencesKey("hide_in_fullscreen")
+        val hideWhileTyping = booleanPreferencesKey("hide_while_typing")
+        val hiddenInPackages = stringSetPreferencesKey("hidden_in_packages")
+        val featureCalendar = booleanPreferencesKey("feature_calendar")
+        val calendarLeadMinutes = intPreferencesKey("calendar_lead_minutes")
+        val externalApiEnabled = booleanPreferencesKey("external_api_enabled")
         val tapAction = stringPreferencesKey("tap_action")
         val doubleTapAction = stringPreferencesKey("double_tap_action")
         val longPressAction = stringPreferencesKey("long_press_action")
@@ -187,6 +200,7 @@ class SettingsRepository private constructor(context: Context) {
             holeCenterY = this[K.holeCenterY] ?: legacyHoleY() ?: d.holeCenterY,
             holeWidth = this[K.holeWidth] ?: legacyHoleSize() ?: d.holeWidth,
             holeHeight = this[K.holeHeight] ?: legacyHoleSize() ?: d.holeHeight,
+            holeScreenWidthDp = this[K.holeScreenWidth] ?: d.holeScreenWidthDp,
             cameraSource = this[K.cameraSource]?.toEnum<CameraSource>()
                 ?: if (legacyHoleSize() != null) CameraSource.MANUAL else d.cameraSource,
             devicePresetId = this[K.devicePresetId],
@@ -213,6 +227,12 @@ class SettingsRepository private constructor(context: Context) {
             showOnLockScreen = this[K.showOnLockScreen] ?: d.showOnLockScreen,
             dimBackgroundWhenExpanded = this[K.dimBackground] ?: d.dimBackgroundWhenExpanded,
             alwaysShowPill = this[K.alwaysShowPill] ?: d.alwaysShowPill,
+            hideInFullscreen = this[K.hideInFullscreen] ?: d.hideInFullscreen,
+            hideWhileTyping = this[K.hideWhileTyping] ?: d.hideWhileTyping,
+            hiddenInPackages = this[K.hiddenInPackages] ?: d.hiddenInPackages,
+            featureCalendar = this[K.featureCalendar] ?: d.featureCalendar,
+            calendarLeadMinutes = this[K.calendarLeadMinutes] ?: d.calendarLeadMinutes,
+            externalApiEnabled = this[K.externalApiEnabled] ?: d.externalApiEnabled,
             tapAction = this[K.tapAction]?.toEnum<GestureAction>() ?: d.tapAction,
             doubleTapAction = this[K.doubleTapAction]?.toEnum<GestureAction>() ?: d.doubleTapAction,
             longPressAction = this[K.longPressAction]?.toEnum<GestureAction>() ?: d.longPressAction,
@@ -344,6 +364,13 @@ class SettingsRepository private constructor(context: Context) {
         this[K.autoCheckUpdates] = s.autoCheckUpdates
         this[K.lastUpdateCheck] = s.lastUpdateCheck
         this[K.skippedVersion] = s.skippedVersion
+        this[K.holeScreenWidth] = s.holeScreenWidthDp
+        this[K.hideInFullscreen] = s.hideInFullscreen
+        this[K.hideWhileTyping] = s.hideWhileTyping
+        this[K.hiddenInPackages] = s.hiddenInPackages
+        this[K.featureCalendar] = s.featureCalendar
+        this[K.calendarLeadMinutes] = s.calendarLeadMinutes
+        this[K.externalApiEnabled] = s.externalApiEnabled
     }
 
     companion object {

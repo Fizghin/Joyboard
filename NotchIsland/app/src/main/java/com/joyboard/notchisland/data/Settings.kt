@@ -45,6 +45,12 @@ data class IslandSettings(
     val holeCenterY: Float = 0f,
     val holeWidth: Float = 0f,
     val holeHeight: Float = 0f,
+    /**
+     * How wide the screen was, in dp, when the hole was placed. A foldable has a different
+     * screen — and a different camera — on each side, so a mismatch means the stored hole
+     * belongs to the other screen. Zero means unknown, and the hole is trusted as it is.
+     */
+    val holeScreenWidthDp: Float = 0f,
     val cameraSource: CameraSource = CameraSource.NONE,
     val devicePresetId: String? = null,
     /** Keep text and icons out from under the camera. */
@@ -80,6 +86,12 @@ data class IslandSettings(
     val showOnLockScreen: Boolean = true,
     val dimBackgroundWhenExpanded: Boolean = true,
     val alwaysShowPill: Boolean = true,
+    /** Step aside when a video or game hides the status bar. */
+    val hideInFullscreen: Boolean = true,
+    /** Step aside while the keyboard is up. Needs the helper service. */
+    val hideWhileTyping: Boolean = false,
+    /** Apps the island stays out of while they are on screen. Needs the helper service. */
+    val hiddenInPackages: Set<String> = emptySet(),
 
     // ---- gestures ----
     /** Whether a tap walks through the sizes or jumps straight to the full panel. */
@@ -106,6 +118,10 @@ data class IslandSettings(
     val featureOngoing: Boolean = true,
     val featureStopwatch: Boolean = true,
     val featureHistory: Boolean = true,
+    /** The next calendar event, counting down. Off by default: it needs calendar access. */
+    val featureCalendar: Boolean = false,
+    /** How long before an event the island starts counting down to it. */
+    val calendarLeadMinutes: Int = 15,
 
     // ---- notification handling ----
     val notificationStyle: NotificationStyle = NotificationStyle.PREVIEW,
@@ -127,6 +143,10 @@ data class IslandSettings(
     val quietEndMinutes: Int = 7 * 60,
     val suspendWhenScreenOff: Boolean = true,
     val respectSystemAnimationScale: Boolean = true,
+
+    // ---- automation ----
+    /** Let other apps — Tasker, Automate, shortcuts — put their own messages on the island. */
+    val externalApiEnabled: Boolean = false,
 
     // ---- updates ----
     val updateManifestUrl: String = DEFAULT_UPDATE_MANIFEST_URL,
@@ -159,7 +179,12 @@ val IslandSettings.hole: com.joyboard.notchisland.island.Hole?
         null
     }
 
-fun IslandSettings.withHole(hole: com.joyboard.notchisland.island.Hole?, source: CameraSource) = copy(
+fun IslandSettings.withHole(
+    hole: com.joyboard.notchisland.island.Hole?,
+    source: CameraSource,
+    screenWidthDp: Float = 0f,
+) = copy(
+    holeScreenWidthDp = if (hole == null) 0f else screenWidthDp,
     holeCenterX = hole?.centerX ?: 0f,
     holeCenterY = hole?.centerY ?: 0f,
     holeWidth = hole?.width ?: 0f,

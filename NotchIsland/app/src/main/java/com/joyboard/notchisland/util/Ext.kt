@@ -60,6 +60,18 @@ fun Context.openWriteSettings() = startActivity(
         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 )
 
+/** The optional helper, which only exists in the sideloaded build. */
+fun Context.helperServiceEnabled(): Boolean {
+    val flat = Settings.Secure.getString(contentResolver, Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES)
+        ?: return false
+    val ours = "$packageName/com.joyboard.notchisland.service.IslandHelperService"
+    return flat.split(':').any { it.equals(ours, ignoreCase = true) }
+}
+
+fun Context.openAccessibilitySettings() = startActivity(
+    Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+)
+
 fun Context.openDndAccessSettings() = startActivity(
     Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 )

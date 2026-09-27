@@ -19,6 +19,7 @@ import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.util.dp
+import androidx.annotation.VisibleForTesting
 
 /**
  * The overlay window the island lives in: attaching it, where it sits, the touch strip that
@@ -33,6 +34,8 @@ internal class OverlayWindow(
     private val listener: IslandView.Listener,
     /** A touch outside the island while it is open: the controller decides what that means. */
     private val onOutsideTouch: () -> Unit,
+    /** The status bar appeared or went away — an app went full screen, or came back. */
+    private val onStatusBarVisibility: (Boolean) -> Unit = {},
 ) {
     private val windowManager = context.getSystemService(WindowManager::class.java)
     private var settings = IslandSettings()
@@ -54,6 +57,10 @@ internal class OverlayWindow(
     fun invalidateInsets() {
         cachedStatusBar = 0
     }
+
+    /** Whether the island is on screen right now. For tests. */
+    @VisibleForTesting
+    internal val isShowing: Boolean get() = root?.visibility == View.VISIBLE
 
     fun setVisible(visible: Boolean) {
         root?.visibility = if (visible) View.VISIBLE else View.INVISIBLE
@@ -91,6 +98,8 @@ internal class OverlayWindow(
             isClickable = true
         }
 
+        watchStatusBar(container)
+
         val strip = FrameLayout(context).apply {
             addView(
                 View(context).apply {
@@ -123,6 +132,24 @@ internal class OverlayWindow(
             view.applySettings(settings)
             view.snapToMode(IslandMode.PILL)
             refresh()
+        }
+    }
+
+    /**
+     * Every window is told when the system bars come and go, overlays included, so a video or a
+     * game hiding the status bar is visible from here without any extra permission.
+     */
+    private fun watchStatusBar(container: View) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            ViewCompat.setOnApplyWindowInsetsListener(container) { _, insets ->
+                onStatusBarVisibility(insets.isVisible(WindowInsetsCompat.Type.statusBars()))
+                insets
+            }
+        } else {
+            @Suppress("DEPRECATION")
+            container.setOnSystemUiVisibilityChangeListener { flags ->
+                onStatusBarVisibility(flags and View.SYSTEM_UI_FLAG_FULLSCREEN == 0)
+            }
         }
     }
 

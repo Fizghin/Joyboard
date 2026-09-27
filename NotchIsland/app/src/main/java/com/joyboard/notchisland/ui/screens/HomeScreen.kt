@@ -46,6 +46,9 @@ import com.joyboard.notchisland.util.openOverlaySettings
 import com.joyboard.notchisland.util.openWriteSettings
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import com.joyboard.notchisland.util.openAccessibilitySettings
 
 @Composable
 fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
@@ -135,6 +138,34 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                 granted = permissions.dndAccess,
                 onGrant = { context.openDndAccessSettings() }
             )
+            if (BuildConfig.HELPER_AVAILABLE) {
+                var disclosing by remember { mutableStateOf(false) }
+                PermissionRow(
+                    title = stringResource(R.string.helper_row_title),
+                    subtitle = stringResource(R.string.helper_row_desc),
+                    granted = permissions.helper,
+                    onGrant = { disclosing = true }
+                )
+                // Accessibility access is powerful, so say plainly what it is used for first.
+                if (disclosing) {
+                    AlertDialog(
+                        onDismissRequest = { disclosing = false },
+                        title = { Text(stringResource(R.string.helper_disclosure_title)) },
+                        text = { Text(stringResource(R.string.helper_disclosure_body)) },
+                        confirmButton = {
+                            TextButton(onClick = {
+                                disclosing = false
+                                context.openAccessibilitySettings()
+                            }) { Text(stringResource(R.string.continue_label)) }
+                        },
+                        dismissButton = {
+                            TextButton(onClick = { disclosing = false }) {
+                                Text(stringResource(R.string.cancel))
+                            }
+                        }
+                    )
+                }
+            }
         }
 
         SectionCard(title = stringResource(R.string.try_out)) {

@@ -42,12 +42,14 @@ import kotlinx.coroutines.withContext
 import com.joyboard.notchisland.R
 import androidx.annotation.StringRes
 import com.joyboard.notchisland.util.describe
+import com.joyboard.notchisland.util.helperServiceEnabled
 
 data class PermissionState(
     val overlay: Boolean = false,
     val notificationAccess: Boolean = false,
     val writeSettings: Boolean = false,
     val dndAccess: Boolean = false,
+    val helper: Boolean = false,
 ) {
     val essentialsGranted: Boolean get() = overlay
     val allGranted: Boolean get() = overlay && notificationAccess && writeSettings && dndAccess
@@ -92,6 +94,7 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             notificationAccess = context.hasNotificationAccess(),
             writeSettings = context.canWriteSettings(),
             dndAccess = nm?.isNotificationPolicyAccessGranted == true,
+            helper = BuildConfig.HELPER_AVAILABLE && context.helperServiceEnabled(),
         )
     }
 
@@ -304,6 +307,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             }
             _status.value = text(R.string.shaped, text(preset.label))
         }
+    }
+
+    fun toggleHidden(packageName: String) {
+        viewModelScope.launch { repository.toggleHidden(packageName) }
     }
 
     fun toggleAutoExpand(packageName: String) {
