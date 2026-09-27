@@ -20,19 +20,23 @@ private val Context.dataStore: DataStore<Preferences> by preferencesDataStore("n
  * Single source of truth for [IslandSettings]. The UI collects [settings]; the overlay service
  * collects the same flow, so a change in the app is reflected on screen immediately.
  */
-class SettingsRepository(private val context: Context) {
+class SettingsRepository private constructor(context: Context) {
 
-    val settings: Flow<IslandSettings> = context.dataStore.data.map { it.toSettings() }
+    // This is a process-wide singleton, so it keeps the store rather than a Context: holding an
+    // activity or service here would keep it alive long after it was gone.
+    private val store: DataStore<Preferences> = context.applicationContext.dataStore
+
+    val settings: Flow<IslandSettings> = store.data.map { it.toSettings() }
 
     suspend fun update(transform: (IslandSettings) -> IslandSettings) {
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             val updated = transform(prefs.toSettings())
             prefs.writeSettings(updated)
         }
     }
 
     suspend fun resetToDefaults() {
-        context.dataStore.edit { prefs ->
+        store.edit { prefs ->
             val enabled = prefs[K.enabled] ?: false
             prefs.clear()
             prefs.writeSettings(IslandSettings(enabled = enabled))
@@ -348,7 +352,7 @@ class SettingsRepository(private val context: Context) {
 
         fun get(context: Context): SettingsRepository =
             instance ?: synchronized(this) {
-                instance ?: SettingsRepository(context.applicationContext).also { instance = it }
+                instance ?: SettingsRepository(context).also { instance = it }
             }
     }
 }

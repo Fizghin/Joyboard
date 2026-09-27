@@ -3,14 +3,10 @@ package com.joyboard.notchisland.island
 import android.animation.ValueAnimator
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Bitmap
 import android.graphics.Color
 import android.graphics.Outline
 import android.graphics.drawable.GradientDrawable
-import android.content.res.ColorStateList
-import android.text.InputType
 import android.text.TextUtils
-import android.text.format.DateFormat
 import android.view.Gravity
 import android.os.Build
 import android.view.KeyEvent
@@ -22,14 +18,10 @@ import android.view.ViewGroup
 import android.view.ViewOutlineProvider
 import android.view.animation.PathInterpolator
 import android.widget.FrameLayout
-import android.view.inputmethod.EditorInfo
-import android.widget.EditText
 import android.widget.ImageView
 import android.widget.LinearLayout
-import android.widget.ProgressBar
-import android.widget.SeekBar
 import android.widget.TextView
-import androidx.core.content.ContextCompat
+import androidx.core.view.ViewCompat
 import com.joyboard.notchisland.R
 import com.joyboard.notchisland.data.GestureAction
 import com.joyboard.notchisland.data.ColorSource
@@ -37,11 +29,9 @@ import com.joyboard.notchisland.data.IslandSettings
 import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.util.dp
 import kotlin.math.roundToInt
-import com.joyboard.notchisland.util.formatRelative
 import com.joyboard.notchisland.util.formatStopwatch
 import com.joyboard.notchisland.util.readableAccent
 import com.joyboard.notchisland.util.visible
-import java.util.Date
 import kotlin.math.abs
 
 /**
@@ -105,6 +95,21 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     // ------------------------------------------------------------------ views
 
+    private val widgets = IslandWidgets(context)
+    private val panels = IslandPanels(context, widgets, object : PanelHost {
+        override val settings: IslandSettings get() = this@IslandView.settings
+        override val listener: Listener get() = this@IslandView.listener
+        override var userSeeking: Boolean
+            get() = this@IslandView.userSeeking
+            set(value) { this@IslandView.userSeeking = value }
+        override fun onReplyFocus(hasFocus: Boolean) {
+            listener.onReplyFocusChanged(hasFocus)
+            setBackHandled(hasFocus)
+        }
+        override fun sendReply(item: NotificationItem, text: CharSequence) =
+            this@IslandView.sendReply(item, text)
+    })
+
     private val compactRow = LinearLayout(context).apply {
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
@@ -115,7 +120,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         scaleType = ImageView.ScaleType.CENTER_CROP
         layoutParams = LinearLayout.LayoutParams(18.dp, 18.dp)
         clipToOutline = true
-        outlineProvider = roundOutline(5f.dp)
+        outlineProvider = widgets.roundOutline(5f.dp)
     }
     private val leadingSpacer = View(context).apply {
         layoutParams = LinearLayout.LayoutParams(0, 1, 1f)
@@ -160,7 +165,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         layoutParams = LinearLayout.LayoutParams(40.dp, 40.dp)
         scaleType = ImageView.ScaleType.CENTER_CROP
         clipToOutline = true
-        outlineProvider = roundOutline(10f.dp)
+        outlineProvider = widgets.roundOutline(10f.dp)
         background = GradientDrawable().apply {
             cornerRadius = 10f.dp
             setColor(0x22FFFFFF)
@@ -203,21 +208,17 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     private val toggleButtons = mutableMapOf<QuickToggle, ImageView>()
 
-    // media body views
-    private var mediaSeek: SeekBar? = null
-    private var mediaPosition: TextView? = null
-    private var mediaDuration: TextView? = null
-    private var playPause: ImageView? = null
+    // live views inside the current panel, handed back by IslandPanels
+    private var refs = PanelRefs()
     private var userSeeking = false
 
-    // timer body views
-    private var timerText: TextView? = null
-    private var timerRing: RingProgressView? = null
-    private var stopwatchText: TextView? = null
-    private var replyField: EditText? = null
 
     init {
         isClickable = true
+        isFocusable = true
+        importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_YES
+        // A new activity arriving is worth hearing about, but never worth interrupting for.
+        accessibilityLiveRegion = ACCESSIBILITY_LIVE_REGION_POLITE
         background = bgDrawable
         outlineProvider = object : ViewOutlineProvider() {
             override fun getOutline(view: View, outline: Outline) {
@@ -307,6 +308,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     fun setPresentation(p: Presentation) {
         presentation = p
+        refreshAccessibility()
         val accent = resolveAccent(p)
 
         // ---- compact side ----
@@ -404,6 +406,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         if (target == mode && !force) return
         val previous = mode
         mode = target
+        refreshAccessibility()
         val accent = resolveAccent(presentation)
         val opened = target == IslandMode.EXPANDED || target == IslandMode.MEDIUM
         if (opened) buildBody(presentation, accent)
@@ -573,6 +576,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     /** Applies the target size immediately, used when the island is first attached. */
     fun snapToMode(target: IslandMode) {
         mode = target
+        refreshAccessibility()
         val opened = target == IslandMode.EXPANDED || target == IslandMode.MEDIUM
         if (opened) {
             // Only the animated path used to build the panel, so snapping straight open — as a
@@ -600,27 +604,27 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     fun refreshMediaProgress(positionMs: Long, durationMs: Long) {
         if (userSeeking) return
-        val seek = mediaSeek ?: return
+        val seek = refs.mediaSeek ?: return
         seek.max = durationMs.coerceAtLeast(1L).toInt()
         seek.progress = positionMs.coerceIn(0, durationMs.coerceAtLeast(1L)).toInt()
-        mediaPosition?.text = formatDuration(positionMs)
-        mediaDuration?.text = formatDuration(durationMs)
+        refs.mediaPosition?.text = formatDuration(positionMs)
+        refs.mediaDuration?.text = formatDuration(durationMs)
     }
 
     fun refreshTimer(remainingMs: Long, totalMs: Long) {
-        timerText?.text = formatDuration(remainingMs, forceMinutes = true)
-        timerRing?.progress = if (totalMs <= 0) 0f else remainingMs.toFloat() / totalMs
+        refs.timerText?.text = formatDuration(remainingMs, forceMinutes = true)
+        refs.timerRing?.progress = if (totalMs <= 0) 0f else remainingMs.toFloat() / totalMs
     }
 
     fun refreshStopwatch(elapsedMs: Long) {
-        stopwatchText?.text = formatStopwatch(elapsedMs)
+        refs.stopwatchText?.text = formatStopwatch(elapsedMs)
     }
 
     /** True while the reply field holds focus, so the controller keeps the window focusable. */
-    fun isReplying(): Boolean = replyField?.hasFocus() == true
+    fun isReplying(): Boolean = refs.replyField?.hasFocus() == true
 
     fun clearReplyFocus() {
-        replyField?.clearFocus()
+        refs.replyField?.clearFocus()
         setBackHandled(false)
     }
 
@@ -727,22 +731,10 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         if (signature == bodySignature && bodyContainer.childCount > 0) return false
         bodySignature = signature
         bodyContainer.removeAllViews()
-        mediaSeek = null; mediaPosition = null; mediaDuration = null; playPause = null
-        timerText = null; timerRing = null
-        when (val body = p.body) {
-            is ExpandedBody.Media -> buildMediaBody(body.media, accent)
-            is ExpandedBody.Notification -> buildNotificationBody(body.item, accent)
-            is ExpandedBody.Charging -> buildChargingBody(body, accent)
-            is ExpandedBody.Timer -> buildTimerBody(body, accent)
-            is ExpandedBody.Message -> buildMessageBody(body)
-            is ExpandedBody.Ongoing -> buildOngoingBody(body.item, accent)
-            is ExpandedBody.Call -> buildCallBody(body.item, accent)
-            is ExpandedBody.Stopwatch -> buildStopwatchBody(body, accent)
-            is ExpandedBody.History -> buildHistoryBody(body.items, accent)
-            ExpandedBody.QuickPanel -> buildQuickPanelBody(accent)
-        }
+        refs = panels.build(p.body, accent, bodyContainer)
         return true
     }
+
 
     /**
      * Identity of the panel's contents. Anything not in here is either animated in place
@@ -776,7 +768,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             headerArt.setImageBitmap(media.artwork)
             headerArt.clearColorFilter()
         } else {
-            headerArt.setImageDrawable(media.appIcon ?: icon(R.drawable.ic_music))
+            headerArt.setImageDrawable(media.appIcon ?: widgets.icon(R.drawable.ic_music))
             headerArt.clearColorFilter()
         }
         headerArt.visible(true)
@@ -798,493 +790,6 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         headerWave.visible(false)
     }
 
-    private fun buildMediaBody(media: MediaSnapshot, accent: Int) {
-        val seek = SeekBar(context).apply {
-            max = media.durationMs.coerceAtLeast(1L).toInt()
-            progress = media.positionMs.toInt()
-            isEnabled = media.canSeek && media.durationMs > 0
-            progressTintList = android.content.res.ColorStateList.valueOf(accent)
-            thumbTintList = android.content.res.ColorStateList.valueOf(accent)
-            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(0x4DFFFFFF)
-            setPadding(0, 6.dp, 0, 6.dp)
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, value: Int, fromUser: Boolean) {
-                    if (fromUser) mediaPosition?.text = formatDuration(value.toLong())
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) { userSeeking = true }
-                override fun onStopTrackingTouch(sb: SeekBar) {
-                    userSeeking = false
-                    listener.onMediaSeek(sb.progress.toLong())
-                }
-            })
-        }
-        mediaSeek = seek
-        bodyContainer.addView(
-            seek,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        )
-
-        val timeRow = LinearLayout(context).apply { orientation = LinearLayout.HORIZONTAL }
-        val pos = smallLabel(formatDuration(media.positionMs))
-        val dur = smallLabel(formatDuration(media.durationMs))
-        mediaPosition = pos
-        mediaDuration = dur
-        timeRow.addView(pos)
-        timeRow.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        timeRow.addView(dur)
-        bodyContainer.addView(
-            timeRow,
-            LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT)
-        )
-
-        val controls = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 6.dp }
-        }
-        val prev = circleButton(R.drawable.ic_prev, 44.dp, "Previous track") {
-            listener.onMediaCommand(MediaCommand.PREVIOUS)
-        }
-        prev.isEnabled = media.canSkipPrev
-        val play = circleButton(
-            if (media.playing) R.drawable.ic_pause else R.drawable.ic_play,
-            54.dp,
-            if (media.playing) "Pause" else "Play",
-        ) { listener.onMediaCommand(MediaCommand.PLAY_PAUSE) }
-        (play.background as? GradientDrawable)?.setColor(accent)
-        play.setColorFilter(Color.BLACK)
-        playPause = play
-        val next = circleButton(R.drawable.ic_next, 44.dp, "Next track") {
-            listener.onMediaCommand(MediaCommand.NEXT)
-        }
-        next.isEnabled = media.canSkipNext
-        controls.addView(prev)
-        controls.addView(spacer(18.dp))
-        controls.addView(play)
-        controls.addView(spacer(18.dp))
-        controls.addView(next)
-        bodyContainer.addView(controls)
-
-        bodyContainer.addView(buildVolumeRow(accent))
-    }
-
-    private fun buildNotificationBody(item: NotificationItem, accent: Int) {
-        if (item.text.isNotBlank()) {
-            val text = TextView(context).apply {
-                setTextColor(0xD9FFFFFF.toInt())
-                textSize = 13f
-                maxLines = 5
-                ellipsize = TextUtils.TruncateAt.END
-                this.text = item.text
-            }
-            bodyContainer.addView(text)
-        }
-        val actions = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 10.dp }
-        }
-        actions.addView(pillButton("Open", accent, filled = true) { listener.onOpenPresentationTarget() })
-        item.actions.take(2).forEach { action ->
-            actions.addView(spacer(8.dp))
-            actions.addView(pillButton(action.title, accent) { listener.onNotificationAction(action) })
-        }
-        actions.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        actions.addView(pillButton("Dismiss", accent) { listener.onDismissCurrent() })
-        bodyContainer.addView(actions)
-        addNotificationExtras(item, accent)
-    }
-
-    private fun buildChargingBody(body: ExpandedBody.Charging, accent: Int) {
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val ring = RingProgressView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(62.dp, 62.dp)
-            strokeWidth = 5f.dp
-            ringColor = if (body.level <= 20) 0xFFFF453A.toInt() else 0xFF34C759.toInt()
-            labelSizePx = 15f.dp
-            label = "${body.level}%"
-            progress = body.level / 100f
-        }
-        val column = LinearLayout(context).apply {
-            orientation = LinearLayout.VERTICAL
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                .apply { marginStart = 16.dp }
-        }
-        column.addView(TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            typeface = android.graphics.Typeface.DEFAULT_BOLD
-            text = when {
-                !body.plugged -> "Unplugged"
-                body.level >= 100 -> "Fully charged"
-                body.fast -> "Fast charging"
-                else -> "Charging"
-            }
-        })
-        column.addView(smallLabel(
-            if (body.plugged) "Battery at ${body.level}%" else "Running on battery"
-        ))
-        row.addView(ring)
-        row.addView(column)
-        bodyContainer.addView(row)
-    }
-
-    private fun buildTimerBody(body: ExpandedBody.Timer, accent: Int) {
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-        }
-        val ring = RingProgressView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(58.dp, 58.dp)
-            strokeWidth = 5f.dp
-            ringColor = accent
-            progress = if (body.totalMs <= 0) 0f else body.remainingMs.toFloat() / body.totalMs
-        }
-        timerRing = ring
-        val time = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 26f
-            typeface = android.graphics.Typeface.MONOSPACE
-            text = formatDuration(body.remainingMs, forceMinutes = true)
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                .apply { marginStart = 16.dp }
-        }
-        timerText = time
-        row.addView(ring)
-        row.addView(time)
-        bodyContainer.addView(row)
-
-        val controls = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 12.dp }
-        }
-        controls.addView(
-            pillButton(if (body.running) "Pause" else "Resume", accent, filled = true) {
-                listener.onTimerCommand(if (body.running) TimerCommand.PAUSE else TimerCommand.RESUME)
-            }
-        )
-        controls.addView(spacer(8.dp))
-        controls.addView(pillButton("+1 min", accent) { listener.onTimerCommand(TimerCommand.ADD_MINUTE) })
-        controls.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        controls.addView(pillButton("Cancel", accent) { listener.onTimerCommand(TimerCommand.CANCEL) })
-        bodyContainer.addView(controls)
-    }
-
-    private fun buildOngoingBody(item: NotificationItem, accent: Int) {
-        if (item.text.isNotBlank()) {
-            bodyContainer.addView(TextView(context).apply {
-                setTextColor(0xD9FFFFFF.toInt())
-                textSize = 13f
-                maxLines = 3
-                ellipsize = TextUtils.TruncateAt.END
-                text = item.text
-            })
-        }
-        if (item.hasProgress || item.progressIndeterminate) {
-            bodyContainer.addView(
-                ProgressBar(context, null, android.R.attr.progressBarStyleHorizontal).apply {
-                    isIndeterminate = item.progressIndeterminate
-                    if (!item.progressIndeterminate) {
-                        max = item.progressMax.coerceAtLeast(1)
-                        progress = item.progress.coerceIn(0, max)
-                    }
-                    progressTintList = ColorStateList.valueOf(accent)
-                    indeterminateTintList = ColorStateList.valueOf(accent)
-                    progressBackgroundTintList = ColorStateList.valueOf(0x4DFFFFFF)
-                },
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = 10.dp }
-            )
-            if (item.hasProgress) {
-                val percent = item.progress * 100 / item.progressMax.coerceAtLeast(1)
-                bodyContainer.addView(smallLabel("$percent%"))
-            }
-        }
-        val actions = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 10.dp }
-        }
-        actions.addView(pillButton("Open", accent, filled = true) { listener.onOpenPresentationTarget() })
-        item.actions.take(2).forEach { action ->
-            actions.addView(spacer(8.dp))
-            actions.addView(pillButton(action.title, accent) { listener.onNotificationAction(action) })
-        }
-        bodyContainer.addView(actions)
-    }
-
-    private fun buildCallBody(item: NotificationItem, accent: Int) {
-        if (item.text.isNotBlank()) {
-            bodyContainer.addView(smallLabel(item.text))
-        }
-        val actions = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 12.dp }
-        }
-        // A call notification carries its own answer and hang-up actions; we only relay them.
-        if (item.actions.isEmpty()) {
-            actions.addView(
-                pillButton("Open call", accent, filled = true) { listener.onOpenPresentationTarget() }
-            )
-        } else {
-            item.actions.take(3).forEachIndexed { index, action ->
-                if (index > 0) actions.addView(spacer(8.dp))
-                val declining = action.title.lowercase().let {
-                    it.contains("decline") || it.contains("hang") || it.contains("end") ||
-                        it.contains("reject")
-                }
-                actions.addView(
-                    pillButton(
-                        action.title,
-                        if (declining) 0xFFFF453A.toInt() else 0xFF34C759.toInt(),
-                        filled = true
-                    ) { listener.onNotificationAction(action) }
-                )
-            }
-        }
-        bodyContainer.addView(actions)
-    }
-
-    private fun buildStopwatchBody(body: ExpandedBody.Stopwatch, accent: Int) {
-        val time = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 34f
-            typeface = android.graphics.Typeface.MONOSPACE
-            text = formatStopwatch(body.elapsedMs)
-        }
-        stopwatchText = time
-        bodyContainer.addView(time)
-
-        if (body.laps.isNotEmpty()) {
-            body.laps.takeLast(3).forEachIndexed { index, lap ->
-                bodyContainer.addView(
-                    smallLabel("Lap ${body.laps.size - index}   ${formatStopwatch(lap)}")
-                )
-            }
-        }
-
-        val controls = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 12.dp }
-        }
-        controls.addView(
-            pillButton(if (body.running) "Pause" else "Start", accent, filled = true) {
-                listener.onStopwatchCommand(StopwatchCommand.START_PAUSE)
-            }
-        )
-        controls.addView(spacer(8.dp))
-        controls.addView(pillButton("Lap", accent) { listener.onStopwatchCommand(StopwatchCommand.LAP) })
-        controls.addView(View(context), LinearLayout.LayoutParams(0, 1, 1f))
-        controls.addView(
-            pillButton("Reset", accent) { listener.onStopwatchCommand(StopwatchCommand.RESET) }
-        )
-        bodyContainer.addView(controls)
-    }
-
-    private fun buildHistoryBody(items: List<NotificationItem>, accent: Int) {
-        if (items.isEmpty()) {
-            bodyContainer.addView(smallLabel("Nothing has come through yet"))
-            return
-        }
-        items.take(6).forEach { item ->
-            val row = LinearLayout(context).apply {
-                orientation = LinearLayout.HORIZONTAL
-                gravity = Gravity.CENTER_VERTICAL
-                isClickable = true
-                setPadding(0, 7.dp, 0, 7.dp)
-                setOnClickListener { listener.onHistoryTap(item) }
-            }
-            row.addView(ImageView(context).apply {
-                setImageDrawable(item.appIcon ?: item.smallIcon)
-                layoutParams = LinearLayout.LayoutParams(22.dp, 22.dp)
-            })
-            val column = LinearLayout(context).apply {
-                orientation = LinearLayout.VERTICAL
-                layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                    .apply { marginStart = 10.dp }
-            }
-            column.addView(TextView(context).apply {
-                setTextColor(Color.WHITE)
-                textSize = 12.5f
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-                text = item.title
-            })
-            column.addView(TextView(context).apply {
-                setTextColor(0x99FFFFFF.toInt())
-                textSize = 11f
-                maxLines = 1
-                ellipsize = TextUtils.TruncateAt.END
-                text = item.text.ifBlank { item.appLabel }
-            })
-            row.addView(column)
-            row.addView(smallLabel(formatRelative(System.currentTimeMillis(), item.whenMs)))
-            bodyContainer.addView(
-                row,
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                )
-            )
-        }
-    }
-
-    /** The one-tap passcode copy and the inline reply field, when a notification offers them. */
-    private fun addNotificationExtras(item: NotificationItem, accent: Int) {
-        if (settings.otpDetection) item.otp?.let { code ->
-            bodyContainer.addView(
-                pillButton("Copy $code", accent, filled = true) { listener.onCopyCode(code) },
-                LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
-                ).apply { topMargin = 10.dp }
-            )
-        }
-        if (!settings.quickReplyEnabled) return
-        val reply = item.reply ?: return
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 10.dp }
-        }
-        val field = EditText(context).apply {
-            hint = reply.title
-            setHintTextColor(0x80FFFFFF.toInt())
-            setTextColor(Color.WHITE)
-            textSize = 13f
-            maxLines = 3
-            background = GradientDrawable().apply {
-                cornerRadius = 18f.dp
-                setColor(0x1FFFFFFF)
-            }
-            setPadding(14.dp, 10.dp, 14.dp, 10.dp)
-            inputType = InputType.TYPE_CLASS_TEXT or InputType.TYPE_TEXT_FLAG_MULTI_LINE
-            imeOptions = EditorInfo.IME_ACTION_SEND
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-            // The overlay window is normally unfocusable; it has to be told to accept the IME.
-            setOnFocusChangeListener { _, hasFocus ->
-                listener.onReplyFocusChanged(hasFocus)
-                setBackHandled(hasFocus)
-            }
-            setOnEditorActionListener { view, actionId, _ ->
-                if (actionId == EditorInfo.IME_ACTION_SEND) {
-                    sendReply(item, view.text)
-                    true
-                } else {
-                    false
-                }
-            }
-        }
-        replyField = field
-        row.addView(field)
-        row.addView(spacer(8.dp))
-        row.addView(
-            circleButton(R.drawable.ic_next, 40.dp, "Send reply") {
-                sendReply(item, field.text)
-            }.apply {
-                (background as? GradientDrawable)?.setColor(accent)
-                setColorFilter(Color.BLACK)
-            }
-        )
-        bodyContainer.addView(row)
-    }
-
-    private fun sendReply(item: NotificationItem, text: CharSequence) {
-        if (text.isBlank()) return
-        listener.onSendReply(item, text.toString())
-        replyField?.setText("")
-        replyField?.clearFocus()
-        listener.onReplyFocusChanged(false)
-    }
-
-    private fun buildMessageBody(body: ExpandedBody.Message) {
-        bodyContainer.addView(TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 15f
-            text = body.title
-        })
-        body.subtitle?.let { bodyContainer.addView(smallLabel(it)) }
-    }
-
-    private fun buildQuickPanelBody(accent: Int) {
-        val now = Date()
-        val clock = TextView(context).apply {
-            setTextColor(Color.WHITE)
-            textSize = 30f
-            typeface = android.graphics.Typeface.create("sans-serif-light", android.graphics.Typeface.NORMAL)
-            text = DateFormat.format(
-                if (DateFormat.is24HourFormat(context)) "HH:mm" else "h:mm a", now
-            )
-        }
-        val date = smallLabel(DateFormat.format("EEEE, d MMMM", now).toString())
-        bodyContainer.addView(clock)
-        bodyContainer.addView(date)
-        bodyContainer.addView(buildBrightnessRow(accent))
-        bodyContainer.addView(buildVolumeRow(accent))
-    }
-
-    private fun buildVolumeRow(accent: Int): View {
-        val (current, max) = listener.currentVolume()
-        return sliderRow(R.drawable.ic_volume_up, current, max, accent) { listener.onVolumeChange(it) }
-    }
-
-    private fun buildBrightnessRow(accent: Int): View =
-        sliderRow(R.drawable.ic_settings, listener.currentBrightness(), 255, accent) {
-            listener.onBrightnessChange(it)
-        }
-
-    private fun sliderRow(
-        iconRes: Int,
-        value: Int,
-        max: Int,
-        accent: Int,
-        onChange: (Int) -> Unit,
-    ): View {
-        val row = LinearLayout(context).apply {
-            orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
-            layoutParams = LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT
-            ).apply { topMargin = 8.dp }
-        }
-        row.addView(ImageView(context).apply {
-            setImageDrawable(icon(iconRes))
-            setColorFilter(0xCCFFFFFF.toInt())
-            layoutParams = LinearLayout.LayoutParams(18.dp, 18.dp)
-        })
-        row.addView(SeekBar(context).apply {
-            this.max = max.coerceAtLeast(1)
-            progress = value.coerceIn(0, max)
-            progressTintList = android.content.res.ColorStateList.valueOf(accent)
-            thumbTintList = android.content.res.ColorStateList.valueOf(accent)
-            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(0x4DFFFFFF)
-            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
-                .apply { marginStart = 10.dp }
-            setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
-                override fun onProgressChanged(sb: SeekBar, p: Int, fromUser: Boolean) {
-                    if (fromUser) onChange(p)
-                }
-                override fun onStartTrackingTouch(sb: SeekBar) = Unit
-                override fun onStopTrackingTouch(sb: SeekBar) = Unit
-            })
-        })
-        return row
-    }
-
     private fun buildToggles() {
         val entries = listOf(
             QuickToggle.TORCH to R.drawable.ic_torch,
@@ -1296,8 +801,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             QuickToggle.APP_SETTINGS to R.drawable.ic_settings,
         )
         entries.forEachIndexed { index, (toggle, iconRes) ->
-            if (index > 0) togglesRow.addView(spacer(8.dp))
-            val button = circleButton(iconRes, 38.dp, toggle.label) {
+            if (index > 0) togglesRow.addView(widgets.spacer(8.dp))
+            val button = widgets.circleButton(iconRes, 38.dp, toggle.label) {
                 listener.onQuickToggle(toggle)
             }
             toggleButtons[toggle] = button
@@ -1305,69 +810,12 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         }
     }
 
-    // ------------------------------------------------------------------ small view helpers
-
-    private fun icon(res: Int) = ContextCompat.getDrawable(context, res)
-
-    private fun smallLabel(text: String) = TextView(context).apply {
-        setTextColor(0x99FFFFFF.toInt())
-        textSize = 11f
-        this.text = text
-    }
-
-    private fun spacer(size: Int) = View(context).apply {
-        layoutParams = LinearLayout.LayoutParams(size, 1)
-    }
-
-    private fun circleButton(
-        iconRes: Int,
-        size: Int,
-        label: String? = null,
-        onClick: () -> Unit,
-    ): ImageView =
-        ImageView(context).apply {
-            layoutParams = LinearLayout.LayoutParams(size, size)
-            setImageDrawable(icon(iconRes))
-            contentDescription = label
-            setColorFilter(Color.WHITE)
-            val pad = size / 4
-            setPadding(pad, pad, pad, pad)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0x1FFFFFFF)
-            }
-            isClickable = true
-            setOnClickListener {
-                animate().scaleX(0.86f).scaleY(0.86f).setDuration(90).withEndAction {
-                    animate().scaleX(1f).scaleY(1f).setDuration(120).start()
-                }.start()
-                onClick()
-            }
-        }
-
-    private fun pillButton(
-        label: String,
-        accent: Int,
-        filled: Boolean = false,
-        onClick: () -> Unit,
-    ): TextView = TextView(context).apply {
-        text = label
-        textSize = 12f
-        setTextColor(if (filled) Color.BLACK else Color.WHITE)
-        setPadding(14.dp, 8.dp, 14.dp, 8.dp)
-        gravity = Gravity.CENTER
-        background = GradientDrawable().apply {
-            cornerRadius = 16f.dp
-            setColor(if (filled) accent else 0x1FFFFFFF)
-        }
-        isClickable = true
-        setOnClickListener { onClick() }
-    }
-
-    private fun roundOutline(radius: Float) = object : ViewOutlineProvider() {
-        override fun getOutline(view: View, outline: Outline) {
-            outline.setRoundRect(0, 0, view.width, view.height, radius)
-        }
+    private fun sendReply(item: NotificationItem, text: CharSequence) {
+        if (text.isBlank()) return
+        listener.onSendReply(item, text.toString())
+        refs.replyField?.setText("")
+        refs.replyField?.clearFocus()
+        listener.onReplyFocusChanged(false)
     }
 
     // ------------------------------------------------------------------ gestures
@@ -1406,14 +854,14 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     }
 
     private fun closeReply() {
-        replyField?.clearFocus()
+        refs.replyField?.clearFocus()
         listener.onReplyFocusChanged(false)
         setBackHandled(false)
     }
 
     /** Back on releases before the dispatcher existed, while the reply field has focus. */
     override fun dispatchKeyEventPreIme(event: KeyEvent): Boolean {
-        if (event.keyCode == KeyEvent.KEYCODE_BACK && replyField?.hasFocus() == true) {
+        if (event.keyCode == KeyEvent.KEYCODE_BACK && refs.replyField?.hasFocus() == true) {
             if (event.action == KeyEvent.ACTION_UP) closeReply()
             return true
         }
@@ -1460,7 +908,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
                         listener.onGesture(if (dx > 0) settings.swipeRightAction else settings.swipeLeftAction)
                     settings.doubleTapAction == GestureAction.NONE -> {
                         // Nothing to wait for, so the tap lands straight away.
-                        listener.onGesture(settings.tapAction)
+                        performClick()
                     }
                     else -> {
                         val now = System.currentTimeMillis()
@@ -1480,7 +928,66 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         return super.onTouchEvent(event)
     }
 
-    private val singleTapRunnable = Runnable { listener.onGesture(settings.tapAction) }
+    private val singleTapRunnable = Runnable { performClick() }
+
+    /**
+     * A tap. Routed through here rather than straight to the listener so a screen reader's
+     * "activate" does exactly what a finger does, and the click is reported to accessibility.
+     */
+    override fun performClick(): Boolean {
+        super.performClick()
+        listener.onGesture(settings.tapAction)
+        return true
+    }
+
+    // ------------------------------------------------------------------ accessibility
+
+    /**
+     * Everything the island does is a gesture, which a screen reader cannot perform. So it also
+     * says what it is showing, and offers the gestures as named actions.
+     */
+    private fun refreshAccessibility() {
+        val p = presentation
+        contentDescription = listOfNotNull(
+            p.title?.takeIf { it.isNotBlank() } ?: context.getString(com.joyboard.notchisland.R.string.app_name),
+            p.subtitle?.takeIf { it.isNotBlank() },
+        ).joinToString(", ")
+        ViewCompat.setStateDescription(
+            this,
+            when (mode) {
+                IslandMode.EXPANDED -> "Open"
+                IslandMode.MEDIUM -> "Partly open"
+                IslandMode.COMPACT -> "Showing an activity"
+                else -> "Resting"
+            }
+        )
+
+        val actions = buildList {
+            if (mode != IslandMode.EXPANDED) add("Open" to GestureAction.EXPAND_FULL)
+            if (mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM) add("Close" to GestureAction.COLLAPSE)
+            if (p.body is ExpandedBody.Media) {
+                add("Play or pause" to GestureAction.MEDIA_PLAY_PAUSE)
+                add("Next track" to GestureAction.MEDIA_NEXT)
+                add("Previous track" to GestureAction.MEDIA_PREVIOUS)
+            }
+        }
+        accessibilityActionIds.forEach { ViewCompat.removeAccessibilityAction(this, it) }
+        accessibilityActionIds = actions.map { (label, action) ->
+            ViewCompat.addAccessibilityAction(this, label) { _, _ ->
+                listener.onGesture(action)
+                true
+            }
+        }
+
+        // Resting and compact, the island is one thing to a screen reader; opened, its
+        // buttons are reachable one by one.
+        val opened = mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM
+        compactRow.importantForAccessibility = IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+        expandedRoot.importantForAccessibility =
+            if (opened) IMPORTANT_FOR_ACCESSIBILITY_AUTO else IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+    }
+
+    private var accessibilityActionIds: List<Int> = emptyList()
 
     companion object {
         private const val DOUBLE_TAP_WINDOW = 230L

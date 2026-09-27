@@ -17,8 +17,11 @@ class WaveformView(context: Context) : View(context) {
     private val paint = Paint(Paint.ANTI_ALIAS_FLAG)
     private val rect = RectF()
     private val bars = 4
-    private val phases = FloatArray(bars) { Random.nextFloat() * 6.28f }
-    private val speeds = FloatArray(bars) { 0.9f + Random.nextFloat() * 0.8f }
+    // A fixed seed: the bars still move out of step with each other, but a given frame always
+    // looks the same, so screenshots of the island are reproducible.
+    private val random = Random(WAVE_SEED)
+    private val phases = FloatArray(bars) { random.nextFloat() * 6.28f }
+    private val speeds = FloatArray(bars) { 0.9f + random.nextFloat() * 0.8f }
     private var phase = 0f
     private var animator: ValueAnimator? = null
 
@@ -93,5 +96,9 @@ class WaveformView(context: Context) : View(context) {
             rect.set(left, (h - barHeight) / 2f, left + barWidth, (h + barHeight) / 2f)
             canvas.drawRoundRect(rect, barWidth / 2f, barWidth / 2f, paint)
         }
+    }
+
+    private companion object {
+        const val WAVE_SEED = 7
     }
 }

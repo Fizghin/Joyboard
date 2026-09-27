@@ -7,43 +7,26 @@ import android.content.ClipboardManager
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
-import android.graphics.PixelFormat
 import android.graphics.drawable.Drawable
 import android.media.AudioManager
-import android.os.Build
 import android.os.Handler
 import android.os.Looper
 import android.os.Bundle
 import android.os.SystemClock
-import android.view.Gravity
-import android.view.MotionEvent
-import android.view.View
-import android.view.WindowInsets
-import android.view.WindowManager
-import android.graphics.drawable.GradientDrawable
-import android.widget.FrameLayout
-import android.widget.LinearLayout
 import android.widget.Toast
 import androidx.annotation.VisibleForTesting
-import androidx.core.view.ViewCompat
-import androidx.core.view.WindowInsetsCompat
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.MainActivity
 import com.joyboard.notchisland.R
 import com.joyboard.notchisland.data.ColorSource
 import com.joyboard.notchisland.data.GestureAction
-import com.joyboard.notchisland.data.NotificationStyle
 import com.joyboard.notchisland.data.IslandSettings
-import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.TapExpansion
 import com.joyboard.notchisland.service.NotchNotificationListener
-import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.data.isQuietAt
 import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.util.PendingIntents
 import com.joyboard.notchisland.util.readableAccent
-import com.joyboard.notchisland.util.dp
-import com.joyboard.notchisland.util.formatStopwatch
 
 /**
  * Owns the overlay window and decides what the island shows. Live activities compete by
@@ -51,15 +34,19 @@ import com.joyboard.notchisland.util.formatStopwatch
  */
 class IslandController(private val context: Context) : IslandView.Listener {
 
-    private val windowManager = context.getSystemService(WindowManager::class.java)
     private val handler = Handler(Looper.getMainLooper())
     private val keyguard = context.getSystemService(KeyguardManager::class.java)
 
     private var settings = IslandSettings()
-    private var root: LinearLayout? = null
-    private var island: IslandView? = null
-    private var touchStrip: FrameLayout? = null
-    private var attached = false
+    private val window = OverlayWindow(context, this) {
+        if (userStage != null) {
+            userStage = null
+            showingHistory = false
+            render()
+        }
+    }
+    private val island: IslandView? get() = window.island
+    private val presentations = Presentations(context, accent = { islandAccent() }, settings = { settings })
     private var hiddenUntil = 0L
     private var screenOn = true
 
@@ -127,7 +114,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         )
         privacyMonitor = PrivacyMonitor(context) { mic, camera -> onPrivacy(mic, camera) }
 
-        attach()
+        window.attach(initial)
         applySettings(initial)
         batteryMonitor.start()
         volumeMonitor.start()
@@ -147,7 +134,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         runCatching { privacyMonitor.stop() }
         mediaMonitor.stop()
         quickActions.release()
-        detach()
+        window.detach()
     }
 
     fun applySettings(next: IslandSettings) {
@@ -157,9 +144,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         haptics.strength = next.hapticStrength
         // Switching history off should forget what was kept, not just stop adding to it.
         if (!next.featureHistory) history.clear()
-        island?.applySettings(next)
-        refreshTouchStrip()
-        updateWindowParams()
+        window.applySettings(next)
         if (before.featureMedia != next.featureMedia) {
             if (next.featureMedia) mediaMonitor.start() else {
                 mediaMonitor.stop()
@@ -176,222 +161,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     fun onConfigurationChanged(configuration: Configuration) {
-        cachedStatusBar = 0
+        window.invalidateInsets()
         updateVisibility()
         island?.let { view ->
             handler.post {
                 // A wallpaper or theme change arrives as a configuration change, and that is
                 // what moves the Material You palette, so re-read the colours here.
-                view.applySettings(settings)
-                refreshTouchStrip()
+                window.applySettings(settings)
                 view.snapToMode(view.mode)
             }
         }
-    }
-
-    private fun attach() {
-        if (attached) return
-        val view = IslandView(context, this)
-        // The window wraps the island tightly, so anything landing in the container's padding or
-        // in the touch strip was aimed at the island — forward it instead of dropping it.
-        val container = object : LinearLayout(context) {
-            override fun onTouchEvent(event: MotionEvent): Boolean {
-                if (event.actionMasked == MotionEvent.ACTION_OUTSIDE) {
-                    if (userStage != null) {
-                        userStage = null
-                        showingHistory = false
-                        render()
-                    }
-                    return false
-                }
-                return view.onTouchEvent(event)
-            }
-        }.apply {
-            orientation = LinearLayout.VERTICAL
-            gravity = Gravity.CENTER_HORIZONTAL
-            clipChildren = false
-            clipToPadding = false
-            isClickable = true
-        }
-
-        val strip = FrameLayout(context).apply {
-            addView(
-                View(context).apply {
-                    background = GradientDrawable().apply {
-                        cornerRadius = 2f.dp
-                        setColor(0x4DFFFFFF)
-                    }
-                },
-                FrameLayout.LayoutParams(26.dp, 3.dp, Gravity.CENTER)
-            )
-        }
-
-        container.addView(
-            view,
-            LinearLayout.LayoutParams(settings.collapsedWidth.dp, settings.collapsedHeight.dp)
-                .apply { gravity = Gravity.CENTER_HORIZONTAL }
-        )
-        container.addView(
-            strip,
-            LinearLayout.LayoutParams(STRIP_WIDTH.dp, 0)
-                .apply { gravity = Gravity.CENTER_HORIZONTAL }
-        )
-
-        runCatching {
-            windowManager?.addView(container, buildParams())
-            root = container
-            island = view
-            touchStrip = strip
-            attached = true
-            view.applySettings(settings)
-            view.snapToMode(IslandMode.PILL)
-            refreshTouchStrip()
-        }
-    }
-
-    private fun detach() {
-        val current = root ?: return
-        runCatching { windowManager?.removeViewImmediate(current) }
-        root = null
-        island = null
-        touchStrip = null
-        attached = false
-    }
-
-    private fun buildParams(): WindowManager.LayoutParams =
-        WindowManager.LayoutParams(
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
-            baseFlags(),
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            x = settings.offsetX.dp
-            y = windowY()
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
-                layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_SHORT_EDGES
-            }
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-                layoutInDisplayCutoutMode =
-                    WindowManager.LayoutParams.LAYOUT_IN_DISPLAY_CUTOUT_MODE_ALWAYS
-            }
-        }
-
-    /**
-     * Overlay windows are always layered below the system status bar, and the status bar
-     * consumes every touch inside its own band. Where the window starts therefore decides how
-     * much of the island can be touched at all.
-     */
-    private fun windowY(): Int = when (settings.positionMode) {
-        PositionMode.BELOW_STATUS_BAR -> settings.offsetY.dp + statusBarHeight()
-        PositionMode.OVERLAP_STATUS_BAR -> settings.offsetY.dp
-        PositionMode.CUSTOM -> settings.offsetY.dp
-    }
-
-    private var cachedStatusBar = 0
-
-    /**
-     * Height of the system status bar — the band where touches never reach us. Read from the
-     * platform's insets rather than the private status_bar_height resource, which is not an API
-     * and is not guaranteed to exist. Cached, and cleared when the configuration changes.
-     */
-    private fun statusBarHeight(): Int {
-        if (cachedStatusBar > 0) return cachedStatusBar
-        val fromMetrics = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
-            runCatching {
-                windowManager?.currentWindowMetrics?.windowInsets
-                    ?.getInsets(WindowInsets.Type.statusBars())?.top
-            }.getOrNull() ?: 0
-        } else {
-            0
-        }
-        val fromWindow = root?.let {
-            ViewCompat.getRootWindowInsets(it)
-                ?.getInsets(WindowInsetsCompat.Type.statusBars() or WindowInsetsCompat.Type.displayCutout())
-                ?.top
-        } ?: 0
-        val measured = maxOf(fromMetrics, fromWindow)
-        // 24dp is the Material status bar height, and what these releases draw without a cutout.
-        return if (measured > 0) measured.also { cachedStatusBar = it } else 24.dp
-    }
-
-    /**
-     * Sizes the transparent strip under the island. It is measured from the resting pill rather
-     * than the live height, so expanding and collapsing never re-lays-out the window.
-     */
-    private fun refreshTouchStrip() {
-        val container = root ?: return
-        val strip = touchStrip ?: return
-        val overlap = settings.positionMode == PositionMode.OVERLAP_STATUS_BAR
-        // Above the island is only ever the status bar's dead band except in the default anchor,
-        // so the offsets mean exactly "island top" everywhere else — which is also what the
-        // calibrator draws, so the two can be trusted to agree.
-        val topPadding = if (settings.positionMode == PositionMode.BELOW_STATUS_BAR) TOUCH_PADDING.dp else 0
-        if (container.paddingTop != topPadding) {
-            container.setPadding(TOUCH_PADDING.dp, topPadding, TOUCH_PADDING.dp, TOUCH_PADDING.dp)
-        }
-        val height = if (!overlap) 0 else {
-            val islandBottom = windowY() + settings.collapsedHeight.dp
-            (statusBarHeight() + settings.touchStripHeight.dp - islandBottom).coerceAtLeast(0)
-        }
-        val params = strip.layoutParams
-        if (params.height != height) {
-            params.height = height
-            strip.layoutParams = params
-        }
-        strip.getChildAt(0)?.visibility =
-            if (overlap && settings.showTouchHint && height > 6.dp) View.VISIBLE else View.INVISIBLE
-        pushHoleToIsland()
-    }
-
-    /**
-     * Hands the camera hole to the island in the island's own terms: an offset from its top
-     * centre. The island is centred at offsetX and its top edge is the window's top plus the
-     * container padding, both of which are known here and nowhere else.
-     */
-    private fun pushHoleToIsland() {
-        val view = island ?: return
-        val hole = settings.hole
-        if (hole == null) {
-            view.setHole(null, 0f, 0f)
-            return
-        }
-        val density = context.resources.displayMetrics.density
-        val islandTopDp = (windowY() + (root?.paddingTop ?: 0)) / density
-        view.setHole(hole, hole.centerX - settings.offsetX, hole.centerY - islandTopDp)
-    }
-
-    private fun baseFlags(): Int =
-        WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
-            WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS or
-            WindowManager.LayoutParams.FLAG_LAYOUT_IN_SCREEN or
-            WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH or
-            WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
-
-    private fun updateWindowParams() {
-        val current = root ?: return
-        val params = current.layoutParams as? WindowManager.LayoutParams ?: return
-        val x = settings.offsetX.dp
-        val y = windowY()
-        var flags = baseFlags()
-        val dim: Float
-        if (settings.dimBackgroundWhenExpanded && island?.mode == IslandMode.EXPANDED) {
-            flags = flags or WindowManager.LayoutParams.FLAG_DIM_BEHIND
-            dim = 0.32f
-        } else {
-            dim = 0f
-        }
-        // updateViewLayout forces a relayout of the whole window, so only call it on a real change.
-        if (params.x == x && params.y == y && params.flags == flags && params.dimAmount == dim) {
-            return
-        }
-        params.x = x
-        params.y = y
-        params.flags = flags
-        params.dimAmount = dim
-        runCatching { windowManager?.updateViewLayout(current, params) }
     }
 
     /** With the screen off there is nothing to draw, so the pollers go quiet too. */
@@ -409,7 +188,6 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     private fun updateVisibility() {
-        val view = root ?: return
         val landscape =
             context.resources.configuration.orientation == Configuration.ORIENTATION_LANDSCAPE
         val lockedOut = !settings.showOnLockScreen && keyguard?.isKeyguardLocked == true
@@ -420,7 +198,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         )
         val hide = (settings.hideInLandscape && landscape) || lockedOut || !screenOn ||
             temporarilyHidden || quiet
-        view.visibility = if (hide) View.INVISIBLE else View.VISIBLE
+        window.setVisible(!hide)
     }
 
     // ------------------------------------------------------------------ activity feed
@@ -447,23 +225,12 @@ class IslandController(private val context: Context) : IslandView.Listener {
             if (previous?.title != snapshot.title) markActivityChanged()
             activities.put(LiveActivity(
                 kind = ActivityKind.MEDIA,
-                presentation = mediaPresentation(snapshot),
+                presentation = presentations.media(snapshot),
                 expiresAt = Long.MAX_VALUE,
             ))
         }
         render()
     }
-
-    private fun mediaPresentation(snapshot: MediaSnapshot) = Presentation(
-        kind = ActivityKind.MEDIA,
-        leadingBitmap = snapshot.artwork,
-        leadingIcon = snapshot.appIcon ?: drawable(R.drawable.ic_music),
-        trailing = Trailing.Waveform(snapshot.playing, snapshot.accent),
-        accent = snapshot.accent,
-        title = snapshot.title,
-        subtitle = "${snapshot.artist} · ${snapshot.appLabel}",
-        body = ExpandedBody.Media(snapshot),
-    )
 
     fun onNotification(item: NotificationItem) {
         val kind = when {
@@ -508,18 +275,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         activities.put(
             LiveActivity(
                 kind = ActivityKind.CALL,
-                presentation = Presentation(
-                    kind = ActivityKind.CALL,
-                    leadingIcon = item.appIcon ?: item.smallIcon,
-                    leadingBitmap = item.largeIcon,
-                    trailing = Trailing.Waveform(true, 0xFF34C759.toInt()),
-                    accent = 0xFF34C759.toInt(),
-                    title = item.title.ifBlank { item.appLabel },
-                    subtitle = item.text.ifBlank { "Call" },
-                    body = ExpandedBody.Call(item),
-                    tapIntent = item.contentIntent,
-                    notificationKey = item.key,
-                ),
+                presentation = presentations.call(item),
                 // A call stays until its notification goes away.
                 expiresAt = Long.MAX_VALUE,
                 autoExpand = settings.autoExpandCalls,
@@ -538,25 +294,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         activities.put(
             LiveActivity(
                 kind = ActivityKind.ONGOING,
-                presentation = Presentation(
-                    kind = ActivityKind.ONGOING,
-                    leadingIcon = item.appIcon ?: item.smallIcon,
-                    leadingBitmap = item.largeIcon,
-                    trailing = if (item.hasProgress) {
-                        Trailing.Ring(
-                            item.progress.toFloat() / item.progressMax.coerceAtLeast(1),
-                            item.accent
-                        )
-                    } else {
-                        Trailing.Icon(item.smallIcon, item.accent)
-                    },
-                    accent = item.accent,
-                    title = item.title.ifBlank { item.appLabel },
-                    subtitle = item.text.ifBlank { item.appLabel },
-                    body = ExpandedBody.Ongoing(item),
-                    tapIntent = item.contentIntent,
-                    notificationKey = item.key,
-                ),
+                presentation = presentations.ongoing(item),
                 expiresAt = Long.MAX_VALUE,
             )
         )
@@ -566,25 +304,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun pushNotification(item: NotificationItem) {
         lastNotification = item
         if (settings.featureHistory) remember(item)
-        val presentation = Presentation(
-            kind = ActivityKind.NOTIFICATION,
-            leadingIcon = item.appIcon ?: item.smallIcon,
-            leadingBitmap = item.largeIcon,
-            trailing = when {
-                item.otp != null -> Trailing.Text(item.otp, item.accent)
-                settings.notificationStyle == NotificationStyle.PREVIEW ->
-                    Trailing.Text(item.title.take(18), item.accent)
-                settings.notificationStyle == NotificationStyle.MINIMAL ->
-                    Trailing.Text(item.appLabel.take(14), item.accent)
-                else -> Trailing.Icon(item.smallIcon, item.accent)
-            },
-            accent = item.accent,
-            title = item.title.ifBlank { item.appLabel },
-            subtitle = item.text.ifBlank { item.appLabel },
-            body = ExpandedBody.Notification(item),
-            tapIntent = item.contentIntent,
-            notificationKey = item.key,
-        )
+        val presentation = presentations.notification(item)
         // A passcode or a reply box is worth opening for; a plain alert is not.
         val worthExpanding = (item.otp != null && settings.autoExpandOtp) ||
             item.packageName in settings.autoExpandPackages
@@ -609,16 +329,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             push(
                 LiveActivity(
                     ActivityKind.BATTERY_LOW,
-                    Presentation(
-                        kind = ActivityKind.BATTERY_LOW,
-                        leadingIcon = drawable(R.drawable.ic_battery_full),
-                        leadingTint = 0xFFFF453A.toInt(),
-                        trailing = Trailing.Ring(state.level / 100f, 0xFFFF453A.toInt()),
-                        accent = 0xFFFF453A.toInt(),
-                        title = "Low battery",
-                        subtitle = "${state.level}% remaining",
-                        body = ExpandedBody.Charging(state.level, state.plugged, state.fast),
-                    ),
+                    presentations.batteryLow(state),
                     expiresAt = SystemClock.elapsedRealtime() + 5000,
                 )
             )
@@ -627,7 +338,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (!plugChanged || !settings.featureCharging) {
             // keep the charging card fresh if it is already on screen
             activities.peek(ActivityKind.CHARGING)?.let {
-                activities.put(it.copy(presentation = chargingPresentation(state)))
+                activities.put(it.copy(presentation = presentations.charging(state)))
                 render()
             }
             return
@@ -635,33 +346,11 @@ class IslandController(private val context: Context) : IslandView.Listener {
         push(
             LiveActivity(
                 ActivityKind.CHARGING,
-                chargingPresentation(state),
+                presentations.charging(state),
                 expiresAt = SystemClock.elapsedRealtime() + 4500,
             )
         )
     }
-
-    private fun chargingPresentation(state: BatteryState) = Presentation(
-        kind = ActivityKind.CHARGING,
-        leadingIcon = drawable(
-            if (state.plugged) R.drawable.ic_battery_charging else R.drawable.ic_battery_full
-        ),
-        leadingTint = if (state.plugged) 0xFF34C759.toInt() else 0xFFFFFFFF.toInt(),
-        trailing = Trailing.Ring(
-            state.level / 100f,
-            if (state.plugged) 0xFF34C759.toInt() else 0xFFFFFFFF.toInt(),
-            "${state.level}"
-        ),
-        accent = if (state.plugged) 0xFF34C759.toInt() else 0xFF8E8E93.toInt(),
-        title = when {
-            state.full -> "Fully charged"
-            state.plugged && state.fast -> "Fast charging"
-            state.plugged -> "Charging"
-            else -> "Unplugged"
-        },
-        subtitle = "Battery ${state.level}%",
-        body = ExpandedBody.Charging(state.level, state.plugged, state.fast),
-    )
 
     private fun onVolume(stream: Int, level: Int, max: Int) {
         if (!settings.featureVolume) return
@@ -669,17 +358,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         push(
             LiveActivity(
                 ActivityKind.VOLUME,
-                Presentation(
-                    kind = ActivityKind.VOLUME,
-                    leadingIcon = drawable(
-                        if (level == 0) R.drawable.ic_volume_off else R.drawable.ic_volume_up
-                    ),
-                    trailing = Trailing.Ring(fraction, islandAccent(), "${(fraction * 100).toInt()}"),
-                    accent = islandAccent(),
-                    title = if (stream == AudioManager.STREAM_MUSIC) "Media volume" else "Ring volume",
-                    subtitle = "${(fraction * 100).toInt()}%",
-                    body = ExpandedBody.QuickPanel,
-                ),
+                presentations.volume(stream, level, fraction),
                 expiresAt = SystemClock.elapsedRealtime() + 1600,
             )
         )
@@ -695,15 +374,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         push(
             LiveActivity(
                 ActivityKind.RINGER,
-                Presentation(
-                    kind = ActivityKind.RINGER,
-                    leadingIcon = drawable(iconRes),
-                    trailing = Trailing.Text(title),
-                    accent = islandAccent(),
-                    title = title,
-                    subtitle = "Ringer mode",
-                    body = ExpandedBody.Message(title, "Ringer mode changed"),
-                ),
+                presentations.ringer(iconRes, title),
                 expiresAt = SystemClock.elapsedRealtime() + 1500,
             )
         )
@@ -715,16 +386,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         push(
             LiveActivity(
                 ActivityKind.UNLOCK,
-                Presentation(
-                    kind = ActivityKind.UNLOCK,
-                    leadingIcon = drawable(R.drawable.ic_unlock),
-                    leadingTint = 0xFF34C759.toInt(),
-                    trailing = Trailing.Text("Unlocked", 0xFF34C759.toInt()),
-                    accent = 0xFF34C759.toInt(),
-                    title = "Unlocked",
-                    subtitle = null,
-                    body = ExpandedBody.Message("Unlocked", null),
-                ),
+                presentations.unlocked(),
                 expiresAt = SystemClock.elapsedRealtime() + 1400,
             )
         )
@@ -745,16 +407,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         push(
             LiveActivity(
                 ActivityKind.PRIVACY,
-                Presentation(
-                    kind = ActivityKind.PRIVACY,
-                    leadingIcon = drawable(iconRes),
-                    leadingTint = 0xFF34C759.toInt(),
-                    trailing = Trailing.Icon(drawable(iconRes), 0xFF34C759.toInt()),
-                    accent = 0xFF34C759.toInt(),
-                    title = label,
-                    subtitle = "Privacy indicator",
-                    body = ExpandedBody.Message(label, "An app is using a sensor right now"),
-                ),
+                presentations.privacy(iconRes, label),
                 expiresAt = SystemClock.elapsedRealtime() + 3000,
             )
         )
@@ -778,16 +431,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
         activities.put(LiveActivity(
             ActivityKind.TIMER,
-            Presentation(
-                kind = ActivityKind.TIMER,
-                leadingIcon = drawable(R.drawable.ic_timer),
-                leadingTint = islandAccent(),
-                trailing = Trailing.Text(IslandView.formatDuration(remaining, true), islandAccent()),
-                accent = islandAccent(),
-                title = "Timer",
-                subtitle = IslandView.formatDuration(remaining, true),
-                body = ExpandedBody.Timer(remaining, total, running),
-            ),
+            presentations.timer(remaining, total, running),
             expiresAt = Long.MAX_VALUE,
         ))
         val view = island
@@ -804,16 +448,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         push(
             LiveActivity(
                 ActivityKind.NOTIFICATION,
-                Presentation(
-                    kind = ActivityKind.NOTIFICATION,
-                    leadingIcon = drawable(R.drawable.ic_timer),
-                    leadingTint = islandAccent(),
-                    trailing = Trailing.Text("Done", islandAccent()),
-                    accent = islandAccent(),
-                    title = "Timer finished",
-                    subtitle = null,
-                    body = ExpandedBody.Message("Timer finished", null),
-                ),
+                presentations.timerFinished(),
                 expiresAt = SystemClock.elapsedRealtime() + 4000,
             )
         )
@@ -842,16 +477,6 @@ class IslandController(private val context: Context) : IslandView.Listener {
         lastActivityChangeAt = SystemClock.elapsedRealtime()
     }
 
-    private fun idlePresentation(): Presentation = Presentation(
-        kind = ActivityKind.IDLE,
-        leadingIcon = drawable(R.drawable.ic_island),
-        trailing = Trailing.None,
-        accent = islandAccent(),
-        title = "Notch Island",
-        subtitle = null,
-        body = ExpandedBody.QuickPanel,
-    )
-
     private fun render() = runCatching { renderInternal() }.getOrElse {
         // A render must never take the service down with it.
         android.util.Log.w("NotchIsland", "render failed", it)
@@ -863,8 +488,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
         val top = currentTop()
         val presentation = when {
-            showingHistory && userStage != null -> historyPresentation()
-            else -> top?.presentation ?: idlePresentation()
+            showingHistory && userStage != null -> presentations.history(history.toList())
+            else -> top?.presentation ?: presentations.idle()
         }
         view.setPresentation(presentation)
 
@@ -885,7 +510,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             // Guards against a cancelled animation leaving the island stuck at the wrong size.
             view.ensureSized(target)
         }
-        updateWindowParams()
+        window.updateParams()
         updateVisibility()
 
         // keep the media clock ticking only while it is visible
@@ -930,12 +555,6 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun drawable(res: Int): Drawable? = ContextCompat.getDrawable(context, res)
 
     private companion object {
-        /** Slop around the island so a near miss still counts as a tap. */
-        const val TOUCH_PADDING = 14
-
-        /** Width of the transparent strip that catches taps in overlap mode. */
-        const val STRIP_WIDTH = 96
-
         /** How many notifications the island remembers for its history panel. */
         const val HISTORY_LIMIT = 12
     }
@@ -1086,7 +705,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         val fill = Intent()
         RemoteInput.addResultsToIntent(reply.remoteInputs, fill, results)
         if (!PendingIntents.send(context, intent, fill)) toast("Could not send the reply")
-        setWindowFocusable(false)
+        window.setFocusable(false)
         userStage = null
         activities.remove(ActivityKind.NOTIFICATION)
         haptics.pop()
@@ -1094,7 +713,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     override fun onReplyFocusChanged(active: Boolean) {
-        setWindowFocusable(active)
+        window.setFocusable(active)
         if (active) {
             // Do not collapse the island out from under someone who is typing.
             handler.removeCallbacks(collapseRunnable)
@@ -1131,16 +750,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         activities.put(
             LiveActivity(
                 ActivityKind.STOPWATCH,
-                Presentation(
-                    kind = ActivityKind.STOPWATCH,
-                    leadingIcon = drawable(R.drawable.ic_stopwatch),
-                    leadingTint = islandAccent(),
-                    trailing = Trailing.Text(formatStopwatch(elapsed), islandAccent()),
-                    accent = islandAccent(),
-                    title = "Stopwatch",
-                    subtitle = formatStopwatch(elapsed),
-                    body = ExpandedBody.Stopwatch(elapsed, running, stopwatch.laps.toList()),
-                ),
+                presentations.stopwatch(elapsed, running, stopwatch.laps.toList()),
                 expiresAt = Long.MAX_VALUE,
             )
         )
@@ -1161,36 +771,6 @@ class IslandController(private val context: Context) : IslandView.Listener {
         render()
     }
 
-    /**
-     * The overlay is unfocusable so it never steals input, but an inline reply needs the
-     * keyboard, so focus is granted only while the field is being used.
-     */
-    private fun setWindowFocusable(focusable: Boolean) {
-        val current = root ?: return
-        val params = current.layoutParams as? WindowManager.LayoutParams ?: return
-        val wantFlags = if (focusable) {
-            (baseFlags() and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()) or
-                WindowManager.LayoutParams.FLAG_DIM_BEHIND
-        } else {
-            baseFlags()
-        }
-        if (params.flags == wantFlags) return
-        params.flags = wantFlags
-        params.softInputMode = if (focusable) {
-            // The keyboard rises from the bottom and the island lives at the top, so nothing
-            // needs resizing — just ask for the keyboard.
-            WindowManager.LayoutParams.SOFT_INPUT_STATE_VISIBLE
-        } else {
-            WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
-        }
-        if (focusable) params.dimAmount = 0.4f
-        runCatching { windowManager?.updateViewLayout(current, params) }
-        if (!focusable) {
-            island?.clearReplyFocus()
-            updateWindowParams()
-        }
-    }
-
     private fun toast(message: String) {
         runCatching { Toast.makeText(context, message, Toast.LENGTH_SHORT).show() }
     }
@@ -1209,16 +789,6 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private fun openEverything() {
         userStage = IslandMode.EXPANDED
     }
-
-    private fun historyPresentation() = Presentation(
-        kind = ActivityKind.IDLE,
-        leadingIcon = drawable(R.drawable.ic_bell),
-        leadingTint = islandAccent(),
-        accent = islandAccent(),
-        title = "Recent",
-        subtitle = "${history.size} notification(s)",
-        body = ExpandedBody.History(history.toList()),
-    )
 
     private fun openPresentationTarget() {
         val top = currentTop()?.presentation
