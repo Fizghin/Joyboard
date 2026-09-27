@@ -1,5 +1,25 @@
 # Changelog
 
+## 2.8
+
+New live activities and a split island.
+
+- **Two at once.** A second long-lived activity — a timer while music plays, a download during
+  directions — waits in a round bubble beside the compact island. Tap it to swap the two; the
+  choice holds until one ends, though notifications still pass through and calls always win.
+  The island stays centred on the camera while the bubble comes and goes. *Behaviour → Two at
+  once* turns it off.
+- **Directions** from Google Maps, Waze, OsmAnd, Organic Maps, HERE, Sygic and other maps apps:
+  the app's arrow and the distance in the compact island; opened, the distance in large type, the
+  turn, the arrival time and the app's own buttons. A new turn brings the readout back up.
+- **Quick timers.** The resting panel has 1, 5, 10 and 25-minute timers and a stopwatch button.
+- **Battery heat.** The charging panel shows the battery's temperature, and the island warns once
+  when it passes 45 °C, with what to do about it; it warns again only after cooling below 42.
+- **Network speed** (off unless switched on): the transfer rate while something downloads or
+  uploads faster than 256 KB/s for a few seconds. It samples only while the screen is on.
+- **Pinned note.** Write a short note in *Live activities → Pinned note*; it stays on the island,
+  below everything else, until you tap *Done*.
+
 ## 2.7
 
 A redesign of the island itself.

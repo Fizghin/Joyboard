@@ -81,6 +81,12 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         fun currentWeather(): WeatherReport? = null
         /** The next alarm, in epoch ms, when it is switched on and within a day. */
         fun nextAlarm(): Long? = null
+        /** A countdown started from the quick panel. */
+        fun onStartTimer(minutes: Int) = Unit
+        /** The stopwatch started from the quick panel. */
+        fun onStartStopwatch() = Unit
+        /** The bubble beside the island, holding a second activity, was tapped. */
+        fun onSecondaryTap() = Unit
     }
 
     // ------------------------------------------------------------------ state
@@ -311,6 +317,9 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
     // ------------------------------------------------------------------ public API
 
+    /** The island's own fill right now, for anything drawn to match it. */
+    val surfaceColor: Int get() = bgDrawable.color?.defaultColor ?: Color.BLACK
+
     fun applySettings(s: IslandSettings) {
         settings = s
         cachedExpandedKey = null
@@ -447,7 +456,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
      * no header when fully open; the header comes back for the smaller card, which is all header.
      */
     private fun selfContained(p: Presentation): Boolean = when (p.body) {
-        is ExpandedBody.Timer, is ExpandedBody.Stopwatch, is ExpandedBody.Charging, is ExpandedBody.Call -> true
+        is ExpandedBody.Timer, is ExpandedBody.Stopwatch, is ExpandedBody.Charging, is ExpandedBody.Call,
+        is ExpandedBody.Navigation -> true
         ExpandedBody.QuickPanel -> p.kind == ActivityKind.IDLE
         else -> false
     }
@@ -848,7 +858,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         }
         is ExpandedBody.Charging ->
             "charging|${body.level}|${body.plugged}|${body.fast}|${body.warning}|" +
-                "${body.fullInMs?.let { it / 60_000 }}|$accent"
+                "${body.fullInMs?.let { it / 60_000 }}|${body.temperatureC?.roundToInt()}|$accent"
         is ExpandedBody.Timer -> "timer|${body.running}|$accent"
         is ExpandedBody.Message -> "message|${body.title}|${body.subtitle}|${body.actionLabel}"
         is ExpandedBody.Ongoing -> with(body.item) {
@@ -859,8 +869,11 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         is ExpandedBody.History ->
             "history|${body.items.joinToString(",") { it.key }}|$accent"
         // The quick panel shows a clock, so it is allowed to go stale for at most a minute.
+        is ExpandedBody.Navigation -> with(body) {
+            "navigation|${item.key}|$info|${item.actions.size}|${item.largeIcon?.generationId}|$accent"
+        }
         ExpandedBody.QuickPanel ->
-            "quick|$accent|${System.currentTimeMillis() / 60_000L}|" +
+            "quick|$accent|${settings.quickTimers}|${settings.featureTimer}|${settings.featureStopwatch}|${System.currentTimeMillis() / 60_000L}|" +
                 listener.currentWeather()?.let { "${it.degrees}${it.sky}" } + "|" + listener.nextAlarm()
     }
 

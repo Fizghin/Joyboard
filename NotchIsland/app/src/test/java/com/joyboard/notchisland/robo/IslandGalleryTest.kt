@@ -5,6 +5,7 @@ import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
+import android.graphics.Path
 import android.media.AudioManager
 import android.os.Looper
 import android.view.Gravity
@@ -21,6 +22,8 @@ import com.joyboard.notchisland.island.BatteryState
 import com.joyboard.notchisland.island.CalendarEvent
 import com.joyboard.notchisland.island.Hole
 import com.joyboard.notchisland.island.IslandMode
+import com.joyboard.notchisland.island.IslandController
+import com.joyboard.notchisland.island.SpeedReading
 import com.joyboard.notchisland.island.IslandView
 import com.joyboard.notchisland.island.NotificationAction
 import com.joyboard.notchisland.island.NotificationItem
@@ -67,6 +70,21 @@ class IslandGalleryTest {
         c.drawCircle(60f, 118f, 44f, Paint().apply { color = Color.WHITE; isAntiAlias = true })
     }
 
+    /** A turn-left arrow, the way a maps app draws the next manoeuvre. */
+    private fun arrow(): Bitmap = Bitmap.createBitmap(120, 120, Bitmap.Config.ARGB_8888).apply {
+        val c = Canvas(this)
+        val stroke = Paint().apply {
+            color = Color.WHITE; isAntiAlias = true; style = Paint.Style.STROKE
+            strokeWidth = 16f; strokeCap = Paint.Cap.ROUND; strokeJoin = Paint.Join.ROUND
+        }
+        c.drawPath(Path().apply {
+            moveTo(78f, 110f); lineTo(78f, 62f); quadTo(78f, 42f, 58f, 42f); lineTo(36f, 42f)
+        }, stroke)
+        c.drawPath(Path().apply {
+            moveTo(14f, 42f); lineTo(40f, 18f); lineTo(40f, 66f); close()
+        }, Paint().apply { color = Color.WHITE; isAntiAlias = true })
+    }
+
     private fun item(
         title: String, text: String, category: String? = null, ongoing: Boolean = false, progress: Int = -1,
         actions: List<String> = emptyList(), otp: String? = null,
@@ -105,7 +123,7 @@ class IslandGalleryTest {
         both("b_passcode", presentations.notification(item("Bank", "Your code is 482915", otp = "482915")))
         both("c_call", presentations.call(item("Mia", "Incoming call", category = "call", actions = listOf("Decline", "Answer"))))
         both("d_download", presentations.ongoing(item("Downloading", "holiday-photos.zip · 64%", ongoing = true, progress = 64)))
-        both("e_charging", presentations.charging(BatteryState(76, plugged = true, fast = true, full = false)))
+        both("e_charging", presentations.charging(BatteryState(76, plugged = true, fast = true, full = false, temperatureC = 31f)))
         both("f_battery_low", presentations.batteryLow(BatteryState(12, plugged = false, fast = false, full = false)))
         both("g_timer", presentations.timer(272_000, 300_000, running = true))
         both("h_stopwatch", presentations.stopwatch(83_450, running = true, laps = listOf(41_200, 79_900)))
@@ -125,5 +143,32 @@ class IslandGalleryTest {
         render("u_notification", presentations.notification(item("Mia", "Are we still on for 7? I can bring the tickets.")), IslandMode.MEDIUM)
         render("v_timer", presentations.timer(272_000, 300_000, running = true), IslandMode.MEDIUM)
         both("w_microphone", presentations.privacy(R.drawable.ic_mic, "Microphone in use"))
+        both("x_navigation", presentations.navigation(
+            item("250 m", "Turn left onto High St", ongoing = true, actions = listOf("Exit navigation"))
+                .copy(category = "navigation", largeIcon = arrow(), subText = "8 min · 2.1 km · 10:42 ETA")
+        ))
+        both("y_network", presentations.network(SpeedReading(2_516_582, 131_072, active = true)))
+        both("z_battery_hot", presentations.batteryHot(BatteryState(64, plugged = true, fast = false, full = false, temperatureC = 46f)))
+        both("za_note", presentations.note("Buy milk and bread on the way home"))
+    }
+
+    /** Two at once: the timer in front and the torch in the bubble beside it, through the real window. */
+    @Test
+    fun split() {
+        val controller = IslandController(activity.applicationContext)
+        controller.start(settings.copy(enabled = true, hapticsEnabled = false, featureMedia = false, featurePrivacy = false))
+        controller.onStartTimer(5)
+        controller.torchChanged(true)
+        controller.onRequestMode(IslandMode.COMPACT)
+        shadowOf(Looper.getMainLooper()).idleFor(Duration.ofSeconds(2))
+        try {
+            // The overlay is a window of its own, outside the activity, so it is drawn by hand.
+            val root = controller.islandRootView!!
+            val bitmap = Bitmap.createBitmap(root.width, root.height, Bitmap.Config.ARGB_8888)
+            Canvas(bitmap).also { it.drawColor(Color.rgb(242, 242, 247)); root.draw(it) }
+            bitmap.captureRoboImage("build/outputs/roborazzi/gallery/zb_split_compact.png")
+        } finally {
+            controller.stop()
+        }
     }
 }

@@ -66,6 +66,12 @@ object SettingsCodec {
         put("featureHeadphones", settings.featureHeadphones)
         put("featureFlashlight", settings.featureFlashlight)
         put("featureFocus", settings.featureFocus)
+        put("featureNavigation", settings.featureNavigation)
+        put("splitIsland", settings.splitIsland)
+        put("quickTimers", settings.quickTimers)
+        put("featureBatteryHeat", settings.featureBatteryHeat)
+        put("featureNetworkSpeed", settings.featureNetworkSpeed)
+        put("pinnedNote", settings.pinnedNote)
         put("showNextAlarm", settings.showNextAlarm)
         put("featureWeather", settings.featureWeather)
         put("rainAlerts", settings.rainAlerts)
@@ -176,6 +182,12 @@ object SettingsCodec {
             featureHeadphones = o.optBoolean("featureHeadphones", base.featureHeadphones),
             featureFlashlight = o.optBoolean("featureFlashlight", base.featureFlashlight),
             featureFocus = o.optBoolean("featureFocus", base.featureFocus),
+            featureNavigation = o.optBoolean("featureNavigation", base.featureNavigation),
+            splitIsland = o.optBoolean("splitIsland", base.splitIsland),
+            quickTimers = o.optBoolean("quickTimers", base.quickTimers),
+            featureBatteryHeat = o.optBoolean("featureBatteryHeat", base.featureBatteryHeat),
+            featureNetworkSpeed = o.optBoolean("featureNetworkSpeed", base.featureNetworkSpeed),
+            pinnedNote = o.optString("pinnedNote", base.pinnedNote).take(PINNED_NOTE_MAX),
             showNextAlarm = o.optBoolean("showNextAlarm", base.showNextAlarm),
             featureWeather = o.optBoolean("featureWeather", base.featureWeather),
             rainAlerts = o.optBoolean("rainAlerts", base.rainAlerts),

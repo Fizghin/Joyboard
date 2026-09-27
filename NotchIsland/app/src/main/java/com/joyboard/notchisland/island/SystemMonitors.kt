@@ -12,6 +12,8 @@ import android.os.BatteryManager
 import android.os.Build
 import android.os.Handler
 import android.os.Looper
+import android.net.TrafficStats
+import android.os.SystemClock
 import android.provider.Settings
 import androidx.core.content.ContextCompat
 
@@ -23,6 +25,8 @@ data class BatteryState(
     val full: Boolean,
     /** Time to a full charge, when plugged in and the system can estimate it. */
     val fullInMs: Long? = null,
+    /** The battery's temperature, when the phone reports one. */
+    val temperatureC: Float? = null,
 )
 
 class BatteryMonitor(
@@ -90,7 +94,44 @@ class BatteryMonitor(
             fast = plug == BatteryManager.BATTERY_PLUGGED_AC,
             full = status == BatteryManager.BATTERY_STATUS_FULL || percent >= 100,
             fullInMs = if (plug != 0) chargeTimeRemaining() else null,
+            // Reported in tenths of a degree; absent on some emulators and odd hardware.
+            temperatureC = intent.getIntExtra(BatteryManager.EXTRA_TEMPERATURE, Int.MIN_VALUE)
+                .takeIf { it != Int.MIN_VALUE && it > -400 }?.let { it / 10f },
         )
+    }
+}
+
+/**
+ * Samples the phone's total bytes in and out every second and a half — only while started, which
+ * the controller limits to the setting being on and the screen being on.
+ */
+class NetworkSpeedMonitor(private val onReading: (SpeedReading) -> Unit) {
+    private val handler = Handler(Looper.getMainLooper())
+    private val meter = SpeedMeter()
+    private var running = false
+    private val tick = object : Runnable {
+        override fun run() {
+            if (!running) return
+            meter.feed(TrafficStats.getTotalRxBytes(), TrafficStats.getTotalTxBytes(), SystemClock.elapsedRealtime())
+                ?.let(onReading)
+            handler.postDelayed(this, INTERVAL_MS)
+        }
+    }
+
+    fun start() {
+        if (running) return
+        running = true
+        meter.reset()
+        handler.post(tick)
+    }
+
+    fun stop() {
+        running = false
+        handler.removeCallbacks(tick)
+    }
+
+    private companion object {
+        const val INTERVAL_MS = 1_500L
     }
 }
 

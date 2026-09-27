@@ -1,14 +1,14 @@
 {
-  "versionCode": 13,
-  "versionName": "2.7",
+  "versionCode": 14,
+  "versionName": "2.8",
   "mandatory": false,
   "notes": [
-    "A redesigned island: every activity in its own colour, and nothing said twice",
-    "New timer, stopwatch, battery and call layouts; Battery Saver on low battery; time to full charge",
-    "Fixed invisible charging and download rings in the compact island"
+    "Two at once: a second live activity waits in a bubble beside the island; tap to swap",
+    "Directions from Google Maps, Waze and other maps apps; quick timers in the resting panel",
+    "Battery heat warning and temperature, optional network speed, and a pinned note"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 2109301,
-  "debugSizeBytes": 20814810
+  "sizeBytes": 2137237,
+  "debugSizeBytes": 20859384
 }

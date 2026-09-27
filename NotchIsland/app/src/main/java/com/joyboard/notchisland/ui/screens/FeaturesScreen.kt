@@ -76,6 +76,16 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.rounded.Send
+import androidx.compose.material.icons.rounded.Directions
+import androidx.compose.material.icons.rounded.MoreTime
+import androidx.compose.material.icons.rounded.NoteAlt
+import androidx.compose.material.icons.rounded.Speed
+import androidx.compose.material.icons.rounded.Thermostat
+import androidx.compose.material.icons.rounded.ViewColumn
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import com.joyboard.notchisland.ui.components.NoteDialog
 
 private fun formatMinutes(minuteOfDay: Int): String {
     val hours = (minuteOfDay / 60) % 24
@@ -87,6 +97,18 @@ private fun formatMinutes(minuteOfDay: Int): String {
 fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
     val settings by viewModel.settings.collectAsStateLifecycle()
     val permissions by viewModel.permissions.collectAsStateLifecycle()
+    var editingNote by remember { mutableStateOf(false) }
+
+    if (editingNote) {
+        NoteDialog(
+            initial = settings.pinnedNote,
+            onDismiss = { editingNote = false },
+            onSave = { note ->
+                viewModel.update { it.copy(pinnedNote = note) }
+                editingNote = false
+            }
+        )
+    }
 
     Column(
         modifier = Modifier
@@ -144,6 +166,14 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 onCheckedChange = { value -> viewModel.update { it.copy(featureBatteryLow = value) } }
             )
             SwitchRow(
+                title = stringResource(R.string.battery_heat),
+                icon = Icons.Rounded.Thermostat,
+                tint = Tint.Red,
+                subtitle = stringResource(R.string.battery_heat_desc),
+                checked = settings.featureBatteryHeat,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureBatteryHeat = value) } }
+            )
+            SwitchRow(
                 title = stringResource(R.string.volume),
                 icon = Icons.Rounded.VolumeUp,
                 tint = Tint.Blue,
@@ -175,6 +205,18 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.featureTimer,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureTimer = value) } }
             )
+            AnimatedVisibility(visible = settings.featureTimer) {
+                Column {
+                    SwitchRow(
+                        title = stringResource(R.string.quick_timers),
+                        icon = Icons.Rounded.MoreTime,
+                        tint = Tint.Orange,
+                        subtitle = stringResource(R.string.quick_timers_desc),
+                        checked = settings.quickTimers,
+                        onCheckedChange = { value -> viewModel.update { it.copy(quickTimers = value) } }
+                    )
+                }
+            }
             SwitchRow(
                 title = stringResource(R.string.privacy_indicators),
                 icon = Icons.Rounded.Mic,
@@ -200,6 +242,24 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.featureOngoing,
                 enabled = permissions.notificationAccess,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureOngoing = value) } }
+            )
+            SwitchRow(
+                title = stringResource(R.string.navigation),
+                icon = Icons.Rounded.Directions,
+                tint = Tint.Blue,
+                subtitle = if (permissions.notificationAccess) stringResource(R.string.navigation_desc)
+                else stringResource(R.string.needs_notification_access),
+                checked = settings.featureNavigation,
+                enabled = permissions.notificationAccess,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureNavigation = value) } }
+            )
+            SwitchRow(
+                title = stringResource(R.string.network_speed),
+                icon = Icons.Rounded.Speed,
+                tint = Tint.Cyan,
+                subtitle = stringResource(R.string.network_speed_desc),
+                checked = settings.featureNetworkSpeed,
+                onCheckedChange = { value -> viewModel.update { it.copy(featureNetworkSpeed = value) } }
             )
             SwitchRow(
                 title = stringResource(R.string.stopwatch),
@@ -334,6 +394,13 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 subtitle = stringResource(R.string.keeps_last_dozen_you_can),
                 checked = settings.featureHistory,
                 onCheckedChange = { value -> viewModel.update { it.copy(featureHistory = value) } }
+            )
+            NavRow(
+                title = stringResource(R.string.pinned_note),
+                icon = Icons.Rounded.NoteAlt,
+                tint = Tint.Yellow,
+                subtitle = settings.pinnedNote.ifBlank { stringResource(R.string.pinned_note_desc) },
+                onClick = { editingNote = true }
             )
         }
 
@@ -490,6 +557,14 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
         }
 
         SectionCard(title = stringResource(R.string.behaviour)) {
+            SwitchRow(
+                title = stringResource(R.string.split_island),
+                icon = Icons.Rounded.ViewColumn,
+                tint = Tint.Indigo,
+                subtitle = stringResource(R.string.split_island_desc),
+                checked = settings.splitIsland,
+                onCheckedChange = { value -> viewModel.update { it.copy(splitIsland = value) } }
+            )
             SwitchRow(
                 title = stringResource(R.string.always_show_pill),
                 icon = Icons.Rounded.Adjust,

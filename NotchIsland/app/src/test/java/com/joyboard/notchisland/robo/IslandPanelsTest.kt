@@ -184,6 +184,59 @@ class IslandPanelsTest {
     }
 
     @Test
+    fun `the resting panel offers timers, and each starts its own length`() {
+        val started = mutableListOf<Int>()
+        val panelIsland = IslandView(activity, object : IslandView.Listener by FakeListener() {
+            override fun onStartTimer(minutes: Int) { started += minutes }
+        }).also {
+            activity.setContentView(FrameLayout(activity).apply { addView(it, FrameLayout.LayoutParams(1, 1)) })
+            it.applySettings(settings)
+        }
+        panelIsland.setPresentation(presentations.idle())
+        panelIsland.snapToMode(IslandMode.EXPANDED)
+        shadowOf(Looper.getMainLooper()).idle()
+        for (minutes in listOf(1, 5, 10, 25)) {
+            findByDescription(panelIsland, activity.getString(R.string.start_timer_minutes, minutes))!!.performClick()
+        }
+        assertEquals(listOf(1, 5, 10, 25), started)
+    }
+
+    @Test
+    fun `no timer buttons when they are switched off`() {
+        val off = IslandSettings(quickTimers = false)
+        island.applySettings(off)
+        show(Presentations(activity, accent = { Color.BLUE }, settings = { off }).idle(), IslandMode.EXPANDED)
+        assertEquals(null, visibleWithDescription(activity.getString(R.string.start_timer_minutes, 5)))
+    }
+
+    @Test
+    fun `directions show the distance, the turn and the arrival, once each`() {
+        val route = item("250 m", "Turn left onto High St").copy(
+            category = "navigation", ongoing = true, subText = "10:42 ETA",
+        )
+        show(presentations.navigation(route), IslandMode.EXPANDED)
+        val texts = visibleTexts()
+        assertEquals(texts.toString(), 1, texts.count { it == "250 m" })
+        assertEquals(texts.toString(), 1, texts.count { it == "Turn left onto High St" })
+        assertEquals(texts.toString(), 1, texts.count { it == "10:42 ETA" })
+    }
+
+    @Test
+    fun `charging shows the battery's temperature when heat is on`() {
+        val state = BatteryState(60, plugged = true, fast = false, full = false, temperatureC = 31.4f)
+        show(presentations.charging(state), IslandMode.EXPANDED)
+        val degrees = activity.getString(R.string.celsius, 31)
+        assertTrue(visibleTexts().toString(), visibleTexts().any { degrees in it })
+    }
+
+    private fun findByDescription(root: View, label: String): View? {
+        if (!root.isShown) return null
+        if (root.contentDescription?.toString() == label) return root
+        if (root is ViewGroup) for (i in 0 until root.childCount) findByDescription(root.getChildAt(i), label)?.let { return it }
+        return null
+    }
+
+    @Test
     fun `call buttons are told apart by what they say`() {
         assertEquals(IslandPanels.CallAction.END, IslandPanels.callActionStyle("Decline"))
         assertEquals(IslandPanels.CallAction.END, IslandPanels.callActionStyle("Hang up"))

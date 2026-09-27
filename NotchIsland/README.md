@@ -84,14 +84,22 @@ priority queue and shows the winner:
 | Unlock confirmation | | 1.4 s |
 | Privacy indicator (mic / camera) | | while the sensor is live |
 | Volume change | | 1.6 s |
+| Do Not Disturb on / off | | 2 s |
 | Ringer mode change | | 1.5 s |
+| Headphones connected / disconnected | | 3 s |
+| Battery running hot | | 6 s |
 | Low battery warning | | 5 s |
 | Charging / unplugged | | 4.5 s |
+| Rain due soon | | 6 s |
+| Navigation | | while the route lasts |
 | Stopwatch | | until reset |
 | Timer countdown | | until it finishes |
-| Ongoing activity (navigation, download, delivery) | | until its notification goes |
+| Flashlight | | while the torch is on |
+| Ongoing activity (download, delivery, recording) | | until its notification goes |
+| Network speed | | while a transfer stays fast |
 | Next calendar event | | from the lead time until 5 min in |
-| Now playing | lowest | while a media session exists |
+| Now playing | | while a media session exists |
+| Pinned note | lowest | until you tick it off |
 
 The ordering rules live in `ActivityQueue`, which has no Android dependencies and is covered by
 unit tests — the "sticky activity resurfaces once the transient one expires" behaviour is a test,
@@ -99,6 +107,28 @@ not a hope.
 
 Transient activities fade back to whatever sticky activity is underneath — pause a song mid-way
 through a notification and the island returns to the now-playing readout, not to nothing.
+
+**Two at once.** When two long-lived activities are running — music and a timer, directions and
+a download — the second waits in a small round bubble beside the compact island, as on the
+iPhone. Tap the bubble and the two swap; your choice holds until one of them ends, though a
+passing notification still takes over for its few seconds and a call always wins. The island
+stays exactly over the camera while the bubble comes and goes: an invisible twin of the bubble
+balances it on the other side.
+
+<img src="docs/screenshots/island_split.png" width="620" alt="Compact islands for directions, network speed, a hot battery and a pinned note, and below them a timer with the flashlight in a bubble beside it" />
+
+**Directions.** Google Maps, Waze, OsmAnd, Organic Maps, HERE, Sygic and others post their route
+as a notification; the island turns it into the next turn — the app's own arrow, how far, what to
+do there — and the arrival time, with the app's buttons (*Exit navigation*) underneath. A new turn
+brings the compact readout back up; the distance counting down does not.
+
+**Battery heat, network speed and a pinned note.** The charging panel shows the battery's
+temperature, and the island warns once when it passes 45 °C — again only after it has cooled
+below 42. *Network speed* (off unless switched on) shows the rate while something transfers
+faster than 256 KB/s for a few seconds, and goes when it slows. And a *Pinned note* stays on the
+island, below everything else, until you tap *Done*.
+
+<img src="docs/screenshots/island_more.png" width="620" alt="Open island for directions with an arrow, 250 m and Turn left onto High St; a hot battery warning; network speed; a pinned note with a Done button; the resting panel with timer buttons; and charging with the battery temperature" />
 
 **Now playing.** Album art on the left, dancing waveform on the right. Expand for a scrubbable
 progress bar, previous / play / next, what is *up next* (when the player publishes its queue), a
@@ -160,7 +190,8 @@ the body, the notification's own action buttons, Open and Dismiss. On top of tha
   helper) keep the island hidden while that app is open.
 
 **Quick panel.** Expanding the idle island gives you a clock and date beside the weather and next
-alarm (when those are switched on), brightness and volume sliders, and round toggles for flashlight, Wi-Fi, Bluetooth, Do Not Disturb, ringer mode,
+alarm (when those are switched on), one-tap 1, 5, 10 and 25-minute timers and a stopwatch button,
+brightness and volume sliders, and round toggles for flashlight, Wi-Fi, Bluetooth, Do Not Disturb, ringer mode,
 auto-rotate and app settings. Toggles that Android reserves for the system open the matching
 settings panel instead of failing silently.
 
@@ -402,13 +433,13 @@ every push to `notch`.
 
 ### Tests
 
-197 tests in two layers.
+227 tests in two layers.
 
 **Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
 policy, when the island hides, tap stepping, camera clearance geometry, which screen a camera
 belongs to on a foldable, device presets and model matching, the notification filter, the spring
 curve's overshoot and settling, passcode detection, the calendar countdown, the media queue,
-automation request cleaning, lyrics parsing and lookup, the weather forecast and rain timing, formatting, quiet hours, and the settings backup round trip — which
+automation request cleaning, lyrics parsing and lookup, the weather forecast and rain timing, reading directions out of maps notifications, network speed and its start and stop, the battery heat warning, formatting, quiet hours, and the settings backup round trip — which
 fails if any setting is ever added without its line in the backup.
 
 **Robolectric** — the real code on an Android 16 runtime under a controlled clock: the timer and
@@ -418,7 +449,8 @@ hiding in a chosen app with a call breaking through, and automation broadcasts a
 switched on; the calendar reader against a stand-in provider; the weather fetcher with the network swapped out; every string resource resolving;
 the island's accessibility actions; the ripple, glow and their off switch; the torch and headphone activities;
 the open panels saying each thing once, with their own layouts and colours (including a progress
-ring that drew black on black, which a test caught); and screenshot tests that render `IslandView`
+ring that drew black on black, which a test caught); two activities at once, the bubble and the
+swap, directions, network speed, the heat warning and the pinned note through the whole controller; and screenshot tests that render `IslandView`
 in every size, plus every kind of activity, with native graphics. CI uploads those renders on every push.
 
 What still needs a phone: real window layering against the system status bar, touch delivery,
@@ -452,7 +484,11 @@ NotchIsland/app/src/main/java/com/joyboard/notchisland/
 │   ├── RingProgressView.kt   the compact island's progress and volume rings
 │   ├── BatteryView.kt        the drawn battery in the charging panel
 │   ├── BarProgressView.kt    a download's progress bar
-│   └── IslandColors.kt       the colours that mean something
+│   ├── IslandColors.kt       the colours that mean something
+│   ├── SecondaryBubble.kt    the second activity's bubble beside the island
+│   ├── NavigationText.kt     directions out of a maps notification (tested)
+│   ├── SpeedMeter.kt         transfer rates and when they count (tested)
+│   └── HeatWatch.kt          when a hot battery is worth a warning (tested)
 ├── service/
 │   ├── NotchOverlayService.kt     foreground service that hosts the overlay
 │   ├── NotchNotificationListener.kt

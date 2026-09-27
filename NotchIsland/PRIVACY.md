@@ -25,7 +25,11 @@ camera became active, the same signal Android's own privacy indicator uses. It n
 accesses audio or images.
 
 **Battery, volume, ringer and screen state.** Read from system broadcasts to draw the matching
-live activities.
+live activities, including the battery's temperature for the heat warning.
+
+**How much data is moving** (only if you switch on *Network speed*). The phone's running totals of
+bytes received and sent, read every second and a half while the screen is on, to show a transfer
+rate. Nothing about what is transferred, or by which app, is read.
 
 **Calendar** (only if you switch on *Next calendar event*). The title, time and place of events in
 roughly the next hour, read to count down to the next one. Held in memory only, never written
@@ -48,7 +52,8 @@ island to show, held in memory until it times out.
 
 ## What is stored on your device
 
-Your settings, in the app's private storage. They are included in Android's own backup if you
+Your settings, in the app's private storage — including the text of a pinned note, if you write
+one. They are included in Android's own backup if you
 have that switched on, which means they travel to a new phone through Google's backup service
 under Google's terms, not ours. You can export them yourself to a JSON file at any time.
 

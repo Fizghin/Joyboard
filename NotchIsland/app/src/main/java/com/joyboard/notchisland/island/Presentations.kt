@@ -15,6 +15,8 @@ import android.provider.CalendarContract
 import android.text.format.DateFormat
 import java.util.Date
 import android.provider.Settings
+import com.joyboard.notchisland.util.readableAccent
+import kotlin.math.roundToInt
 
 /**
  * What each kind of live activity looks like: icon, readout, colours, titles and the panel it
@@ -107,7 +109,9 @@ internal class Presentations(
         fixedAccent = IslandColors.RED,
         title = context.getString(R.string.low_battery),
         subtitle = context.getString(R.string.remaining, state.level),
-        body = ExpandedBody.Charging(state.level, state.plugged, state.fast, state.fullInMs, warning = true),
+        body = ExpandedBody.Charging(
+            state.level, state.plugged, state.fast, state.fullInMs, warning = true, temperatureC = state.temperatureC,
+        ),
         tapIntent = PendingIntent.getActivity(
             context, BATTERY_SAVER_REQUEST,
             Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
@@ -134,7 +138,9 @@ internal class Presentations(
                 else -> context.getString(R.string.unplugged)
             },
             subtitle = context.getString(R.string.battery, state.level),
-            body = ExpandedBody.Charging(state.level, state.plugged, state.fast, state.fullInMs),
+            body = ExpandedBody.Charging(
+                state.level, state.plugged, state.fast, state.fullInMs, temperatureC = state.temperatureC,
+            ),
         )
     }
 
@@ -384,6 +390,77 @@ internal class Presentations(
             ),
         )
     }
+
+    /** Directions, for as long as the maps app is navigating. Tapping goes back to the map. */
+    fun navigation(item: NotificationItem): Presentation {
+        val info = NavigationText.parse(item.title, item.text, item.subText)
+        val title = info.instruction.ifBlank { item.appLabel }
+        return Presentation(
+            kind = ActivityKind.NAVIGATION,
+            // Maps apps draw the next turn as the notification's picture.
+            leadingBitmap = item.largeIcon,
+            leadingIcon = drawable(R.drawable.ic_navigation),
+            leadingTint = if (item.largeIcon == null) readableAccent(item.accent) else null,
+            trailing = info.distance?.let { Trailing.Text(it, IslandColors.WHITE) }
+                ?: Trailing.Icon(item.appIcon ?: item.smallIcon),
+            accent = item.accent,
+            title = title,
+            subtitle = listOfNotNull(info.distance, info.eta).joinToString(" · ").ifBlank { item.appLabel },
+            body = ExpandedBody.Navigation(item, info),
+            tapIntent = item.contentIntent,
+            notificationKey = item.key,
+        )
+    }
+
+    /** A fast transfer under way, with both directions. */
+    fun network(reading: SpeedReading): Presentation {
+        val down = SpeedMeter.format(reading.downBps)
+        val up = SpeedMeter.format(reading.upBps)
+        // Whichever way the data is mostly going is the one worth the compact island's room.
+        val lead = if (reading.downBps >= reading.upBps) "↓ $down" else "↑ $up"
+        return Presentation(
+            kind = ActivityKind.NETWORK,
+            leadingIcon = drawable(R.drawable.ic_speed),
+            leadingTint = IslandColors.CYAN,
+            trailing = Trailing.Text(lead, IslandColors.CYAN),
+            accent = IslandColors.CYAN,
+            fixedAccent = IslandColors.CYAN,
+            title = context.getString(R.string.network_speed),
+            subtitle = context.getString(R.string.network_rates, down, up),
+            body = NOTHING_MORE,
+        )
+    }
+
+    /** The battery running hot, with what to do about it. */
+    fun batteryHot(state: BatteryState): Presentation {
+        val degrees = context.getString(R.string.celsius, (state.temperatureC ?: 0f).roundToInt())
+        return Presentation(
+            kind = ActivityKind.BATTERY_HOT,
+            leadingIcon = drawable(R.drawable.ic_thermometer),
+            leadingTint = IslandColors.RED,
+            trailing = Trailing.Text(degrees, IslandColors.RED),
+            accent = IslandColors.RED,
+            fixedAccent = IslandColors.RED,
+            title = context.getString(R.string.battery_hot),
+            subtitle = context.getString(
+                if (state.plugged) R.string.battery_hot_plugged else R.string.battery_hot_unplugged
+            ),
+            body = NOTHING_MORE,
+        )
+    }
+
+    /** The pinned note. Its button ticks it off. */
+    fun note(text: String) = Presentation(
+        kind = ActivityKind.NOTE,
+        leadingIcon = drawable(R.drawable.ic_note),
+        leadingTint = IslandColors.AMBER,
+        trailing = Trailing.Text(text.lineSequence().first().take(24), IslandColors.AMBER),
+        accent = IslandColors.AMBER,
+        fixedAccent = IslandColors.AMBER,
+        title = context.getString(R.string.note),
+        subtitle = text,
+        body = ExpandedBody.Message("", null, actionLabel = context.getString(R.string.done)),
+    )
 
     private fun drawable(res: Int): Drawable? = ContextCompat.getDrawable(context, res)
 

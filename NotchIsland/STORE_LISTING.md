@@ -16,11 +16,15 @@ A Dynamic Island for Android: music, calls, alerts and timers in one live pill.
 Notch Island puts a floating pill near your camera cutout and lets whatever your phone is doing
 take it over — the way the Dynamic Island does.
 
-**Live activities, one at a time, by priority**
+**Live activities, by priority — and two at once**
 Calls outrank everything and stay until the call ends. Notifications, unlock confirmations,
-privacy indicators, volume and ringer changes pass through. Music, timers, the stopwatch and
-ongoing activities like navigation or a download sit underneath and come back when the island is
-free again.
+privacy indicators, volume and ringer changes pass through. Music, timers, the stopwatch,
+directions and downloads sit underneath and come back when the island is free again. When two
+of them run at once, the second waits in a bubble beside the island — tap it to swap.
+
+**Turn-by-turn directions**
+The next turn from Google Maps, Waze and other maps apps: the arrow, how far, and when you will
+arrive.
 
 **Music that actually works**
 Album art, a dancing waveform, a scrubbable progress bar, transport controls, what is up next and
@@ -33,6 +37,10 @@ Optional: the island counts down to your next calendar event and opens it with a
 **Lyrics and weather, if you want them**
 Synced lyrics in the music panel, and the weather in the quick panel with a heads-up before
 rain. Both optional, both off until you turn them on.
+
+**Small things that help**
+One-tap 1, 5, 10 and 25-minute timers. A warning when the battery runs hot. The network speed
+while something big downloads. A note pinned to the island until you tick it off.
 
 **Out of the way when it should be**
 The island steps aside for full-screen videos and games, for quiet hours and in landscape — and a

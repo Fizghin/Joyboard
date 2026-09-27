@@ -48,6 +48,12 @@ class ActivityQueue(private val clock: () -> Long = { SystemClock.elapsedRealtim
         return activities.values.maxByOrNull { it.kind.priority }
     }
 
+    /** Everything still alive, in no particular order. */
+    fun live(): List<LiveActivity> {
+        prune()
+        return activities.values.toList()
+    }
+
     /** Milliseconds until the next activity expires, or null when nothing is on a timer. */
     fun millisUntilNextExpiry(): Long? {
         prune()

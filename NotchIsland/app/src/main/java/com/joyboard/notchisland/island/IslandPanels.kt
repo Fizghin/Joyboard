@@ -27,6 +27,7 @@ import com.joyboard.notchisland.util.withAlpha
 import java.util.Date
 import com.joyboard.notchisland.util.formatDuration
 import java.util.Locale
+import kotlin.math.roundToInt
 import androidx.core.view.isNotEmpty
 
 /** The live views a built panel keeps, so they can be refreshed in place rather than rebuilt. */
@@ -92,6 +93,7 @@ internal class IslandPanels(
             is ExpandedBody.Call -> buildCallBody(body.item, into)
             is ExpandedBody.Stopwatch -> buildStopwatchBody(body, accent, into, refs)
             is ExpandedBody.History -> buildHistoryBody(body.items, into)
+            is ExpandedBody.Navigation -> buildNavigationBody(body, accent, into)
             ExpandedBody.QuickPanel -> buildQuickPanelBody(accent, into)
         }
         return refs
@@ -416,11 +418,14 @@ internal class IslandPanels(
             body.fast -> context.getString(R.string.fast_charging)
             else -> context.getString(R.string.charging)
         }
-        val detail = when {
+        val status = when {
             !body.plugged -> context.getString(R.string.running_battery)
             body.level < 100 && body.fullInMs != null -> context.getString(R.string.full_in, span(body.fullInMs))
             else -> context.getString(R.string.plugged_in)
         }
+        val temperature = body.temperatureC?.takeIf { host.settings.featureBatteryHeat }
+            ?.let { context.getString(R.string.celsius, it.roundToInt()) }
+        val detail = listOfNotNull(status, temperature).joinToString(" · ")
         row.addView(titleColumn(title, detail).apply {
             (layoutParams as LinearLayout.LayoutParams).marginStart = 14.dp
         })
@@ -615,10 +620,95 @@ internal class IslandPanels(
         if (right.isNotEmpty()) top.addView(right)
         into.addView(top)
 
+        if (host.settings.quickTimers && host.settings.featureTimer) into.addView(buildQuickTimers(accent))
         into.addView(buildBrightnessRow(accent).also {
             (it.layoutParams as LinearLayout.LayoutParams).topMargin = 10.dp
         })
         into.addView(buildVolumeRow(accent))
+    }
+
+    /** One tap to a countdown, the lengths people reach for most, and the stopwatch beside them. */
+    private fun buildQuickTimers(accent: Int): View {
+        val row = row(topMargin = 12.dp)
+        QUICK_TIMER_MINUTES.forEachIndexed { index, minutes ->
+            if (index > 0) row.addView(widgets.spacer(6.dp))
+            row.addView(
+                widgets.pillButton(
+                    context.getString(R.string.duration_minutes, minutes), IslandColors.ORANGE, Emphasis.TINTED,
+                ) { host.listener.onStartTimer(minutes) }.apply {
+                    contentDescription = context.getString(R.string.start_timer_minutes, minutes)
+                    // Four share the row, so the label gets the width rather than the padding.
+                    setPadding(0, 0, 0, 0)
+                    layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                }
+            )
+        }
+        if (host.settings.featureStopwatch) {
+            row.addView(widgets.spacer(6.dp))
+            row.addView(
+                widgets.circleButton(
+                    R.drawable.ic_stopwatch, 34.dp, context.getString(R.string.start_stopwatch),
+                    IslandColors.ORANGE, IslandColors.ORANGE.withAlpha(0.2f),
+                ) { host.listener.onStartStopwatch() }
+            )
+        }
+        return row
+    }
+
+    /** The next turn, large: the arrow, how far, what to do, and when you get there. */
+    private fun buildNavigationBody(body: ExpandedBody.Navigation, accent: Int, into: LinearLayout) {
+        val item = body.item
+        val info = body.info
+        val row = row()
+        row.addView(ImageView(context).apply {
+            layoutParams = LinearLayout.LayoutParams(52.dp, 52.dp)
+            if (item.largeIcon != null) {
+                setImageBitmap(item.largeIcon)
+            } else {
+                setImageDrawable(widgets.icon(R.drawable.ic_navigation))
+                setColorFilter(accent)
+            }
+        })
+        val column = LinearLayout(context).apply {
+            orientation = LinearLayout.VERTICAL
+            layoutParams = LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f)
+                .apply { marginStart = 14.dp }
+        }
+        info.distance?.let {
+            column.addView(TextView(context).apply {
+                text = it
+                setTextColor(Color.WHITE)
+                textSize = 30f
+                typeface = IslandWidgets.LIGHT
+                includeFontPadding = false
+            })
+        }
+        column.addView(TextView(context).apply {
+            text = info.instruction.ifBlank { item.appLabel }
+            setTextColor(Color.WHITE)
+            textSize = 15f
+            typeface = IslandWidgets.MEDIUM
+            maxLines = 2
+            ellipsize = TextUtils.TruncateAt.END
+        })
+        row.addView(column)
+        into.addView(row)
+        info.eta?.let {
+            into.addView(widgets.detail(it).apply {
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 10.dp }
+            })
+        }
+        val actions = row(topMargin = 12.dp)
+        actions.addView(widgets.pillButton(context.getString(R.string.open), accent, Emphasis.FILLED) {
+            host.listener.onOpenPresentationTarget()
+        })
+        item.actions.take(2).forEach { action ->
+            actions.addView(widgets.spacer(8.dp))
+            actions.addView(actionPill(action.title, accent) { host.listener.onNotificationAction(action) })
+        }
+        into.addView(actions)
     }
 
     private fun buildVolumeRow(accent: Int, withOutput: Boolean = false): View {
@@ -728,6 +818,9 @@ internal class IslandPanels(
     internal enum class CallAction { ANSWER, END, OTHER }
 
     companion object {
+        /** The countdowns offered in the quick panel, in minutes. */
+        internal val QUICK_TIMER_MINUTES = listOf(1, 5, 10, 25)
+
         /** Which of a call notification's buttons answers and which ends, by what they say. */
         internal fun callActionStyle(title: String): CallAction {
             val t = title.lowercase(Locale.ROOT)

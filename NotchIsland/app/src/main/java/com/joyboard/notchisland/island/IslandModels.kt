@@ -17,19 +17,27 @@ enum class IslandMode { HIDDEN, PILL, COMPACT, MEDIUM, EXPANDED }
  */
 enum class ActivityKind(val priority: Int) {
     IDLE(0),
+    /** A note the person pinned, kept until they tick it off. Below music: it can wait. */
+    NOTE(18),
     MEDIA(20),
     /** The next calendar event, counting down. Above music, below anything more urgent. */
     CALENDAR(22),
     /** Someone else's long-running notification: navigation, a download, a delivery. */
+    /** Download and upload speed while something is transferring fast. */
+    NETWORK(24),
     ONGOING(25),
     /** The torch, while it is on. */
     FLASHLIGHT(27),
     TIMER(30),
     STOPWATCH(32),
+    /** Turn-by-turn directions from a maps app, for as long as it is navigating. */
+    NAVIGATION(33),
     /** Rain due within the hour: a short heads-up. */
     WEATHER(35),
     CHARGING(40),
     BATTERY_LOW(45),
+    /** The battery running hot. */
+    BATTERY_HOT(46),
     /** Headphones or earbuds connecting or going. */
     HEADPHONES(48),
     RINGER(50),
@@ -72,10 +80,14 @@ sealed interface ExpandedBody {
         val fullInMs: Long? = null,
         /** Drawn as the low-battery warning rather than a plug or unplug. */
         val warning: Boolean = false,
+        /** The battery's temperature, shown beside the rest when battery heat is switched on. */
+        val temperatureC: Float? = null,
     ) : ExpandedBody
     data class Timer(val remainingMs: Long, val totalMs: Long, val running: Boolean) : ExpandedBody
     /** A title and a line of detail, with an optional button that acts on the island's content. */
     data class Message(val title: String, val subtitle: String?, val actionLabel: String? = null) : ExpandedBody
+    /** Directions: the turn, how far to it, and when you will arrive. */
+    data class Navigation(val item: NotificationItem, val info: NavigationInfo) : ExpandedBody
 }
 
 /** The complete description of what the island should be drawing. */
@@ -149,8 +161,12 @@ data class NotificationItem(
     val passesDoNotDisturb: Boolean = true,
     /** The phone has already tucked this one away as low priority. */
     val ambient: Boolean = false,
+    /** The small line apps put beside their name — for a maps app, the arrival time. */
+    val subText: String = "",
 ) {
     val isCall: Boolean get() = category == "call"
+    /** Turn-by-turn directions from a maps app. */
+    val isNavigation: Boolean get() = NavigationText.isNavigation(category, packageName, ongoing)
 
     val hasProgress: Boolean get() = progress >= 0 && progressMax > 0
 }
@@ -176,4 +192,7 @@ data class LiveActivity(
     val presentation: Presentation,
     val expiresAt: Long,            // SystemClock.elapsedRealtime(); Long.MAX_VALUE = sticky
     val autoExpand: Boolean = false,
-)
+) {
+    /** Stays until whatever it reflects ends, rather than passing through on a timer. */
+    val longLived: Boolean get() = expiresAt == Long.MAX_VALUE
+}

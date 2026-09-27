@@ -32,6 +32,12 @@ import android.content.BroadcastReceiver
 import android.content.IntentFilter
 import android.view.WindowManager
 import com.joyboard.notchisland.BuildConfig
+import com.joyboard.notchisland.data.SettingsRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
 
 /**
  * Owns the overlay window and decides what the island shows. Live activities compete by
@@ -107,6 +113,16 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private lateinit var privacyMonitor: PrivacyMonitor
     private val headphoneMonitor = HeadphoneMonitor(context) { name, connected -> onHeadphones(name, connected) }
     private val focusMonitor = FocusMonitor(context) { on -> onFocus(on) }
+    private val networkMonitor = NetworkSpeedMonitor { reading -> onNetworkSpeed(reading) }
+    private val heatWatch = HeatWatch()
+    /** For writing back a note ticked off on the island; cancelled when the island stops. */
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
+    /** A pinned note ticked off on the island, kept out until the setting catches up. */
+    private var dismissedNote: String? = null
+    /** The long-lived activity the person brought to the front from the bubble. */
+    private var promoted: ActivityKind? = null
+    /** What the bubble beside the island is showing right now. */
+    private var secondaryKind: ActivityKind? = null
     private val alarms = context.getSystemService(android.app.AlarmManager::class.java)
 
     private val expiryRunnable = Runnable { render() }
@@ -175,6 +191,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
         calendarMonitor.release()
         headphoneMonitor.stop()
         focusMonitor.stop()
+        networkMonitor.stop()
+        scope.cancel()
         quickActions.onTorchChanged = null
         lyrics.release()
         weatherMonitor.release()
@@ -211,6 +229,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         updateWeatherWatch()
         if (next.featureHeadphones) headphoneMonitor.start() else headphoneMonitor.stop()
         if (next.featureFocus) focusMonitor.start() else focusMonitor.stop()
+        if (!next.featureNavigation) activities.remove(ActivityKind.NAVIGATION)
+        updateNetworkWatch()
+        applyNote()
         if (!next.featureFlashlight) activities.remove(ActivityKind.FLASHLIGHT)
         else if (quickActions.torchOn && activities.peek(ActivityKind.FLASHLIGHT) == null) onTorch(true)
         if (before.featureLyrics != next.featureLyrics && next.featureMedia) {
@@ -246,11 +267,13 @@ class IslandController(private val context: Context) : IslandView.Listener {
             if (settings.featureMedia) mediaMonitor.start()
             if (settings.featurePrivacy) privacyMonitor.start()
             updateWeatherWatch()
+            updateNetworkWatch()
         } else {
             handler.removeCallbacks(mediaTicker)
             mediaMonitor.stop()
             privacyMonitor.stop()
             weatherMonitor.stop()
+            updateNetworkWatch()
         }
     }
 
@@ -292,6 +315,18 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     @VisibleForTesting
     internal val topKind: ActivityKind? get() = currentTop()?.kind
+
+    @VisibleForTesting
+    internal val secondaryShown: ActivityKind? get() = secondaryKind.takeIf { window.secondaryShowing }
+
+    @VisibleForTesting
+    internal fun tapSecondary() = window.secondaryView?.performClick()
+
+    @VisibleForTesting
+    internal fun networkSpeed(reading: SpeedReading) = onNetworkSpeed(reading)
+
+    @VisibleForTesting
+    internal fun batteryChanged(state: BatteryState, plugChanged: Boolean) = onBattery(state, plugChanged)
 
     @VisibleForTesting
     internal val statusBarProbe: android.view.View? get() = window.probe
@@ -532,7 +567,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
     fun onNotification(item: NotificationItem) {
         val kind = when {
             item.isCall && settings.featureCalls -> NotificationKind.CALL
-            item.ongoing -> NotificationKind.ONGOING
+            item.ongoing || item.isNavigation -> NotificationKind.ONGOING
             else -> NotificationKind.PREVIEW
         }
         val allowed = NotificationFilter.shouldShow(
@@ -561,6 +596,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (activities.peek(ActivityKind.ONGOING)?.presentation?.notificationKey == key) {
             changed = activities.remove(ActivityKind.ONGOING) || changed
         }
+        if (activities.peek(ActivityKind.NAVIGATION)?.presentation?.notificationKey == key) {
+            changed = activities.remove(ActivityKind.NAVIGATION) || changed
+        }
         if (changed) render()
     }
 
@@ -583,6 +621,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     private fun pushOngoing(item: NotificationItem) {
+        if (item.isNavigation && settings.featureNavigation) {
+            pushNavigation(item)
+            return
+        }
         if (!settings.featureOngoing) return
         // A progress tick on the same notification is not news, so it must not reset the timer.
         if (activities.peek(ActivityKind.ONGOING)?.presentation?.notificationKey != item.key) {
@@ -595,6 +637,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 expiresAt = Long.MAX_VALUE,
             )
         )
+        render()
+    }
+
+    /** Directions stay while the route does; a new turn is news, the distance ticking down is not. */
+    private fun pushNavigation(item: NotificationItem) {
+        val presentation = presentations.navigation(item)
+        val previous = activities.peek(ActivityKind.NAVIGATION)?.presentation
+        if (previous?.notificationKey != item.key || previous.title != presentation.title) markActivityChanged()
+        activities.put(LiveActivity(ActivityKind.NAVIGATION, presentation, expiresAt = Long.MAX_VALUE))
         render()
     }
 
@@ -622,6 +673,15 @@ class IslandController(private val context: Context) : IslandView.Listener {
     }
 
     private fun onBattery(state: BatteryState, plugChanged: Boolean) {
+        if (settings.featureBatteryHeat && heatWatch.update(state.temperatureC)) {
+            push(
+                LiveActivity(
+                    ActivityKind.BATTERY_HOT,
+                    presentations.batteryHot(state),
+                    expiresAt = SystemClock.elapsedRealtime() + 6_000,
+                )
+            )
+        }
         if (state.level <= 15 && !state.plugged && settings.featureBatteryLow) {
             push(
                 LiveActivity(
@@ -712,6 +772,56 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     // ------------------------------------------------------------------ timer
 
+    /** Samples transfer speed only while it is switched on and the screen is on. */
+    private fun updateNetworkWatch() {
+        if (settings.featureNetworkSpeed && screenOn) {
+            networkMonitor.start()
+        } else {
+            networkMonitor.stop()
+            if (activities.remove(ActivityKind.NETWORK)) render()
+        }
+    }
+
+    private fun onNetworkSpeed(reading: SpeedReading) {
+        if (!settings.featureNetworkSpeed) return
+        if (!reading.active) {
+            if (activities.remove(ActivityKind.NETWORK)) render()
+            return
+        }
+        if (activities.peek(ActivityKind.NETWORK) == null) markActivityChanged()
+        activities.put(LiveActivity(ActivityKind.NETWORK, presentations.network(reading), expiresAt = Long.MAX_VALUE))
+        render()
+    }
+
+    /** The pinned note is on the island for as long as the setting holds it. */
+    private fun applyNote() {
+        val note = settings.pinnedNote.trim()
+        if (note != dismissedNote) dismissedNote = null
+        if (note.isEmpty() || note == dismissedNote) {
+            activities.remove(ActivityKind.NOTE)
+            return
+        }
+        if (activities.peek(ActivityKind.NOTE)?.presentation?.subtitle == note) return
+        markActivityChanged()
+        activities.put(LiveActivity(ActivityKind.NOTE, presentations.note(note), expiresAt = Long.MAX_VALUE))
+    }
+
+    /** Ticks the note off: gone from the island at once, and from the setting as soon as it is written. */
+    private fun finishNote() {
+        val done = settings.pinnedNote.trim()
+        dismissedNote = done
+        activities.remove(ActivityKind.NOTE)
+        userStage = null
+        haptics.pop()
+        render()
+        scope.launch {
+            runCatching {
+                // Only if it is still the same note: a new one written meanwhile stays.
+                SettingsRepository.get(context).update { if (it.pinnedNote.trim() == done) it.copy(pinnedNote = "") else it }
+            }
+        }
+    }
+
     fun startTimer(durationMs: Long) {
         if (!settings.featureTimer) return
         markActivityChanged()
@@ -755,7 +865,28 @@ class IslandController(private val context: Context) : IslandView.Listener {
 
     // ------------------------------------------------------------------ rendering
 
-    private fun currentTop(): LiveActivity? = activities.top()
+    /**
+     * What owns the island. By priority, except that among the long-lived activities the one the
+     * person brought forward from the bubble stays in front. Something passing through — a
+     * notification, a volume step — still takes over, and a call always wins.
+     */
+    private fun currentTop(): LiveActivity? {
+        val top = activities.top() ?: return null
+        val preferred = promoted?.let { activities.peek(it) }
+        if (preferred == null) {
+            promoted = null
+            return top
+        }
+        return if (top.longLived && top.kind != ActivityKind.CALL) preferred else top
+    }
+
+    /** The long-lived activity that goes in the bubble beside [shown], if there is one. */
+    private fun secondaryFor(shown: LiveActivity?): LiveActivity? {
+        if (shown == null || !shown.longLived) return null
+        return activities.live()
+            .filter { it.longLived && it.kind != shown.kind }
+            .maxByOrNull { it.kind.priority }
+    }
 
     /**
      * The island's own accent, resolved the way the view resolves it, for activities that have no
@@ -807,6 +938,14 @@ class IslandController(private val context: Context) : IslandView.Listener {
             // Guards against a cancelled animation leaving the island stuck at the wrong size.
             view.ensureSized(target)
         }
+        // Two long-lived activities at once: the second sits in a bubble beside the compact island.
+        val second = if (settings.splitIsland && target == IslandMode.COMPACT && !showingHistory) {
+            secondaryFor(top)
+        } else {
+            null
+        }
+        secondaryKind = second?.kind
+        window.setSecondary(second?.presentation)
         window.updateParams()
         updateVisibility()
 
@@ -860,7 +999,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             ActivityKind.NOTIFICATION, ActivityKind.CALL, ActivityKind.CHARGING,
             ActivityKind.BATTERY_LOW, ActivityKind.EXTERNAL, ActivityKind.WEATHER,
             ActivityKind.CALENDAR, ActivityKind.HEADPHONES, ActivityKind.FOCUS,
-            ActivityKind.FLASHLIGHT,
+            ActivityKind.FLASHLIGHT, ActivityKind.NAVIGATION, ActivityKind.BATTERY_HOT,
         )
 
         const val DAY_MS = 24 * 60 * 60_000L
@@ -998,6 +1137,24 @@ class IslandController(private val context: Context) : IslandView.Listener {
         render()
     }
 
+    override fun onStartTimer(minutes: Int) {
+        haptics.pop()
+        startTimer(minutes * 60_000L)
+    }
+
+    override fun onStartStopwatch() {
+        haptics.pop()
+        startStopwatch()
+    }
+
+    override fun onSecondaryTap() {
+        val kind = secondaryKind ?: return
+        promoted = kind
+        markActivityChanged()
+        haptics.pop()
+        render()
+    }
+
     override fun quickToggleState(toggle: QuickToggle): Boolean = quickActions.state(toggle)
 
     override fun currentVolume(): Pair<Int, Int> = volumeMonitor.musicVolume()
@@ -1115,6 +1272,11 @@ class IslandController(private val context: Context) : IslandView.Listener {
             quickActions.perform(QuickToggle.TORCH)
             userStage = null
             render()
+            return
+        }
+        // The note's button ticks it off.
+        if (currentTop()?.kind == ActivityKind.NOTE) {
+            finishNote()
             return
         }
         val top = currentTop()?.presentation

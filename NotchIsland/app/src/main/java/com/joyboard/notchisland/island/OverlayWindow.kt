@@ -43,6 +43,9 @@ internal class OverlayWindow(
     private var settings = IslandSettings()
     private var root: LinearLayout? = null
     private var touchStrip: FrameLayout? = null
+    /** The second activity's bubble, and the invisible twin that balances it on the other side. */
+    private var bubble: SecondaryBubble? = null
+    private var balance: View? = null
     private var attached = false
     /** The WindowManager the island was added through. */
     private var host: WindowManager? = null
@@ -150,9 +153,31 @@ internal class OverlayWindow(
             )
         }
 
-        container.addView(
+        // The island sits in a row with a bubble after it and an invisible twin of the bubble
+        // before it. The window is centred on the island, so balancing the bubble keeps the island
+        // exactly where it was — over the camera — when the bubble comes and goes.
+        val row = LinearLayout(context).apply {
+            orientation = LinearLayout.HORIZONTAL
+            clipChildren = false
+            clipToPadding = false
+        }
+        val twin = View(context).apply {
+            visibility = View.GONE
+            // It only holds space; a touch there is not aimed at anything.
+            isClickable = true
+            importantForAccessibility = View.IMPORTANT_FOR_ACCESSIBILITY_NO
+        }
+        val second = SecondaryBubble(context) { listener.onSecondaryTap() }
+        row.addView(twin, LinearLayout.LayoutParams(0, 0))
+        row.addView(
             view,
             LinearLayout.LayoutParams(settings.collapsedWidth.dp, settings.collapsedHeight.dp)
+                .apply { gravity = Gravity.TOP }
+        )
+        row.addView(second, LinearLayout.LayoutParams(0, 0).apply { gravity = Gravity.TOP })
+        container.addView(
+            row,
+            LinearLayout.LayoutParams(LinearLayout.LayoutParams.WRAP_CONTENT, LinearLayout.LayoutParams.WRAP_CONTENT)
                 .apply { gravity = Gravity.CENTER_HORIZONTAL }
         )
         container.addView(
@@ -185,6 +210,8 @@ internal class OverlayWindow(
             root = container
             island = view
             touchStrip = strip
+            bubble = second
+            balance = twin
             attached = true
             view.applySettings(settings)
             view.snapToMode(IslandMode.PILL)
@@ -243,10 +270,51 @@ internal class OverlayWindow(
         root = null
         island = null
         touchStrip = null
+        bubble = null
+        balance = null
         host = null
         aboveStatusBar = false
         attached = false
     }
+
+    /**
+     * Shows a second activity in the bubble beside the island, or takes the bubble away for
+     * null. The bubble is as tall as the compact island and round, with a small gap between.
+     */
+    fun setSecondary(p: Presentation?) {
+        val second = bubble ?: return
+        val twin = balance ?: return
+        val view = island ?: return
+        if (p != null) {
+            val size = (settings.collapsedHeight + 4).dp
+            val gap = BUBBLE_GAP.dp
+            (second.layoutParams as LinearLayout.LayoutParams).let { lp ->
+                if (lp.width != size || lp.marginStart != gap) {
+                    lp.width = size
+                    lp.height = size
+                    lp.marginStart = gap
+                    second.layoutParams = lp
+                }
+            }
+            twin.layoutParams.let { lp ->
+                if (lp.width != size + gap) {
+                    lp.width = size + gap
+                    lp.height = 1
+                    twin.layoutParams = lp
+                }
+            }
+            // Visible but empty: an invisible view would let a touch fall through to the island.
+            twin.visibility = View.VISIBLE
+        } else {
+            twin.visibility = View.GONE
+        }
+        second.bind(p, view.surfaceColor, animate = settings.effects)
+    }
+
+    /** What the bubble holds, or null when it is not showing. For tests. */
+    internal val secondaryShowing: Boolean get() = bubble?.visibility == View.VISIBLE
+
+    internal val secondaryView: View? get() = bubble
 
     private fun buildParams(): WindowManager.LayoutParams =
         WindowManager.LayoutParams(
@@ -430,5 +498,8 @@ internal class OverlayWindow(
 
         /** Width of the transparent strip that catches taps in overlap mode. */
         const val STRIP_WIDTH = 96
+
+        /** Between the island and the bubble beside it. */
+        const val BUBBLE_GAP = 6
     }
 }

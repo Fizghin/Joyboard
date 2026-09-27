@@ -119,6 +119,7 @@ class NotchNotificationListener : NotificationListenerService() {
             importance = if (ranked) ranking.importance else NotificationFilter.AUDIBLE_IMPORTANCE,
             passesDoNotDisturb = !ranked || ranking.matchesInterruptionFilter(),
             ambient = ranked && ranking.isAmbient,
+            subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString().orEmpty(),
         )
     }
 

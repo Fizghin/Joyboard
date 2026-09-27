@@ -134,6 +134,18 @@ data class IslandSettings(
     val featureFocus: Boolean = true,
     /** The next alarm's time in the quick panel. */
     val showNextAlarm: Boolean = true,
+    /** Turn-by-turn directions from a maps app's navigation notification. */
+    val featureNavigation: Boolean = true,
+    /** A second long-lived activity shown as a bubble beside the compact island. */
+    val splitIsland: Boolean = true,
+    /** Timer presets and a stopwatch button in the quick panel. */
+    val quickTimers: Boolean = true,
+    /** A warning when the battery runs hot, and its temperature on the charging panel. */
+    val featureBatteryHeat: Boolean = true,
+    /** Download and upload speed while something transfers fast. Off unless turned on: it polls. */
+    val featureNetworkSpeed: Boolean = false,
+    /** A note kept on the island until it is ticked off; blank for none. */
+    val pinnedNote: String = "",
     /** Synced lyrics in the open media panel, looked up online. Off unless turned on. */
     val featureLyrics: Boolean = false,
     /** Weather in the quick panel, looked up online for [weatherArea]. Off unless turned on. */
@@ -178,6 +190,9 @@ data class IslandSettings(
     val lastUpdateCheck: Long = 0L,
     val skippedVersion: Int = 0,
 )
+
+/** The longest pinned note kept: enough for a reminder, not a document. */
+const val PINNED_NOTE_MAX = 200
 
 /**
  * Where the in-app updater looks for a release manifest. The default points at this repository,
