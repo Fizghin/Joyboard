@@ -27,7 +27,8 @@ class StringResourcesTest {
     @Test
     fun apostrophesAndQuotesSurvive() {
         assertEquals("You're on the latest version", context.getString(R.string.you_re_latest_version))
-        assertTrue(context.getString(R.string.over_status_bar_done_by).startsWith("So \"over the status bar\""))
+        // An escaped line break becomes a real paragraph break, not a literal backslash.
+        assertTrue(context.getString(R.string.helper_disclosure_body).contains("anywhere.\n\nOn the next screen"))
     }
 
     @Test

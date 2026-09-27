@@ -51,6 +51,13 @@ class VisibilityPolicyTest {
     }
 
     @Test
+    fun `the shade hides an island drawn above it, and covers one drawn below it anyway`() {
+        assertTrue(hides(Inputs(shadeOpen = true, aboveStatusBar = true)))
+        assertTrue(hides(Inputs(shadeOpen = true, aboveStatusBar = true, urgent = true)))
+        assertFalse(hides(Inputs(shadeOpen = true, aboveStatusBar = false)))
+    }
+
+    @Test
     fun `a call does not override what the person set in so many words`() {
         assertTrue(hides(Inputs(screenOn = false, urgent = true)))
         assertTrue(hides(Inputs(quiet = true, urgent = true)))

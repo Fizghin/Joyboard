@@ -21,6 +21,7 @@ import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.util.dp
 import androidx.annotation.VisibleForTesting
 import com.joyboard.notchisland.util.CutoutDetector
+import java.lang.ref.WeakReference
 
 /**
  * The overlay window the island lives in: attaching it, where it sits, the touch strip that
@@ -43,9 +44,43 @@ internal class OverlayWindow(
     private var root: LinearLayout? = null
     private var touchStrip: FrameLayout? = null
     private var attached = false
+    /** The WindowManager the island was added through. */
+    private var host: WindowManager? = null
 
     var island: IslandView? = null
         private set
+
+    /**
+     * True when the island is an accessibility overlay: layered above the status bar, so
+     * notification icons go under it and every part of it takes taps.
+     */
+    var aboveStatusBar = false
+        private set
+
+    /** A helper window manager that refused the island, so it is not asked again and again. */
+    private var refused: WeakReference<WindowManager>? = null
+
+    /**
+     * Whether the island is already where [accessibilityHost] asks for — above the status bar
+     * through it, or an ordinary overlay when it is null. A host that refused once counts as
+     * settled, so a settings change does not tear the window down to be refused again.
+     */
+    fun isSettledFor(accessibilityHost: WindowManager?): Boolean = when {
+        !attached -> false
+        accessibilityHost == null -> !aboveStatusBar
+        refused?.get() === accessibilityHost -> true
+        else -> aboveStatusBar && host === accessibilityHost
+    }
+
+    /** The window's type, for tests. */
+    @VisibleForTesting
+    internal val windowType: Int?
+        get() = (root?.layoutParams as? WindowManager.LayoutParams)?.type
+
+    /** The touch strip's height in px, for tests. */
+    @VisibleForTesting
+    internal val touchStripHeight: Int
+        get() = touchStrip?.layoutParams?.height ?: 0
 
     fun applySettings(next: IslandSettings) {
         settings = next
@@ -67,7 +102,11 @@ internal class OverlayWindow(
         root?.visibility = if (visible) View.VISIBLE else View.INVISIBLE
     }
 
-    fun attach(initial: IslandSettings) {
+    /**
+     * @param accessibilityHost the helper service's WindowManager, to add the island as an
+     *   accessibility overlay above the status bar; null for an ordinary app overlay
+     */
+    fun attach(initial: IslandSettings, accessibilityHost: WindowManager? = null) {
         settings = initial
         if (attached) return
         val view = IslandView(context, listener)
@@ -124,8 +163,22 @@ internal class OverlayWindow(
                 .apply { gravity = Gravity.CENTER_HORIZONTAL }
         )
 
+        // Above the status bar when the helper lends its window token; should that ever be
+        // refused, an ordinary overlay is still better than no island.
+        val added = accessibilityHost != null && runCatching {
+            aboveStatusBar = true
+            accessibilityHost.addView(container, buildParams())
+            host = accessibilityHost
+        }.isSuccess
+        if (!added) {
+            aboveStatusBar = false
+            if (accessibilityHost != null) refused = WeakReference(accessibilityHost)
+        }
         runCatching {
-            windowManager?.addView(container, buildParams())
+            if (!added) {
+                windowManager?.addView(container, buildParams())
+                host = windowManager
+            }
             root = container
             island = view
             touchStrip = strip
@@ -156,10 +209,12 @@ internal class OverlayWindow(
 
     fun detach() {
         val current = root ?: return
-        runCatching { windowManager?.removeViewImmediate(current) }
+        runCatching { host?.removeViewImmediate(current) }
         root = null
         island = null
         touchStrip = null
+        host = null
+        aboveStatusBar = false
         attached = false
     }
 
@@ -167,7 +222,11 @@ internal class OverlayWindow(
         WindowManager.LayoutParams(
             WindowManager.LayoutParams.WRAP_CONTENT,
             WindowManager.LayoutParams.WRAP_CONTENT,
-            WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY,
+            if (aboveStatusBar) {
+                WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY
+            } else {
+                WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
+            },
             baseFlags(),
             PixelFormat.TRANSLUCENT
         ).apply {
@@ -229,7 +288,9 @@ internal class OverlayWindow(
     fun refresh() {
         val container = root ?: return
         val strip = touchStrip ?: return
-        val overlap = settings.positionMode == PositionMode.OVERLAP_STATUS_BAR
+        // Above the status bar the island takes its own taps, so the strip is only needed when
+        // the island sits under the status bar's touch-swallowing band.
+        val overlap = settings.positionMode == PositionMode.OVERLAP_STATUS_BAR && !aboveStatusBar
         // Above the island is only ever the status bar's dead band except in the default anchor,
         // so the offsets mean exactly "island top" everywhere else — which is also what the
         // calibrator draws, so the two can be trusted to agree.
@@ -300,7 +361,7 @@ internal class OverlayWindow(
         params.y = y
         params.flags = flags
         params.dimAmount = dim
-        runCatching { windowManager?.updateViewLayout(current, params) }
+        runCatching { host?.updateViewLayout(current, params) }
     }
 
     /**
@@ -326,7 +387,7 @@ internal class OverlayWindow(
             WindowManager.LayoutParams.SOFT_INPUT_STATE_UNCHANGED
         }
         if (focusable) params.dimAmount = 0.4f
-        runCatching { windowManager?.updateViewLayout(current, params) }
+        runCatching { host?.updateViewLayout(current, params) }
         if (!focusable) {
             island?.clearReplyFocus()
             updateParams()

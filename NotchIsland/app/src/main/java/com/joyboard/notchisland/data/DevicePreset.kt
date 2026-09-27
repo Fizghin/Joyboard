@@ -1,6 +1,8 @@
 package com.joyboard.notchisland.data
 
 import com.joyboard.notchisland.island.Hole
+import kotlin.math.abs
+import kotlin.math.roundToInt
 
 enum class HoleShape(val label: String) {
     PUNCH_HOLE("Punch hole"),
@@ -52,31 +54,76 @@ data class DevicePreset(
     }
 
     /**
-     * The settings this phone implies. A centred camera gets an island wrapped around it; a
-     * corner camera leaves the island centred on the screen, where it would be on an iPhone, and
-     * simply keeps content away from the hole should the two ever meet.
+     * Everything this phone implies: where its camera is, and the island's whole shape around it
+     * — every size from the resting pill to the open panel, the corner and the offsets.
      */
     fun applyTo(settings: IslandSettings, screenWidthDp: Float): IslandSettings =
-        settings.fittedTo(hole(screenWidthDp), CameraSource.PRESET).copy(devicePresetId = id)
+        settings.fittedTo(hole(screenWidthDp), CameraSource.PRESET, screenWidthDp).copy(devicePresetId = id)
+}
+
+/** Every size and position a camera implies for the island — the whole shape, not just the pill. */
+data class IslandProfile(
+    val collapsedWidth: Int,
+    val collapsedHeight: Int,
+    val cornerRadius: Int,
+    val offsetX: Int,
+    val offsetY: Int,
+    val compactWidth: Int,
+    val mediumWidth: Int,
+    val expandedWidth: Int,
+) {
+    companion object {
+        /**
+         * Scales the iPhone 14 Pro's proportions — a 126 × 37 pill, a compact readout 80 wider,
+         * an open panel 22 short of the screen — to this camera and this screen.
+         *
+         * The pill is as tall as the camera plus a rim and fully rounded. A camera near the middle
+         * is wrapped; one in a corner leaves the island centred, on the same row as the camera,
+         * where it lines up with the rest of the status bar.
+         */
+        fun forCamera(hole: Hole, screenWidthDp: Float): IslandProfile {
+            val screen = screenWidthDp.takeIf { it > 0f } ?: 411f
+            val centred = abs(hole.centerX) <= CENTRED_WITHIN_DP
+            val height = (hole.height + 12f).roundToInt().coerceIn(28, 44)
+            val natural = (height * 3.4f).roundToInt()
+            val width = (if (centred) maxOf(natural, (hole.width + 72f).roundToInt()) else natural)
+                .coerceAtMost((screen * 0.42f).roundToInt())
+            val expanded = (screen - 24f).roundToInt().coerceIn(280, 420)
+            val compact = (width + 84).coerceAtMost((screen * 0.62f).roundToInt()).coerceAtLeast(width + 40)
+            return IslandProfile(
+                collapsedWidth = width,
+                collapsedHeight = height,
+                cornerRadius = height / 2,
+                offsetX = if (centred) hole.centerX.roundToInt() else 0,
+                offsetY = (hole.centerY - height / 2f).roundToInt().coerceAtLeast(0),
+                compactWidth = compact,
+                mediumWidth = (compact + expanded) / 2,
+                expandedWidth = expanded,
+            )
+        }
+    }
 }
 
 /**
- * Records the hole and shapes the island to it. A camera near the middle gets the island wrapped
- * around it, iPhone-style. A corner camera does not drag the island to the corner: the island
- * stays centred, where people expect it, and just keeps its content clear should they meet.
+ * Records the hole and gives the island the complete shape that goes with it: resting pill,
+ * compact readout, small card and open panel, corner, offsets and the over-the-status-bar anchor.
+ * A camera near the middle gets the island wrapped around it, iPhone-style; a corner camera
+ * leaves the island centred and keeps its content clear should the two meet.
  */
-fun IslandSettings.fittedTo(hole: Hole, source: CameraSource): IslandSettings {
-    val recorded = withHole(hole, source)
-    if (kotlin.math.abs(hole.centerX) > CENTRED_WITHIN_DP) return recorded
-    val height = (hole.height + 12f).toInt().coerceIn(24, 60)
-    return recorded.copy(
-        collapsedHeight = height,
-        collapsedWidth = maxOf(112, (hole.width + 88f).toInt()),
-        cornerRadius = height / 2,
-        offsetX = hole.centerX.toInt(),
-        offsetY = (hole.centerY - height / 2f).toInt().coerceAtLeast(0),
+fun IslandSettings.fittedTo(hole: Hole, source: CameraSource, screenWidthDp: Float): IslandSettings {
+    val p = IslandProfile.forCamera(hole, screenWidthDp)
+    return withHole(hole, source).copy(
+        collapsedWidth = p.collapsedWidth,
+        collapsedHeight = p.collapsedHeight,
+        cornerRadius = p.cornerRadius,
+        offsetX = p.offsetX,
+        offsetY = p.offsetY,
+        compactWidth = p.compactWidth,
+        mediumWidth = p.mediumWidth,
+        expandedWidth = p.expandedWidth,
         positionMode = PositionMode.OVERLAP_STATUS_BAR,
         preset = IslandPreset.CUSTOM,
+        avoidHole = true,
     )
 }
 

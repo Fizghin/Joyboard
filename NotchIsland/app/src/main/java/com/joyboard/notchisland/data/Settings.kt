@@ -24,6 +24,12 @@ data class IslandSettings(
      */
     val touchStripHeight: Int = 20,
     val showTouchHint: Boolean = true,
+    /**
+     * With the helper service on, host the island in an accessibility overlay, which Android
+     * layers above the status bar: notification icons then go under the island instead of being
+     * drawn over it, and the whole island takes taps. Without the helper this does nothing.
+     */
+    val drawAboveStatusBar: Boolean = true,
     val expandedWidth: Int = 330,
     val compactWidth: Int = 190,
     /** The halfway "preview card" stage between compact and fully open. */

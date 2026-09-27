@@ -47,6 +47,7 @@ import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.data.stampedFor
+import com.joyboard.notchisland.data.IslandProfile
 
 data class PermissionState(
     val overlay: Boolean = false,
@@ -281,11 +282,15 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     val suggestedDevice: DevicePreset? = DevicePresets.match(Build.MODEL)
 
     fun applyDevicePreset(preset: DevicePreset) {
-        val width = CutoutDetector.screenWidthDp(getApplication())
+        // The portrait width, so a preset chosen with the phone on its side still fits upright.
         val screen = CutoutDetector.shortSideDp(getApplication())
         viewModelScope.launch {
-            repository.update { preset.applyTo(it, width).stampedFor(screen) }
-            _status.value = text(R.string.set_up_detect_from_phone, preset.name)
+            repository.update { preset.applyTo(it, screen).stampedFor(screen) }
+            val shape = IslandProfile.forCamera(preset.hole(screen), screen)
+            _status.value = text(
+                R.string.set_up_detect_from_phone,
+                preset.name, shape.collapsedWidth, shape.collapsedHeight, shape.expandedWidth,
+            )
         }
     }
 
@@ -341,8 +346,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun fitToCutout() {
         CutoutDetector.detectHole(getApplication())
             .onSuccess { hole ->
+                val screen = CutoutDetector.shortSideDp(getApplication())
                 viewModelScope.launch {
-                    repository.update { it.fittedTo(hole, CameraSource.DETECTED) }
+                    repository.update { it.fittedTo(hole, CameraSource.DETECTED, screen).stampedFor(screen) }
                 }
                 _status.value = if (kotlin.math.abs(hole.centerX) > CENTRED_WITHIN_DP) {
                     text(R.string.camera_off_side_island_stays)

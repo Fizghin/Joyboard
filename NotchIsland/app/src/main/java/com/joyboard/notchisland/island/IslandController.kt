@@ -30,6 +30,8 @@ import com.joyboard.notchisland.util.PendingIntents
 import com.joyboard.notchisland.util.readableAccent
 import android.content.BroadcastReceiver
 import android.content.IntentFilter
+import android.view.WindowManager
+import com.joyboard.notchisland.BuildConfig
 
 /**
  * Owns the overlay window and decides what the island shows. Live activities compete by
@@ -141,7 +143,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         )
         privacyMonitor = PrivacyMonitor(context) { mic, camera -> onPrivacy(mic, camera) }
 
-        window.attach(initial)
+        window.attach(initial, accessibilityHost())
         applySettings(initial)
         batteryMonitor.start()
         volumeMonitor.start()
@@ -175,6 +177,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         // Switching history off should forget what was kept, not just stop adding to it.
         if (!next.featureHistory) history.clear()
         window.applySettings(next)
+        rehostIfNeeded()
         if (before.featureMedia != next.featureMedia) {
             if (next.featureMedia) mediaMonitor.start() else {
                 mediaMonitor.stop()
@@ -227,8 +230,32 @@ class IslandController(private val context: Context) : IslandView.Listener {
         }
     }
 
-    /** The helper service saw the app in front, or the keyboard, change. */
+    /** The helper service saw the app in front, the keyboard or the shade change. */
     fun onContextChanged() = updateVisibility()
+
+    /** The helper connected or went away, so the island may move above or below the status bar. */
+    fun onHelperChanged() = rehostIfNeeded()
+
+    /** The helper's window manager, when the island should be drawn above the status bar. */
+    private fun accessibilityHost(): WindowManager? =
+        if (BuildConfig.HELPER_AVAILABLE && settings.drawAboveStatusBar) IslandBus.helperWindowManager else null
+
+    /** Moves the island into the right kind of window, keeping what it is showing. */
+    private fun rehostIfNeeded() {
+        val wanted = accessibilityHost()
+        if (window.isSettledFor(wanted)) return
+        window.detach()
+        window.attach(settings, wanted)
+        window.applySettings(settings)
+        render()
+    }
+
+    /** Whether the island is an accessibility overlay right now. Read-only, for tests. */
+    @VisibleForTesting
+    internal val windowType: Int? get() = window.windowType
+
+    @VisibleForTesting
+    internal val touchStripHeight: Int get() = window.touchStripHeight
 
     private fun updateVisibility() {
         val now = java.util.Calendar.getInstance()
@@ -251,6 +278,8 @@ class IslandController(private val context: Context) : IslandView.Listener {
                 foregroundPackage = IslandBus.foregroundPackage,
                 hiddenInPackages = settings.hiddenInPackages,
                 urgent = currentTop()?.kind == ActivityKind.CALL,
+                shadeOpen = IslandBus.shadeOpen,
+                aboveStatusBar = window.aboveStatusBar,
             )
         )
         window.setVisible(!hide)

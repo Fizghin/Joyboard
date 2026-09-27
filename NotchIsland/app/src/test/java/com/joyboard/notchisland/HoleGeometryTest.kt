@@ -127,24 +127,59 @@ class DevicePresetTest {
     }
 
     @Test
-    fun `a corner camera leaves the island centred`() {
-        val before = IslandSettings(offsetX = 0, collapsedWidth = 140)
+    fun `a corner camera gets a full shape, centred on the camera's row`() {
+        val before = IslandSettings(offsetX = 25, collapsedWidth = 140, compactWidth = 150, expandedWidth = 200)
         val applied = DevicePresets.byId("oneplus12")!!.applyTo(before, screen)
+        val hole = applied.hole!!
+        assertTrue(hole.centerX < -100f)
         assertEquals(0, applied.offsetX)
-        assertEquals(140, applied.collapsedWidth)
-        assertTrue(applied.hole!!.centerX < -100f)
+        assertEquals(hole.centerY, applied.offsetY + applied.collapsedHeight / 2f, 1f)
+        // Nothing is left over from before: every size comes from the preset.
+        assertTrue(applied.collapsedWidth != 140 && applied.compactWidth != 150 && applied.expandedWidth != 200)
+        assertEquals(PositionMode.OVERLAP_STATUS_BAR, applied.positionMode)
+    }
+
+    @Test
+    fun `every preset sets every size, in order, and fits the screen`() {
+        for (preset in DevicePresets.all) for (width in listOf(360f, screen, 480f)) {
+            val a = preset.applyTo(IslandSettings(), width)
+            val name = "${preset.id} at $width"
+            assertTrue(name, a.collapsedHeight in 28..44)
+            assertEquals(name, a.collapsedHeight / 2, a.cornerRadius)
+            assertTrue(name, a.collapsedWidth > a.collapsedHeight * 2)
+            assertTrue(name, a.collapsedWidth < a.compactWidth)
+            assertTrue(name, a.compactWidth < a.mediumWidth)
+            assertTrue(name, a.mediumWidth < a.expandedWidth)
+            assertTrue(name, a.expandedWidth <= width - 20f)
+            // A wrapped camera sits inside the resting pill.
+            val hole = a.hole!!
+            if (kotlin.math.abs(hole.centerX) <= 40f) {
+                assertTrue(name, hole.width + 20f <= a.collapsedWidth)
+                assertTrue(name, hole.height < a.collapsedHeight)
+            }
+        }
+    }
+
+    @Test
+    fun `a Pixel 6 comes out close to the iPhone's proportions`() {
+        val a = DevicePresets.byId("pixel6")!!.applyTo(IslandSettings(), 412f)
+        assertEquals(36, a.collapsedHeight)
+        assertEquals(122, a.collapsedWidth)
+        assertEquals(206, a.compactWidth)
+        assertEquals(388, a.expandedWidth)
+        assertEquals(6, a.offsetY)
     }
 
     @Test
     fun `fitting to a detected hole records where it came from`() {
-        val applied = IslandSettings().fittedTo(Hole(3f, 22f, 24f, 24f), CameraSource.DETECTED)
+        val applied = IslandSettings().fittedTo(Hole(3f, 22f, 24f, 24f), CameraSource.DETECTED, screen)
         assertEquals(CameraSource.DETECTED, applied.cameraSource)
         assertEquals(3, applied.offsetX)
     }
 
     @Test
     fun `the camera survives a backup round trip`() {
-        val original = IslandSettings().fittedTo(Hole(-150f, 21.5f, 23f, 23f), CameraSource.MANUAL)
+        val original = IslandSettings().fittedTo(Hole(-150f, 21.5f, 23f, 23f), CameraSource.MANUAL, screen)
             .copy(avoidHole = false, devicePresetId = "generic_left")
         val restored = SettingsCodec.fromJson(SettingsCodec.toJson(original))
         assertEquals(original.hole, restored.hole)

@@ -68,6 +68,11 @@ fun Context.helperServiceEnabled(): Boolean {
     return flat.split(':').any { it.equals(ours, ignoreCase = true) }
 }
 
+fun Context.openAppInfo() = startActivity(
+    Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, "package:$packageName".toUri())
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+)
+
 fun Context.openAccessibilitySettings() = startActivity(
     Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
 )

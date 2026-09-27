@@ -23,10 +23,10 @@
     <string name="notifications_outrank_everything_then_privacy">Notifications outrank everything, then privacy, unlock, volume, ringer, battery.</string>
     <string name="music_timers_are_sticky_they">Music and timers are sticky: they stay until playback stops or the timer ends.</string>
     <string name="anything_transient_fades_back_resting">Anything transient fades back to the resting pill once its time is up.</string>
-    <string name="why_can_sit_top_status">Why it can\'t sit on top of the status bar</string>
-    <string name="android_layers_windows_by_type">Android layers windows by type. An app overlay — the only kind an app without system privileges can create — is always placed below the status bar, and the status bar consumes every touch inside its own band. No permission, flag or window type changes that for a normal app.</string>
-    <string name="over_status_bar_done_by">So \"over the status bar\" is done by drawing, not by layering. In Look → Position → Over the status bar the island is drawn up at the cutout, where it reads as part of the hardware, and a transparent strip hangs just below the status bar to catch taps. Centre it and the system clock and icons sit either side of it rather than through it.</string>
-    <string name="anything_genuinely_draws_above_status">Anything that genuinely draws above the status bar is a system app, a launcher, or a build with elevated privileges.</string>
+    <string name="why_can_sit_top_status">Getting above the status bar</string>
+    <string name="android_layers_windows_by_type">Android layers windows by type. An ordinary app overlay is always placed below the status bar, so notification icons are drawn across it, and the status bar swallows every touch in its own band.</string>
+    <string name="over_status_bar_done_by">The one window an app can place above the status bar is an accessibility overlay. In the sideloaded build, turn on the helper and the island moves there: icons go under it, and every part of it takes taps. It steps aside while the shade is pulled down.</string>
+    <string name="anything_genuinely_draws_above_status">Without the helper, Over the status bar draws the island up at the cutout for the look and hangs a transparent strip below the status bar to catch taps — but icons can still be drawn over it.</string>
     <string name="keeping_alive">Keeping it alive</string>
     <string name="android_may_stop_background_overlays">Android may stop background overlays on aggressive battery settings. Excluding Notch Island from battery optimisation keeps it steady.</string>
     <string name="battery_optimisation_settings">Battery optimisation settings</string>
@@ -381,7 +381,7 @@
     <string name="allow_notch_island_install_apps">Allow Notch Island to install apps, then tap Try again.</string>
     <string name="download_failed">The download failed</string>
     <string name="android_would_not_open_installer">Android would not open the installer</string>
-    <string name="set_up_detect_from_phone">Set up for %1$s. Detect from this phone for exact placement.</string>
+    <string name="set_up_detect_from_phone">Set up for %1$s: a %2$d × %3$d dp island, %4$d dp open. Detect from this phone for exact placement.</string>
     <string name="found_dp_camera_cutout">Found a %1$d×%2$d dp camera cutout</string>
     <string name="shaped">Shaped to %1$s</string>
     <string name="camera_off_side_island_stays">Your camera is off to the side, so the island stays centred and keeps clear of it</string>
@@ -411,9 +411,9 @@
     <string name="hide_while_typing_desc">Stays out of the way while a keyboard is open</string>
     <string name="needs_helper">Needs the helper service — turn it on from the Island tab</string>
     <string name="helper_row_title">Helper service (optional)</string>
-    <string name="helper_row_desc">Hides the island in apps you choose and while you type</string>
+    <string name="helper_row_desc">Draws the island above status bar icons, and hides it in apps you choose and while you type</string>
     <string name="helper_disclosure_title">Turn on the helper?</string>
-    <string name="helper_disclosure_body">The helper is an accessibility service. Notch Island uses it only to learn which app is in front and whether a keyboard is open, so the island can step out of the way. It does not read what is on your screen, and nothing is stored or sent anywhere.\n\nOn the next screen, find Notch Island helper and switch it on. You can turn it off there at any time.</string>
+    <string name="helper_disclosure_body">The helper is an accessibility service. Notch Island uses it for two things only: to draw the island above the status bar, so notification icons go under it instead of across it, and to learn which app is in front and whether a keyboard or the notification shade is open, so the island can step out of the way. It does not read what is on your screen, and nothing is stored or sent anywhere.\n\nOn the next screen, find Notch Island helper and switch it on. If Android says it is a restricted setting, tap App info below, open the ⋮ menu, choose Allow restricted settings, and try again.</string>
     <string name="continue_label">Continue</string>
     <string name="hide">Hide</string>
     <string name="per_app_rules_help_helper">Block keeps an app out of the island. Open makes the island expand on its own when that app sends something. Hide keeps the island off screen while that app is open — that one needs the helper service.</string>
@@ -430,6 +430,11 @@
     <string name="needs_calendar_access">Needs calendar access — switch on to allow</string>
     <string name="count_down_from">Start counting down</string>
     <string name="n_min">%1$d min</string>
+    <string name="draw_above_status_bar">Draw above the status bar</string>
+    <string name="draw_above_status_bar_on">Notification icons go under the island instead of across it, and the whole island takes taps</string>
+    <string name="draw_above_status_bar_needs_helper">Keeps notification icons from being drawn across the island — needs the helper service, from the Island tab</string>
+    <string name="icons_draw_over_island">Status bar icons can be drawn over the island here. The helper in the sideloaded build moves the island above them.</string>
+    <string name="app_info">App info</string>
     <plurals name="calendar_in_minutes">
         <item quantity="one">In %1$d minute</item>
         <item quantity="other">In %1$d minutes</item>

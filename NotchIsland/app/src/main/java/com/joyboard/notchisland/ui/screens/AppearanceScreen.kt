@@ -42,9 +42,11 @@ import com.joyboard.notchisland.ui.components.SwitchRow
 import kotlin.math.roundToInt
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
+import com.joyboard.notchisland.BuildConfig
 
 @Composable
 fun AppearanceScreen(viewModel: MainViewModel) {
+    val permissions by viewModel.permissions.collectAsStateLifecycle()
     val settings by viewModel.settings.collectAsStateLifecycle()
     val context = LocalContext.current
     var previewMode by remember { mutableStateOf(IslandMode.COMPACT) }
@@ -239,6 +241,19 @@ fun AppearanceScreen(viewModel: MainViewModel) {
             title = stringResource(R.string.position),
             subtitle = stringResource(R.string.where_island_sits_decides_what)
         ) {
+            // Above the status bar the island takes its own taps, so it needs no touch strip.
+            val drawingAbove = BuildConfig.HELPER_AVAILABLE && permissions.helper && settings.drawAboveStatusBar
+            if (BuildConfig.HELPER_AVAILABLE) {
+                SwitchRow(
+                    title = stringResource(R.string.draw_above_status_bar),
+                    subtitle = stringResource(
+                        if (permissions.helper) R.string.draw_above_status_bar_on
+                        else R.string.draw_above_status_bar_needs_helper
+                    ),
+                    checked = settings.drawAboveStatusBar,
+                    onCheckedChange = { value -> viewModel.update { it.copy(drawAboveStatusBar = value) } }
+                )
+            }
             DropdownRow(
                 title = stringResource(R.string.anchor),
                 selected = settings.positionMode,
@@ -250,8 +265,12 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 when (settings.positionMode) {
                     PositionMode.BELOW_STATUS_BAR ->
                         stringResource(R.string.whole_island_tappable_safest_what)
-                    PositionMode.OVERLAP_STATUS_BAR ->
-                        stringResource(R.string.island_drawn_up_status_bar)
+                    PositionMode.OVERLAP_STATUS_BAR -> if (drawingAbove) {
+                        stringResource(R.string.draw_above_status_bar_on)
+                    } else {
+                        stringResource(R.string.island_drawn_up_status_bar) + " " +
+                            stringResource(R.string.icons_draw_over_island)
+                    }
                     PositionMode.CUSTOM ->
                         stringResource(R.string.only_offsets_below_decide_where)
                 },
@@ -259,7 +278,7 @@ fun AppearanceScreen(viewModel: MainViewModel) {
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 18.dp, vertical = 4.dp)
             )
-            if (settings.positionMode == PositionMode.OVERLAP_STATUS_BAR) {
+            if (settings.positionMode == PositionMode.OVERLAP_STATUS_BAR && !drawingAbove) {
                 SliderRow(
                     title = stringResource(R.string.touch_strip),
                     value = settings.touchStripHeight.toFloat(),

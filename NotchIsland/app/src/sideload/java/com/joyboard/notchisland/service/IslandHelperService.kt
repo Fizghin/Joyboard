@@ -1,25 +1,37 @@
 package com.joyboard.notchisland.service
 
 import android.accessibilityservice.AccessibilityService
+import android.app.KeyguardManager
 import android.content.ComponentName
 import android.content.pm.PackageManager
+import android.graphics.Rect
+import android.view.WindowManager
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
 
 /**
- * An optional helper that tells the island two things and nothing else: which app is in front,
- * and whether a keyboard is open. With those it can stay out of chosen apps and out of the way
- * while someone types.
+ * An optional helper that gives the island two kinds of help.
  *
- * It never reads what is on screen — no text, no views, nothing is stored or sent anywhere. It
- * only exists in the sideloaded build: Google Play reserves accessibility services for tools
- * that help people with disabilities, which this is not.
+ * It says which app is in front, whether a keyboard is open and whether the notification shade
+ * is down, so the island can stay out of chosen apps, out of the way while someone types, and
+ * out of the shade.
+ *
+ * And it lends the island an accessibility overlay window, the one kind of window Android layers
+ * above the status bar, so notification icons go under the island instead of being drawn across
+ * it.
+ *
+ * It never reads what is on screen, no text and no views, and nothing is stored or sent. It only
+ * exists in the sideloaded build: Google Play reserves accessibility services for tools that help
+ * people with disabilities, which this is not.
  */
 class IslandHelperService : AccessibilityService() {
 
     override fun onServiceConnected() {
         IslandBus.helperConnected = true
-        updateKeyboard()
+        // This service's WindowManager carries its token, which is what lets a window added
+        // through it be an accessibility overlay.
+        IslandBus.setHelperWindowManager(getSystemService(WindowManager::class.java))
+        updateWindows()
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -31,19 +43,33 @@ class IslandHelperService : AccessibilityService() {
                 // Dialogs, toasts and the keyboard also raise this event; only a real activity
                 // coming forward means a different app is in front.
                 if (isActivity(pkg, cls)) IslandBus.postForegroundApp(pkg)
-                updateKeyboard()
+                updateWindows()
             }
-            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> updateKeyboard()
+            AccessibilityEvent.TYPE_WINDOWS_CHANGED -> updateWindows()
             // Only the two event types above are subscribed to.
             else -> Unit
         }
     }
 
-    private fun updateKeyboard() {
-        val open = runCatching {
-            windows.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD }
-        }.getOrDefault(false)
-        IslandBus.postKeyboard(open)
+    private fun updateWindows() {
+        val current = runCatching { windows }.getOrNull().orEmpty()
+        IslandBus.postKeyboard(current.any { it.type == AccessibilityWindowInfo.TYPE_INPUT_METHOD })
+        IslandBus.postShade(shadeOpen(current))
+    }
+
+    /**
+     * The pulled-down shade is a system window covering most of the screen; the status bar is a
+     * system window only a few dp tall. The lock screen lives in the same window as the shade,
+     * so while the phone is locked this says nothing and the lock-screen setting decides.
+     */
+    private fun shadeOpen(windows: List<AccessibilityWindowInfo>): Boolean {
+        if (getSystemService(KeyguardManager::class.java)?.isKeyguardLocked == true) return false
+        val half = resources.displayMetrics.heightPixels / 2
+        val bounds = Rect()
+        return windows.any {
+            it.type == AccessibilityWindowInfo.TYPE_SYSTEM &&
+                bounds.also(it::getBoundsInScreen).height() > half
+        }
     }
 
     private fun isActivity(pkg: String, cls: String): Boolean = runCatching {

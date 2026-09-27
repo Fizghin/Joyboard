@@ -75,6 +75,7 @@ class SettingsRepository private constructor(context: Context) {
         val positionMode = stringPreferencesKey("position_mode")
         val touchStripHeight = intPreferencesKey("touch_strip_height")
         val showTouchHint = booleanPreferencesKey("show_touch_hint")
+        val drawAboveStatusBar = booleanPreferencesKey("draw_above_status_bar")
         val expandedWidth = intPreferencesKey("expanded_width")
         val compactWidth = intPreferencesKey("compact_width")
         val mediumWidth = intPreferencesKey("medium_width")
@@ -190,6 +191,7 @@ class SettingsRepository private constructor(context: Context) {
                 else d.positionMode,
             touchStripHeight = this[K.touchStripHeight] ?: d.touchStripHeight,
             showTouchHint = this[K.showTouchHint] ?: d.showTouchHint,
+            drawAboveStatusBar = this[K.drawAboveStatusBar] ?: d.drawAboveStatusBar,
             expandedWidth = this[K.expandedWidth] ?: d.expandedWidth,
             compactWidth = this[K.compactWidth] ?: d.compactWidth,
             mediumWidth = this[K.mediumWidth] ?: d.mediumWidth,
@@ -365,6 +367,7 @@ class SettingsRepository private constructor(context: Context) {
         this[K.lastUpdateCheck] = s.lastUpdateCheck
         this[K.skippedVersion] = s.skippedVersion
         this[K.holeScreenWidth] = s.holeScreenWidthDp
+        this[K.drawAboveStatusBar] = s.drawAboveStatusBar
         this[K.hideInFullscreen] = s.hideInFullscreen
         this[K.hideWhileTyping] = s.hideWhileTyping
         this[K.hiddenInPackages] = s.hiddenInPackages

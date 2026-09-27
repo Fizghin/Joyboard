@@ -1,5 +1,5 @@
 <resources>
     <string name="helper_service_label">Notch Island helper</string>
-    <string name="helper_service_summary">Lets the island hide in apps you choose and while you type.</string>
-    <string name="helper_service_description">Notch Island uses this service only to learn which app is in front and whether a keyboard is open, so the island can step out of the way in apps you choose and while you type. It does not read what is on your screen, and nothing is stored or sent anywhere.</string>
+    <string name="helper_service_summary">Draws the island above the status bar, and hides it in apps you choose and while you type.</string>
+    <string name="helper_service_description">Notch Island uses this service for two things only: to draw the island above the status bar, so notification icons go under it, and to learn which app is in front and whether a keyboard or the notification shade is open, so the island can step out of the way. It does not read what is on your screen, and nothing is stored or sent anywhere.</string>
 </resources>

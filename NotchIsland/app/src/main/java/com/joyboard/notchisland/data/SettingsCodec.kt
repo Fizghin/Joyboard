@@ -21,6 +21,7 @@ object SettingsCodec {
         put("positionMode", settings.positionMode.name)
         put("touchStripHeight", settings.touchStripHeight)
         put("showTouchHint", settings.showTouchHint)
+        put("drawAboveStatusBar", settings.drawAboveStatusBar)
         put("expandedWidth", settings.expandedWidth)
         put("compactWidth", settings.compactWidth)
         put("mediumWidth", settings.mediumWidth)
@@ -118,6 +119,7 @@ object SettingsCodec {
             positionMode = o.enum("positionMode", base.positionMode),
             touchStripHeight = o.optInt("touchStripHeight", base.touchStripHeight),
             showTouchHint = o.optBoolean("showTouchHint", base.showTouchHint),
+            drawAboveStatusBar = o.optBoolean("drawAboveStatusBar", base.drawAboveStatusBar),
             expandedWidth = o.optInt("expandedWidth", base.expandedWidth),
             compactWidth = o.optInt("compactWidth", base.compactWidth),
             mediumWidth = o.optInt("mediumWidth", base.mediumWidth),

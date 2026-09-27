@@ -27,11 +27,17 @@ object VisibilityPolicy {
         val hiddenInPackages: Set<String> = emptySet(),
         /** Something that must be seen right now, such as a ringing call. */
         val urgent: Boolean = false,
+        /** The notification shade is pulled down. */
+        val shadeOpen: Boolean = false,
+        /** The island is layered above the status bar — and so above the shade too. */
+        val aboveStatusBar: Boolean = false,
     )
 
     fun shouldHide(i: Inputs): Boolean {
+        // An island above the status bar would sit on top of the pulled-down shade, so it goes
+        // while the shade is open; an ordinary overlay is simply covered by the shade.
         val hard = !i.screenOn || i.lockedOut || i.temporarilyHidden || i.quiet ||
-            (i.landscape && i.hideInLandscape)
+            (i.landscape && i.hideInLandscape) || (i.shadeOpen && i.aboveStatusBar)
         if (hard) return true
         if (i.urgent) return false
         val fullscreen = i.fullscreen && i.hideInFullscreen

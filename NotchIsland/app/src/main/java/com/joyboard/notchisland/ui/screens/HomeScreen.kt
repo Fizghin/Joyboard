@@ -49,6 +49,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import com.joyboard.notchisland.util.openAccessibilitySettings
+import com.joyboard.notchisland.util.openAppInfo
 
 @Composable
 fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
@@ -159,8 +160,15 @@ fun HomeScreen(viewModel: MainViewModel, onOpenAppearance: () -> Unit) {
                             }) { Text(stringResource(R.string.continue_label)) }
                         },
                         dismissButton = {
-                            TextButton(onClick = { disclosing = false }) {
-                                Text(stringResource(R.string.cancel))
+                            Row {
+                                // Android 13+ holds a sideloaded app's accessibility service
+                                // behind "Allow restricted settings" in App info.
+                                TextButton(onClick = { context.openAppInfo() }) {
+                                    Text(stringResource(R.string.app_info))
+                                }
+                                TextButton(onClick = { disclosing = false }) {
+                                    Text(stringResource(R.string.cancel))
+                                }
                             }
                         }
                     )

@@ -23,6 +23,9 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import android.content.Intent
 import com.joyboard.notchisland.island.AutomationRequest
+import android.view.WindowManager
+import com.joyboard.notchisland.data.PositionMode
+import android.content.res.Configuration
 
 /**
  * The whole controller — overlay window, activity queue, timers — under Robolectric's clock.
@@ -59,6 +62,11 @@ class ControllerRestTest {
         IslandBus.controller = null
         controller.stop()
     }
+
+    /** A window manager of its own, as the helper service's would be. */
+    private fun helperWindowManager(): WindowManager =
+        context.createConfigurationContext(Configuration(context.resources.configuration))
+            .getSystemService(WindowManager::class.java)
 
     private fun idle(ms: Long) = shadowOf(Looper.getMainLooper()).idleFor(Duration.ofMillis(ms))
 
@@ -135,6 +143,46 @@ class ControllerRestTest {
         send()
         idle(100)
         assertEquals(IslandMode.PILL, controller.currentMode)
+    }
+
+    @Test
+    fun `with the helper the island moves above the status bar, and back without it`() {
+        val overlap = settings.copy(positionMode = PositionMode.OVERLAP_STATUS_BAR, touchStripHeight = 20)
+        controller.applySettings(overlap)
+        IslandBus.controller = controller
+        assertEquals(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, controller.windowType)
+        assertTrue("an overlay under the status bar needs its touch strip", controller.touchStripHeight > 0)
+
+        // The helper connecting lends its window manager; any will do under Robolectric.
+        IslandBus.setHelperWindowManager(helperWindowManager())
+        idle(50)
+        assertEquals(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, controller.windowType)
+        assertEquals("above the status bar it takes its own taps", 0, controller.touchStripHeight)
+        assertTrue(controller.islandShowing)
+
+        IslandBus.postShade(true)
+        idle(50)
+        assertFalse(controller.islandShowing)
+        IslandBus.postShade(false)
+        idle(50)
+        assertTrue(controller.islandShowing)
+
+        IslandBus.clearHelperState()
+        idle(50)
+        assertEquals(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, controller.windowType)
+        assertTrue(controller.touchStripHeight > 0)
+    }
+
+    @Test
+    fun `switching it off keeps the island an ordinary overlay even with the helper on`() {
+        IslandBus.controller = controller
+        IslandBus.setHelperWindowManager(helperWindowManager())
+        idle(50)
+        assertEquals(WindowManager.LayoutParams.TYPE_ACCESSIBILITY_OVERLAY, controller.windowType)
+
+        controller.applySettings(settings.copy(drawAboveStatusBar = false))
+        idle(50)
+        assertEquals(WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY, controller.windowType)
     }
 
     @Test

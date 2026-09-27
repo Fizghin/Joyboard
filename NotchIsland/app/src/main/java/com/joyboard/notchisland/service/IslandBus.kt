@@ -5,6 +5,7 @@ import android.os.Looper
 import com.joyboard.notchisland.island.IslandController
 import java.lang.ref.WeakReference
 import com.joyboard.notchisland.island.NotificationItem
+import android.view.WindowManager
 
 /** Lets the notification listener talk to the overlay service without binding to it. */
 object IslandBus {
@@ -39,6 +40,33 @@ object IslandBus {
     @Volatile
     var helperConnected: Boolean = false
 
+    /**
+     * The helper's own WindowManager. Windows added through it can be accessibility overlays,
+     * the one kind of window an app may place above the status bar. Weak, like the controller.
+     */
+    @Volatile
+    private var helperWindowManagerRef: WeakReference<WindowManager>? = null
+
+    val helperWindowManager: WindowManager? get() = helperWindowManagerRef?.get()
+
+    /** The notification shade is pulled down, as far as the helper can tell. */
+    @Volatile
+    var shadeOpen: Boolean = false
+        private set
+
+    fun setHelperWindowManager(windowManager: WindowManager?) {
+        helperWindowManagerRef = windowManager?.let(::WeakReference)
+        val target = controller ?: return
+        handler.post { target.onHelperChanged() }
+    }
+
+    fun postShade(open: Boolean) {
+        if (open == shadeOpen) return
+        shadeOpen = open
+        val target = controller ?: return
+        handler.post { target.onContextChanged() }
+    }
+
     fun postForegroundApp(packageName: String?) {
         if (packageName == foregroundPackage) return
         foregroundPackage = packageName
@@ -58,6 +86,8 @@ object IslandBus {
         helperConnected = false
         postForegroundApp(null)
         postKeyboard(false)
+        postShade(false)
+        setHelperWindowManager(null)
     }
 
     fun postNotification(item: NotificationItem) {
