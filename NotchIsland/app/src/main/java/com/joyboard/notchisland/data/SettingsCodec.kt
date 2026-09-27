@@ -62,6 +62,9 @@ object SettingsCodec {
         put("hiddenInPackages", JSONArray(settings.hiddenInPackages.toList()))
         put("featureCalendar", settings.featureCalendar)
         put("featureLyrics", settings.featureLyrics)
+        put("featureWeather", settings.featureWeather)
+        put("rainAlerts", settings.rainAlerts)
+        put("weatherArea", settings.weatherArea)
         put("calendarLeadMinutes", settings.calendarLeadMinutes)
         put("externalApiEnabled", settings.externalApiEnabled)
         put("tapAction", settings.tapAction.name)
@@ -164,6 +167,9 @@ object SettingsCodec {
             hiddenInPackages = strings("hiddenInPackages") ?: base.hiddenInPackages,
             featureCalendar = o.optBoolean("featureCalendar", base.featureCalendar),
             featureLyrics = o.optBoolean("featureLyrics", base.featureLyrics),
+            featureWeather = o.optBoolean("featureWeather", base.featureWeather),
+            rainAlerts = o.optBoolean("rainAlerts", base.rainAlerts),
+            weatherArea = o.optString("weatherArea", base.weatherArea),
             calendarLeadMinutes = o.optInt("calendarLeadMinutes", base.calendarLeadMinutes),
             externalApiEnabled = o.optBoolean("externalApiEnabled", base.externalApiEnabled),
             tapAction = o.enum("tapAction", base.tapAction),

@@ -120,6 +120,9 @@ class SettingsRepository private constructor(context: Context) {
         val hiddenInPackages = stringSetPreferencesKey("hidden_in_packages")
         val featureCalendar = booleanPreferencesKey("feature_calendar")
         val featureLyrics = booleanPreferencesKey("feature_lyrics")
+        val featureWeather = booleanPreferencesKey("feature_weather")
+        val rainAlerts = booleanPreferencesKey("rain_alerts")
+        val weatherArea = stringPreferencesKey("weather_area")
         val calendarLeadMinutes = intPreferencesKey("calendar_lead_minutes")
         val externalApiEnabled = booleanPreferencesKey("external_api_enabled")
         val tapAction = stringPreferencesKey("tap_action")
@@ -235,6 +238,9 @@ class SettingsRepository private constructor(context: Context) {
             hiddenInPackages = this[K.hiddenInPackages] ?: d.hiddenInPackages,
             featureCalendar = this[K.featureCalendar] ?: d.featureCalendar,
             featureLyrics = this[K.featureLyrics] ?: d.featureLyrics,
+            featureWeather = this[K.featureWeather] ?: d.featureWeather,
+            rainAlerts = this[K.rainAlerts] ?: d.rainAlerts,
+            weatherArea = this[K.weatherArea] ?: d.weatherArea,
             calendarLeadMinutes = this[K.calendarLeadMinutes] ?: d.calendarLeadMinutes,
             externalApiEnabled = this[K.externalApiEnabled] ?: d.externalApiEnabled,
             tapAction = this[K.tapAction]?.toEnum<GestureAction>() ?: d.tapAction,
@@ -375,6 +381,9 @@ class SettingsRepository private constructor(context: Context) {
         this[K.hiddenInPackages] = s.hiddenInPackages
         this[K.featureCalendar] = s.featureCalendar
         this[K.featureLyrics] = s.featureLyrics
+        this[K.featureWeather] = s.featureWeather
+        this[K.rainAlerts] = s.rainAlerts
+        this[K.weatherArea] = s.weatherArea
         this[K.calendarLeadMinutes] = s.calendarLeadMinutes
         this[K.externalApiEnabled] = s.externalApiEnabled
     }

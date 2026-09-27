@@ -83,6 +83,10 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private val mediaMonitor = MediaMonitor(context) { snapshot -> onMediaSnapshot(snapshot) }
     private val calendarMonitor = CalendarMonitor(context) { event -> onCalendar(event) }
     private val lyrics = LyricsProvider()
+    private val weatherMonitor = WeatherMonitor(onReport = { report -> onWeather(report) })
+    private var weather: WeatherReport? = null
+    /** The rain start last announced, so one shower is announced once. */
+    private var rainAnnouncedFor = 0L
     private val automationReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) = onAutomation(intent)
     }
@@ -166,6 +170,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
         mediaMonitor.stop()
         calendarMonitor.release()
         lyrics.release()
+        weatherMonitor.release()
         setAutomationListening(false)
         quickActions.release()
         window.detach()
@@ -196,6 +201,7 @@ class IslandController(private val context: Context) : IslandView.Listener {
             activities.remove(ActivityKind.CALENDAR)
             calendarShownId = null
         }
+        updateWeatherWatch()
         if (before.featureLyrics != next.featureLyrics && next.featureMedia) {
             onMediaSnapshot(mediaMonitor.snapshot())
         }
@@ -228,10 +234,12 @@ class IslandController(private val context: Context) : IslandView.Listener {
         if (on) {
             if (settings.featureMedia) mediaMonitor.start()
             if (settings.featurePrivacy) privacyMonitor.start()
+            updateWeatherWatch()
         } else {
             handler.removeCallbacks(mediaTicker)
             mediaMonitor.stop()
             privacyMonitor.stop()
+            weatherMonitor.stop()
         }
     }
 
@@ -364,6 +372,43 @@ class IslandController(private val context: Context) : IslandView.Listener {
             }
         }
     }
+
+    /** Fetches weather only while it is on, an area is known, and the screen is on. */
+    private fun updateWeatherWatch() {
+        val area = settings.weatherArea
+        if (settings.featureWeather && Weather.parseArea(area) != null && screenOn) {
+            weatherMonitor.start(area)
+        } else {
+            weatherMonitor.stop()
+            if (!settings.featureWeather) {
+                weather = null
+                activities.remove(ActivityKind.WEATHER)
+            }
+        }
+    }
+
+    private fun onWeather(report: WeatherReport) {
+        if (!settings.featureWeather) return
+        weather = report
+        val now = System.currentTimeMillis()
+        val start = Weather.rainStart(report, now)
+        // A forecast refreshed mid-shower nudges the start time; that is still the same rain.
+        if (settings.rainAlerts && start != null && kotlin.math.abs(start - rainAnnouncedFor) > RAIN_SAME_SHOWER_MS) {
+            rainAnnouncedFor = start
+            push(
+                LiveActivity(
+                    kind = ActivityKind.WEATHER,
+                    presentation = presentations.rainSoon(start, now),
+                    expiresAt = SystemClock.elapsedRealtime() + 6_000,
+                )
+            )
+        } else {
+            // The quick panel shows the conditions, so an open one should pick them up.
+            render()
+        }
+    }
+
+    override fun currentWeather(): WeatherReport? = weather.takeIf { settings.featureWeather }
 
     private fun onCalendar(event: CalendarEvent?) {
         if (!settings.featureCalendar || event == null) {
@@ -736,6 +781,9 @@ class IslandController(private val context: Context) : IslandView.Listener {
     private companion object {
         /** How many notifications the island remembers for its history panel. */
         const val HISTORY_LIMIT = 12
+
+        /** Rain starts closer together than this are one shower, announced once. */
+        const val RAIN_SAME_SHOWER_MS = 90 * 60_000L
     }
 
     // ------------------------------------------------------------------ IslandView.Listener

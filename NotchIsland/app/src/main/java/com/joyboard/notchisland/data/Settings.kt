@@ -126,6 +126,12 @@ data class IslandSettings(
     val featureHistory: Boolean = true,
     /** Synced lyrics in the open media panel, looked up online. Off unless turned on. */
     val featureLyrics: Boolean = false,
+    /** Weather in the quick panel, looked up online for [weatherArea]. Off unless turned on. */
+    val featureWeather: Boolean = false,
+    /** A heads-up when rain is due within the hour. */
+    val rainAlerts: Boolean = true,
+    /** "lat,lon" rounded to about 10 km, taken while the app is open; blank until then. */
+    val weatherArea: String = "",
     /** The next calendar event, counting down. Off by default: it needs calendar access. */
     val featureCalendar: Boolean = false,
     /** How long before an event the island starts counting down to it. */

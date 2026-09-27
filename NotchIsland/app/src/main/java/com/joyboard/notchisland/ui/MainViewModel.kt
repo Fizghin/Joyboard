@@ -48,6 +48,9 @@ import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.joyboard.notchisland.data.stampedFor
 import com.joyboard.notchisland.data.IslandProfile
+import android.location.Location
+import android.location.LocationManager
+import com.joyboard.notchisland.island.Weather
 
 data class PermissionState(
     val overlay: Boolean = false,
@@ -56,6 +59,7 @@ data class PermissionState(
     val dndAccess: Boolean = false,
     val helper: Boolean = false,
     val calendar: Boolean = false,
+    val location: Boolean = false,
 ) {
     val essentialsGranted: Boolean get() = overlay
     val allGranted: Boolean get() = overlay && notificationAccess && writeSettings && dndAccess
@@ -102,6 +106,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
             dndAccess = nm?.isNotificationPolicyAccessGranted == true,
             helper = BuildConfig.HELPER_AVAILABLE && context.helperServiceEnabled(),
             calendar = ContextCompat.checkSelfPermission(context, Manifest.permission.READ_CALENDAR) ==
+                PackageManager.PERMISSION_GRANTED,
+            location = ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
                 PackageManager.PERMISSION_GRANTED,
         )
     }
@@ -325,6 +331,43 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
+    /**
+     * Notes the phone's approximate area for the weather, rounded to about 10 km. Only ever
+     * called while the app is open, so the island never needs location in the background.
+     */
+    fun captureWeatherArea() {
+        val context = getApplication<Application>()
+        if (ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) !=
+            PackageManager.PERMISSION_GRANTED
+        ) return
+        val manager = context.getSystemService(LocationManager::class.java) ?: return
+        fun save(location: Location?) {
+            location ?: return
+            val area = Weather.roundedArea(location.latitude, location.longitude)
+            viewModelScope.launch { repository.update { it.copy(weatherArea = area) } }
+        }
+        val last = listOf(LocationManager.NETWORK_PROVIDER, LocationManager.PASSIVE_PROVIDER)
+            .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
+            .maxByOrNull { it.time }
+        val fresh = last != null && System.currentTimeMillis() - last.time < AREA_FRESH_MS
+        if (!fresh && Build.VERSION.SDK_INT >= Build.VERSION_CODES.R &&
+            runCatching { manager.isProviderEnabled(LocationManager.NETWORK_PROVIDER) }.getOrDefault(false)
+        ) {
+            runCatching {
+                manager.getCurrentLocation(LocationManager.NETWORK_PROVIDER, null, context.mainExecutor) {
+                    save(it ?: last)
+                }
+            }.onFailure { save(last) }
+        } else {
+            save(last)
+        }
+    }
+
+    /** Keeps the weather's area current when someone opens the app somewhere new. */
+    fun refreshWeatherArea() {
+        if (settings.value.featureWeather) captureWeatherArea()
+    }
+
     fun toggleHidden(packageName: String) {
         viewModelScope.launch { repository.toggleHidden(packageName) }
     }
@@ -422,6 +465,8 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private companion object {
+        /** A last-known position younger than this is good enough for the weather. */
+        const val AREA_FRESH_MS = 3 * 60 * 60_000L
         const val CHECK_INTERVAL_MS = 6 * 60 * 60 * 1000L
     }
 

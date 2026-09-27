@@ -17,6 +17,8 @@
     <uses-permission android:name="android.permission.ACCESS_NOTIFICATION_POLICY" />
     <!-- Only asked for when the calendar activity is switched on. -->
     <uses-permission android:name="android.permission.READ_CALENDAR" />
+    <!-- Only asked for when weather is switched on, and only used while the app is open. -->
+    <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
     <uses-permission android:name="android.permission.WRITE_SETTINGS"
         tools:ignore="ProtectedPermissions" />
 

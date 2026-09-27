@@ -170,6 +170,46 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                     }
                 )
             }
+            val locationPermission = rememberLauncherForActivityResult(
+                ActivityResultContracts.RequestPermission()
+            ) { granted ->
+                viewModel.refreshPermissions()
+                if (granted) {
+                    viewModel.update { it.copy(featureWeather = true) }
+                    viewModel.captureWeatherArea()
+                }
+            }
+            SwitchRow(
+                title = stringResource(R.string.weather),
+                subtitle = stringResource(
+                    when {
+                        !settings.featureWeather -> R.string.weather_desc
+                        settings.weatherArea.isNotBlank() -> R.string.weather_desc
+                        permissions.location -> R.string.weather_finding_area
+                        else -> R.string.weather_needs_area
+                    }
+                ),
+                checked = settings.featureWeather,
+                onCheckedChange = { value ->
+                    when {
+                        !value -> viewModel.update { it.copy(featureWeather = false) }
+                        !permissions.location && settings.weatherArea.isBlank() ->
+                            locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
+                        else -> {
+                            viewModel.update { it.copy(featureWeather = true) }
+                            viewModel.captureWeatherArea()
+                        }
+                    }
+                }
+            )
+            if (settings.featureWeather) {
+                SwitchRow(
+                    title = stringResource(R.string.rain_alerts),
+                    subtitle = stringResource(R.string.rain_alerts_desc),
+                    checked = settings.rainAlerts,
+                    onCheckedChange = { value -> viewModel.update { it.copy(rainAlerts = value) } }
+                )
+            }
             SwitchRow(
                 title = stringResource(R.string.recent_notifications),
                 subtitle = stringResource(R.string.keeps_last_dozen_you_can),

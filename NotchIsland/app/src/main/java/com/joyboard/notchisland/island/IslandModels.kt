@@ -24,6 +24,8 @@ enum class ActivityKind(val priority: Int) {
     ONGOING(25),
     TIMER(30),
     STOPWATCH(32),
+    /** Rain due within the hour: a short heads-up. */
+    WEATHER(35),
     CHARGING(40),
     BATTERY_LOW(45),
     RINGER(50),

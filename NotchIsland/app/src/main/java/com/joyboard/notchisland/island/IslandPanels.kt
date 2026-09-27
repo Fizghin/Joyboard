@@ -555,6 +555,24 @@ internal class IslandPanels(
         val date = widgets.smallLabel(DateFormat.format(datePattern, now).toString())
         into.addView(clock)
         into.addView(date)
+        host.listener.currentWeather()?.let { weather ->
+            val row = LinearLayout(context).apply {
+                orientation = LinearLayout.HORIZONTAL
+                gravity = Gravity.CENTER_VERTICAL
+                layoutParams = LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT
+                ).apply { topMargin = 4.dp }
+            }
+            row.addView(ImageView(context).apply {
+                setImageDrawable(widgets.icon(weather.sky.iconRes))
+                setColorFilter(0xCCFFFFFF.toInt())
+                layoutParams = LinearLayout.LayoutParams(16.dp, 16.dp).apply { marginEnd = 6.dp }
+            })
+            row.addView(widgets.smallLabel(
+                context.getString(R.string.weather_now, weather.degrees, context.getString(weather.sky.labelRes))
+            ))
+            into.addView(row)
+        }
         into.addView(buildBrightnessRow(accent))
         into.addView(buildVolumeRow(accent))
     }

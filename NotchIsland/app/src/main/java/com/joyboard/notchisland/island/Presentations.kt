@@ -236,6 +236,28 @@ internal class Presentations(
         body = ExpandedBody.History(items),
     )
 
+    /** Rain due soon. */
+    fun rainSoon(startMs: Long, nowMs: Long): Presentation {
+        val blue = 0xFF5AC8FA.toInt()
+        val minutes = ((startMs - nowMs + 59_999) / 60_000).toInt()
+        val detail = if (minutes <= 0) context.getString(R.string.rain_starting_now)
+        else context.getString(R.string.rain_around, DateFormat.getTimeFormat(context).format(Date(startMs)))
+        return Presentation(
+            kind = ActivityKind.WEATHER,
+            leadingIcon = drawable(R.drawable.ic_weather_rain),
+            leadingTint = blue,
+            trailing = Trailing.Text(
+                if (minutes <= 0) context.getString(R.string.calendar_now)
+                else context.getString(R.string.calendar_short_minutes, minutes),
+                blue,
+            ),
+            accent = blue,
+            title = context.getString(R.string.rain_soon),
+            subtitle = detail,
+            body = ExpandedBody.Message(context.getString(R.string.rain_soon), detail),
+        )
+    }
+
     /** A message from another app. It has no tap target: automation may speak, not launch. */
     fun external(request: AutomationRequest): Presentation {
         val tint = request.color ?: accent()

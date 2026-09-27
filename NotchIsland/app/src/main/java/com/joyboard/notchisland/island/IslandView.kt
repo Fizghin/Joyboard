@@ -65,6 +65,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         fun currentBrightness(): Int
         /** The audio output picker, from the media panel. */
         fun onMediaOutput() = Unit
+        /** The latest weather, when it is switched on and has arrived. */
+        fun currentWeather(): WeatherReport? = null
     }
 
     // ------------------------------------------------------------------ state
@@ -765,7 +767,8 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             "history|${body.items.joinToString(",") { it.key }}|$accent"
         // The quick panel shows a clock, so it is allowed to go stale for at most a minute.
         ExpandedBody.QuickPanel ->
-            "quick|$accent|${System.currentTimeMillis() / 60_000L}"
+            "quick|$accent|${System.currentTimeMillis() / 60_000L}|" +
+                listener.currentWeather()?.let { "${it.degrees}${it.sky}" }
     }
 
     private fun bindMediaHeader(media: MediaSnapshot, accent: Int) {
