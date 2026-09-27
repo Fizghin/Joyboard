@@ -21,6 +21,8 @@ data class BatteryState(
     val plugged: Boolean,
     val fast: Boolean,
     val full: Boolean,
+    /** Time to a full charge, when plugged in and the system can estimate it. */
+    val fullInMs: Long? = null,
 )
 
 class BatteryMonitor(
@@ -68,6 +70,13 @@ class BatteryMonitor(
         return intent?.let { read(it) }
     }
 
+    private fun chargeTimeRemaining(): Long? {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return null
+        val manager = context.getSystemService(BatteryManager::class.java) ?: return null
+        // -1 while the estimate is still being worked out; 0 once there is nothing left to do.
+        return runCatching { manager.computeChargeTimeRemaining() }.getOrNull()?.takeIf { it > 0 }
+    }
+
     private fun read(intent: Intent): BatteryState? {
         val level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1)
         val scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, 100)
@@ -80,6 +89,7 @@ class BatteryMonitor(
             plugged = plug != 0,
             fast = plug == BatteryManager.BATTERY_PLUGGED_AC,
             full = status == BatteryManager.BATTERY_STATUS_FULL || percent >= 100,
+            fullInMs = if (plug != 0) chargeTimeRemaining() else null,
         )
     }
 }

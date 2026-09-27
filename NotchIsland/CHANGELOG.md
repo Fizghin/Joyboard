@@ -1,5 +1,36 @@
 # Changelog
 
+## 2.7
+
+A redesign of the island itself.
+
+- Each activity has its own colour, whatever accent you choose: charging green, low battery red,
+  timer and stopwatch orange, the camera's green dot and the microphone's orange one, Silent red,
+  Do Not Disturb purple, rain blue, the flashlight amber. Before, every icon was the same accent.
+- The open header shows its icon on a soft disc of that colour; people's pictures are round,
+  artwork and app icons are rounded squares.
+- Nothing is said twice. An open notification names the app in its header and shows the message
+  once, in full; unlock, privacy, headphones, Do Not Disturb, rain and automation messages open
+  to their header alone instead of repeating it underneath.
+- The timer, stopwatch, battery and calls have their own layouts, as on the iPhone: round pause,
+  cancel and +1 buttons beside a large countdown; lap or reset and start or stop, with laps
+  listed newest first as their own lengths; a drawn battery with a bolt while charging and the
+  level in large type; the caller beside big red and green buttons.
+- Low battery offers Battery Saver, and tapping it goes there. Charging says when the phone
+  will be full, on Android 9 and later.
+- The resting panel puts the time and date beside the weather and next alarm; brightness has a
+  sun icon instead of a gear.
+- Music: elapsed and total time sit either side of the scrubber, the skip buttons are bare
+  glyphs, and all sliders are thick rounded bars.
+- Compact: a percentage beside the battery, "On" beside the flashlight, a dot for the camera or
+  microphone, and larger figures. Text beside the camera trails off instead of being pushed to
+  the other side of it and cut short.
+- Notification actions are tinted pills with a round dismiss button; replies send with an arrow.
+- The charging panel no longer shows the quick toggles.
+- Fixed progress rings that drew black on black when their colour was the default green — the
+  compact charging ring was invisible, and so was any download ring from an app using it.
+- Fixed an open notification not updating when a chat app changed its text in place.
+
 ## 2.6
 
 A redesign of the app.

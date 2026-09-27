@@ -14,7 +14,7 @@ import android.content.Intent
 import android.provider.CalendarContract
 import android.text.format.DateFormat
 import java.util.Date
-import android.graphics.Color
+import android.provider.Settings
 
 /**
  * What each kind of live activity looks like: icon, readout, colours, titles and the panel it
@@ -45,8 +45,9 @@ internal class Presentations(
         kind = ActivityKind.CALL,
         leadingIcon = item.appIcon ?: item.smallIcon,
         leadingBitmap = item.largeIcon,
-        trailing = Trailing.Waveform(true, 0xFF34C759.toInt()),
-        accent = 0xFF34C759.toInt(),
+        trailing = Trailing.Waveform(true, IslandColors.GREEN),
+        accent = IslandColors.GREEN,
+        fixedAccent = IslandColors.GREEN,
         title = item.title.ifBlank { item.appLabel },
         subtitle = item.text.ifBlank { context.getString(R.string.call) },
         body = ExpandedBody.Call(item),
@@ -96,40 +97,46 @@ internal class Presentations(
         notificationKey = item.key,
     )
 
-    /** The low-battery warning. */
+    /** The low-battery warning. Tapping it goes to Battery Saver. */
     fun batteryLow(state: BatteryState) = Presentation(
         kind = ActivityKind.BATTERY_LOW,
         leadingIcon = drawable(R.drawable.ic_battery_full),
-        leadingTint = 0xFFFF453A.toInt(),
-        trailing = Trailing.Ring(state.level / 100f, 0xFFFF453A.toInt()),
-        accent = 0xFFFF453A.toInt(),
+        leadingTint = IslandColors.RED,
+        trailing = Trailing.Text(percent(state.level), IslandColors.RED),
+        accent = IslandColors.RED,
+        fixedAccent = IslandColors.RED,
         title = context.getString(R.string.low_battery),
         subtitle = context.getString(R.string.remaining, state.level),
-        body = ExpandedBody.Charging(state.level, state.plugged, state.fast),
+        body = ExpandedBody.Charging(state.level, state.plugged, state.fast, state.fullInMs, warning = true),
+        tapIntent = PendingIntent.getActivity(
+            context, BATTERY_SAVER_REQUEST,
+            Intent(Settings.ACTION_BATTERY_SAVER_SETTINGS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
+        ),
     )
 
     /** Plugging in or unplugging. */
-    fun charging(state: BatteryState) = Presentation(
-        kind = ActivityKind.CHARGING,
-        leadingIcon = drawable(
-            if (state.plugged) R.drawable.ic_battery_charging else R.drawable.ic_battery_full
-        ),
-        leadingTint = if (state.plugged) 0xFF34C759.toInt() else 0xFFFFFFFF.toInt(),
-        trailing = Trailing.Ring(
-            state.level / 100f,
-            if (state.plugged) 0xFF34C759.toInt() else 0xFFFFFFFF.toInt(),
-            "${state.level}"
-        ),
-        accent = if (state.plugged) 0xFF34C759.toInt() else 0xFF8E8E93.toInt(),
-        title = when {
-            state.full -> context.getString(R.string.fully_charged)
-            state.plugged && state.fast -> context.getString(R.string.fast_charging)
-            state.plugged -> context.getString(R.string.charging)
-            else -> context.getString(R.string.unplugged)
-        },
-        subtitle = context.getString(R.string.battery, state.level),
-        body = ExpandedBody.Charging(state.level, state.plugged, state.fast),
-    )
+    fun charging(state: BatteryState): Presentation {
+        val color = if (state.plugged) IslandColors.GREEN else IslandColors.WHITE
+        return Presentation(
+            kind = ActivityKind.CHARGING,
+            leadingIcon = drawable(
+                if (state.plugged) R.drawable.ic_battery_charging else R.drawable.ic_battery_full
+            ),
+            leadingTint = color,
+            trailing = Trailing.Text(percent(state.level), color),
+            accent = color,
+            fixedAccent = color,
+            title = when {
+                state.full -> context.getString(R.string.fully_charged)
+                state.plugged && state.fast -> context.getString(R.string.fast_charging)
+                state.plugged -> context.getString(R.string.charging)
+                else -> context.getString(R.string.unplugged)
+            },
+            subtitle = context.getString(R.string.battery, state.level),
+            body = ExpandedBody.Charging(state.level, state.plugged, state.fast, state.fullInMs),
+        )
+    }
 
     /** A volume change. */
     fun volume(stream: Int, level: Int, fraction: Float) = Presentation(
@@ -144,48 +151,59 @@ internal class Presentations(
         body = ExpandedBody.QuickPanel,
     )
 
-    /** A ringer-mode change. */
-    fun ringer(iconRes: Int, title: String) = Presentation(
-        kind = ActivityKind.RINGER,
-        leadingIcon = drawable(iconRes),
-        trailing = Trailing.Text(title),
-        accent = accent(),
-        title = title,
-        subtitle = context.getString(R.string.ringer_mode),
-        body = ExpandedBody.Message(title, context.getString(R.string.ringer_mode_changed)),
-    )
+    /** A ringer-mode change. Silent is red, as the iPhone's switch is. */
+    fun ringer(iconRes: Int, title: String): Presentation {
+        val tint = if (iconRes == R.drawable.ic_bell_off) IslandColors.RED else null
+        return Presentation(
+            kind = ActivityKind.RINGER,
+            leadingIcon = drawable(iconRes),
+            leadingTint = tint,
+            trailing = Trailing.Text(title, tint),
+            accent = accent(),
+            fixedAccent = tint,
+            title = title,
+            subtitle = context.getString(R.string.ringer_mode),
+            body = NOTHING_MORE,
+        )
+    }
 
     /** The unlock confirmation. */
     fun unlocked() = Presentation(
         kind = ActivityKind.UNLOCK,
         leadingIcon = drawable(R.drawable.ic_unlock),
-        leadingTint = 0xFF34C759.toInt(),
-        trailing = Trailing.Text(context.getString(R.string.unlocked), 0xFF34C759.toInt()),
-        accent = 0xFF34C759.toInt(),
+        leadingTint = IslandColors.GREEN,
+        trailing = Trailing.Text(context.getString(R.string.unlocked), IslandColors.GREEN),
+        accent = IslandColors.GREEN,
+        fixedAccent = IslandColors.GREEN,
         title = context.getString(R.string.unlocked),
         subtitle = null,
-        body = ExpandedBody.Message(context.getString(R.string.unlocked), null),
+        body = NOTHING_MORE,
     )
 
-    /** The microphone or camera going live. */
-    fun privacy(iconRes: Int, label: String) = Presentation(
-        kind = ActivityKind.PRIVACY,
-        leadingIcon = drawable(iconRes),
-        leadingTint = 0xFF34C759.toInt(),
-        trailing = Trailing.Icon(drawable(iconRes), 0xFF34C759.toInt()),
-        accent = 0xFF34C759.toInt(),
-        title = label,
-        subtitle = context.getString(R.string.privacy_indicator),
-        body = ExpandedBody.Message(label, context.getString(R.string.app_using_sensor_right_now)),
-    )
+    /** The microphone or camera going live: a green dot for the camera, orange for the microphone. */
+    fun privacy(iconRes: Int, label: String): Presentation {
+        val tint = if (iconRes == R.drawable.ic_mic) IslandColors.ORANGE else IslandColors.GREEN
+        return Presentation(
+            kind = ActivityKind.PRIVACY,
+            leadingIcon = drawable(iconRes),
+            leadingTint = tint,
+            trailing = Trailing.Icon(drawable(R.drawable.ic_dot), tint),
+            accent = tint,
+            fixedAccent = tint,
+            title = label,
+            subtitle = context.getString(R.string.app_using_sensor_right_now),
+            body = NOTHING_MORE,
+        )
+    }
 
     /** A running countdown. */
     fun timer(remaining: Long, total: Long, running: Boolean) = Presentation(
         kind = ActivityKind.TIMER,
         leadingIcon = drawable(R.drawable.ic_timer),
-        leadingTint = accent(),
-        trailing = Trailing.Text(IslandView.formatDuration(remaining, true), accent()),
-        accent = accent(),
+        leadingTint = IslandColors.ORANGE,
+        trailing = Trailing.Text(IslandView.formatDuration(remaining, true), IslandColors.ORANGE),
+        accent = IslandColors.ORANGE,
+        fixedAccent = IslandColors.ORANGE,
         title = context.getString(R.string.timer),
         subtitle = IslandView.formatDuration(remaining, true),
         body = ExpandedBody.Timer(remaining, total, running),
@@ -195,12 +213,13 @@ internal class Presentations(
     fun timerFinished() = Presentation(
         kind = ActivityKind.NOTIFICATION,
         leadingIcon = drawable(R.drawable.ic_timer),
-        leadingTint = accent(),
-        trailing = Trailing.Text(context.getString(R.string.done), accent()),
-        accent = accent(),
+        leadingTint = IslandColors.ORANGE,
+        trailing = Trailing.Text(context.getString(R.string.done), IslandColors.ORANGE),
+        accent = IslandColors.ORANGE,
+        fixedAccent = IslandColors.ORANGE,
         title = context.getString(R.string.timer_finished),
         subtitle = null,
-        body = ExpandedBody.Message(context.getString(R.string.timer_finished), null),
+        body = NOTHING_MORE,
     )
 
     /** Nothing happening: the resting island. */
@@ -218,9 +237,10 @@ internal class Presentations(
     fun stopwatch(elapsed: Long, running: Boolean, laps: List<Long>) = Presentation(
         kind = ActivityKind.STOPWATCH,
         leadingIcon = drawable(R.drawable.ic_stopwatch),
-        leadingTint = accent(),
-        trailing = Trailing.Text(formatStopwatch(elapsed), accent()),
-        accent = accent(),
+        leadingTint = IslandColors.ORANGE,
+        trailing = Trailing.Text(formatStopwatch(elapsed), IslandColors.ORANGE),
+        accent = IslandColors.ORANGE,
+        fixedAccent = IslandColors.ORANGE,
         title = context.getString(R.string.stopwatch),
         subtitle = formatStopwatch(elapsed),
         body = ExpandedBody.Stopwatch(elapsed, running, laps),
@@ -230,7 +250,6 @@ internal class Presentations(
     fun history(items: List<NotificationItem>) = Presentation(
         kind = ActivityKind.IDLE,
         leadingIcon = drawable(R.drawable.ic_bell),
-        leadingTint = accent(),
         accent = accent(),
         title = context.getString(R.string.recent),
         subtitle = context.resources.getQuantityString(R.plurals.notification_count, items.size, items.size),
@@ -239,7 +258,7 @@ internal class Presentations(
 
     /** Headphones arriving or leaving, by name. */
     fun headphones(name: String, connected: Boolean): Presentation {
-        val tint = if (connected) 0xFF34C759.toInt() else 0xFF8E8E93.toInt()
+        val tint = if (connected) IslandColors.GREEN else IslandColors.GRAY
         val status = context.getString(
             if (connected) R.string.headphones_connected else R.string.headphones_disconnected
         )
@@ -247,24 +266,25 @@ internal class Presentations(
         return Presentation(
             kind = ActivityKind.HEADPHONES,
             leadingIcon = drawable(R.drawable.ic_headphones),
-            leadingTint = Color.WHITE,
-            trailing = Trailing.Icon(drawable(R.drawable.ic_headphones), tint),
+            trailing = Trailing.Text(status, tint),
             accent = tint,
+            fixedAccent = tint,
             title = title,
             subtitle = status,
-            body = ExpandedBody.Message(title, status),
+            body = NOTHING_MORE,
         )
     }
 
     /** The torch, for as long as it is on. */
     fun flashlight(): Presentation {
-        val amber = 0xFFFFCC00.toInt()
+        val amber = IslandColors.AMBER
         return Presentation(
             kind = ActivityKind.FLASHLIGHT,
             leadingIcon = drawable(R.drawable.ic_torch),
             leadingTint = amber,
-            trailing = Trailing.Icon(drawable(R.drawable.ic_torch), amber),
+            trailing = Trailing.Text(context.getString(R.string.torch_state_on), amber),
             accent = amber,
+            fixedAccent = amber,
             title = context.getString(R.string.flashlight_on),
             subtitle = context.getString(R.string.flashlight_tap_off),
             // The header already names it; the panel below only needs the switch.
@@ -274,8 +294,7 @@ internal class Presentations(
 
     /** Do Not Disturb switching on or off. */
     fun focus(on: Boolean): Presentation {
-        val purple = 0xFF7D7AFF.toInt()
-        val tint = if (on) purple else 0xFF8E8E93.toInt()
+        val tint = if (on) IslandColors.PURPLE else IslandColors.GRAY
         val state = context.getString(if (on) R.string.dnd_on else R.string.dnd_off)
         val title = context.getString(R.string.do_not_disturb)
         return Presentation(
@@ -284,15 +303,16 @@ internal class Presentations(
             leadingTint = tint,
             trailing = Trailing.Text(state, tint),
             accent = tint,
+            fixedAccent = tint,
             title = title,
             subtitle = state,
-            body = ExpandedBody.Message(title, state),
+            body = NOTHING_MORE,
         )
     }
 
     /** Rain due soon. */
     fun rainSoon(startMs: Long, nowMs: Long): Presentation {
-        val blue = 0xFF5AC8FA.toInt()
+        val blue = IslandColors.CYAN
         val minutes = ((startMs - nowMs + 59_999) / 60_000).toInt()
         val detail = if (minutes <= 0) context.getString(R.string.rain_starting_now)
         else context.getString(R.string.rain_around, DateFormat.getTimeFormat(context).format(Date(startMs)))
@@ -306,9 +326,10 @@ internal class Presentations(
                 blue,
             ),
             accent = blue,
+            fixedAccent = blue,
             title = context.getString(R.string.rain_soon),
             subtitle = detail,
-            body = ExpandedBody.Message(context.getString(R.string.rain_soon), detail),
+            body = NOTHING_MORE,
         )
     }
 
@@ -318,12 +339,14 @@ internal class Presentations(
         return Presentation(
             kind = ActivityKind.EXTERNAL,
             leadingIcon = drawable(request.iconRes),
-            leadingTint = tint,
-            trailing = Trailing.Icon(drawable(request.iconRes), tint),
+            leadingTint = request.color,
+            // The compact island says what it is about; the icon is already on the other side.
+            trailing = Trailing.Text(request.title.take(16), tint),
             accent = tint,
+            fixedAccent = request.color,
             title = request.title,
             subtitle = request.text,
-            body = ExpandedBody.Message(request.title, request.text),
+            body = NOTHING_MORE,
         )
     }
 
@@ -347,12 +370,14 @@ internal class Presentations(
         return Presentation(
             kind = ActivityKind.CALENDAR,
             leadingIcon = drawable(R.drawable.ic_calendar),
-            leadingTint = accent(),
-            trailing = Trailing.Text(short, accent()),
-            accent = accent(),
+            leadingTint = IslandColors.RED,
+            trailing = Trailing.Text(short, IslandColors.RED),
+            accent = IslandColors.RED,
+            fixedAccent = IslandColors.RED,
             title = title,
             subtitle = countdown,
-            body = ExpandedBody.Message(title, context.getString(R.string.calendar_detail, countdown, where)),
+            // The header has the title and how long until; the panel adds when and where.
+            body = ExpandedBody.Message("", where),
             tapIntent = PendingIntent.getActivity(
                 context, event.id.toInt(), open,
                 PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT,
@@ -361,4 +386,12 @@ internal class Presentations(
     }
 
     private fun drawable(res: Int): Drawable? = ContextCompat.getDrawable(context, res)
+
+    private fun percent(level: Int) = context.getString(R.string.percent, level)
+
+    private companion object {
+        /** A panel with nothing to add to its header. */
+        val NOTHING_MORE = ExpandedBody.Message("", null)
+        const val BATTERY_SAVER_REQUEST = 0x5AFE
+    }
 }

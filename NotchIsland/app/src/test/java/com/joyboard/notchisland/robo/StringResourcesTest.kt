@@ -35,7 +35,10 @@ class StringResourcesTest {
     fun formattedStringsTakeTheirArguments() {
         assertEquals("Downloading 42%", context.getString(R.string.downloading, 42))
         assertEquals("Found a 24×30 dp cutout", context.getString(R.string.found_dp_cutout, 24, 30))
-        assertEquals("Lap 3   00:12.40", context.getString(R.string.lap, 3, "00:12.40"))
+        assertEquals("Lap 3", context.getString(R.string.lap_n, 3))
+        // A literal percent sign after a number, not a second format argument.
+        assertEquals("76%", context.getString(R.string.percent, 76))
+        assertEquals("Full in 1 h 5 min", context.getString(R.string.full_in, context.getString(R.string.duration_hours_minutes, 1, 5)))
     }
 
     @Test

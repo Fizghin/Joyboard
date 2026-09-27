@@ -64,7 +64,15 @@ sealed interface ExpandedBody {
     data class History(val items: List<NotificationItem>) : ExpandedBody
     data class Media(val media: MediaSnapshot) : ExpandedBody
     data class Notification(val item: NotificationItem) : ExpandedBody
-    data class Charging(val level: Int, val plugged: Boolean, val fast: Boolean) : ExpandedBody
+    data class Charging(
+        val level: Int,
+        val plugged: Boolean,
+        val fast: Boolean,
+        /** The system's estimate of the time to a full charge, when it has one. */
+        val fullInMs: Long? = null,
+        /** Drawn as the low-battery warning rather than a plug or unplug. */
+        val warning: Boolean = false,
+    ) : ExpandedBody
     data class Timer(val remainingMs: Long, val totalMs: Long, val running: Boolean) : ExpandedBody
     /** A title and a line of detail, with an optional button that acts on the island's content. */
     data class Message(val title: String, val subtitle: String?, val actionLabel: String? = null) : ExpandedBody
@@ -78,6 +86,11 @@ data class Presentation(
     val leadingBitmap: Bitmap? = null,
     val trailing: Trailing = Trailing.None,
     val accent: Int = 0xFF3B82F6.toInt(),
+    /**
+     * A colour that carries meaning — see [IslandColors] — and so is used whatever accent the
+     * person has chosen. Null for activities that simply wear the accent.
+     */
+    val fixedAccent: Int? = null,
     val title: String? = null,
     val subtitle: String? = null,
     val body: ExpandedBody = ExpandedBody.QuickPanel,

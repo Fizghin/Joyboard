@@ -45,6 +45,8 @@ import android.view.animation.OvershootInterpolator
 import androidx.annotation.VisibleForTesting
 import android.view.animation.LinearInterpolator
 import androidx.core.graphics.drawable.toDrawable
+import androidx.core.view.updateLayoutParams
+import com.joyboard.notchisland.util.withAlpha
 
 /**
  * The island itself: a rounded, animated container that morphs between a bare pill, a compact
@@ -157,9 +159,11 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     }
     private val trailingText = TextView(context).apply {
         setTextColor(Color.WHITE)
-        textSize = 11f
+        textSize = 13f
         typeface = android.graphics.Typeface.DEFAULT_BOLD
+        fontFeatureSettings = IslandWidgets.TABULAR
         maxLines = 1
+        ellipsize = TextUtils.TruncateAt.END
     }
     private val trailingIcon = ImageView(context).apply {
         layoutParams = LinearLayout.LayoutParams(16.dp, 16.dp)
@@ -191,27 +195,32 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         orientation = LinearLayout.HORIZONTAL
         gravity = Gravity.CENTER_VERTICAL
     }
+    /** The header's picture is a rounded square, a circle for a person, or a tinted glyph. */
+    private enum class ArtStyle { PICTURE, AVATAR, GLYPH }
+    private var headerArtRadius = 12f.dp
+    private val headerArtBackground = GradientDrawable()
     private val headerArt = ImageView(context).apply {
-        layoutParams = LinearLayout.LayoutParams(40.dp, 40.dp)
+        layoutParams = LinearLayout.LayoutParams(ART_SIZE.dp, ART_SIZE.dp)
         scaleType = ImageView.ScaleType.CENTER_CROP
         clipToOutline = true
-        outlineProvider = widgets.roundOutline(10f.dp)
-        background = GradientDrawable().apply {
-            cornerRadius = 10f.dp
-            setColor(0x22FFFFFF)
+        outlineProvider = object : ViewOutlineProvider() {
+            override fun getOutline(view: View, outline: Outline) {
+                outline.setRoundRect(0, 0, view.width, view.height, headerArtRadius)
+            }
         }
+        background = headerArtBackground
     }
     private val headerTitle = TextView(context).apply {
         setTextColor(Color.WHITE)
-        textSize = 14f
+        textSize = 15f
         maxLines = 1
         ellipsize = TextUtils.TruncateAt.END
-        typeface = android.graphics.Typeface.DEFAULT_BOLD
+        typeface = IslandWidgets.MEDIUM
     }
     private val headerSubtitle = TextView(context).apply {
-        setTextColor(0xB3FFFFFF.toInt())
-        textSize = 12f
-        maxLines = 1
+        setTextColor(IslandColors.SECONDARY)
+        textSize = 13f
+        maxLines = 2
         ellipsize = TextUtils.TruncateAt.END
     }
     private val headerTrailing = FrameLayout(context).apply {
@@ -386,53 +395,98 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
 
         // ---- expanded side ----
         headerTitle.text = p.title ?: ""
-        headerSubtitle.text = p.subtitle ?: ""
-        headerSubtitle.visible(!p.subtitle.isNullOrBlank())
         headerTitle.visible(!p.title.isNullOrBlank())
-
-        when (val body = p.body) {
-            is ExpandedBody.Media -> bindMediaHeader(body.media, accent)
-            is ExpandedBody.Notification -> bindNotificationHeader(body.item)
-            else -> {
-                if (p.leadingBitmap != null) {
-                    headerArt.setImageBitmap(p.leadingBitmap)
-                    headerArt.clearColorFilter()
-                } else {
-                    headerArt.setImageDrawable(p.leadingIcon)
-                    headerArt.setColorFilter(accent)
-                }
-                headerArt.visible(p.leadingIcon != null || p.leadingBitmap != null)
-                headerWave.playing = false
-                headerWave.visible(false)
-            }
-        }
+        bindHeaderArt(p, accent)
 
         if (mode == IslandMode.PILL || mode == IslandMode.COMPACT) applyHoleLayout(mode)
-        if (mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM) {
+        val opened = mode == IslandMode.EXPANDED || mode == IslandMode.MEDIUM
+        val rebuilt = opened && buildBody(p, accent)
+        val headerBefore = headerKey()
+        applyHeaderFor(mode)
+        if (opened) {
             togglesRow.visible(mode == IslandMode.EXPANDED && showsToggles(p))
-            // Only re-measure and resize when the panel's contents actually changed.
-            if (buildBody(p, accent)) resizeToMeasuredHeight()
+            // Only re-measure and resize when what the panel shows actually changed.
+            if (rebuilt || headerKey() != headerBefore) resizeToMeasuredHeight()
             if (mode == IslandMode.EXPANDED) refreshToggleStates()
         }
     }
 
-    /** Grows or shrinks the expanded panel to fit new content, without a full mode animation. */
+    /**
+     * Grows or shrinks the open panel to fit new content, without a full mode animation. If a
+     * mode change is still under way it is carried to its end here, width and corners included,
+     * rather than left frozen part of the way there.
+     */
     private fun resizeToMeasuredHeight() {
-        val targetHeight = heightFor(mode, widthFor(mode))
-        val startHeight = height.takeIf { it > 0 } ?: targetHeight
-        if (startHeight == targetHeight) return
+        val lp = layoutParams ?: return
+        val targetWidth = widthFor(mode)
+        val targetHeight = heightFor(mode, targetWidth)
+        val startWidth = lp.width.takeIf { it > 0 } ?: targetWidth
+        val startHeight = lp.height.takeIf { it > 0 } ?: height.takeIf { it > 0 } ?: targetHeight
+        if (startHeight == targetHeight && startWidth == targetWidth) return
+        val startRadius = bgDrawable.cornerRadius
+        val targetRadius = radiusFor(mode)
         sizeAnimator?.cancel()
-        sizeAnimator = ValueAnimator.ofInt(startHeight, targetHeight).apply {
+        sizeAnimator = ValueAnimator.ofFloat(0f, 1f).apply {
             duration = dur(240)
             interpolator = ease
             addUpdateListener { a ->
-                val lp = layoutParams ?: return@addUpdateListener
-                lp.height = a.animatedValue as Int
-                layoutParams = lp
+                val f = a.animatedValue as Float
+                val params = layoutParams ?: return@addUpdateListener
+                params.width = (startWidth + (targetWidth - startWidth) * f).toInt()
+                params.height = (startHeight + (targetHeight - startHeight) * f).toInt()
+                bgDrawable.cornerRadius = startRadius + (targetRadius - startRadius) * f
+                layoutParams = params
+                invalidateOutline()
             }
             start()
         }
     }
+
+    /**
+     * Panels that stand on their own — a timer, the battery, a call, the resting island — carry
+     * no header when fully open; the header comes back for the smaller card, which is all header.
+     */
+    private fun selfContained(p: Presentation): Boolean = when (p.body) {
+        is ExpandedBody.Timer, is ExpandedBody.Stopwatch, is ExpandedBody.Charging, is ExpandedBody.Call -> true
+        ExpandedBody.QuickPanel -> p.kind == ActivityKind.IDLE
+        else -> false
+    }
+
+    /** Sets the header and the panel under it up for [target]. Call after the panel is built. */
+    private fun applyHeaderFor(target: IslandMode) {
+        val open = target == IslandMode.EXPANDED
+        val bare = open && selfContained(presentation)
+        headerRow.visible(!bare)
+        val gap = if (bare) 0 else 12.dp
+        if ((bodyContainer.layoutParams as LinearLayout.LayoutParams).topMargin != gap) {
+            bodyContainer.updateLayoutParams<LinearLayout.LayoutParams> { topMargin = gap }
+        }
+        // An activity with nothing to add below its header leaves no empty gap there either.
+        bodyContainer.visible(open && bodyContainer.isNotEmpty())
+        headerSubtitle.maxLines = if (open) 4 else 2
+        val subtitle = headerSubtitleFor(presentation, open)
+        headerSubtitle.text = subtitle.orEmpty()
+        headerSubtitle.visible(!subtitle.isNullOrBlank())
+    }
+
+    /**
+     * The smaller card previews a message in its header. Opened, the panel shows the message in
+     * full, so the header names the app instead of saying the same thing twice.
+     */
+    private fun headerSubtitleFor(p: Presentation, open: Boolean): String? {
+        if (!open) return p.subtitle
+        val item = when (val body = p.body) {
+            is ExpandedBody.Notification -> body.item
+            is ExpandedBody.Ongoing -> body.item
+            else -> null
+        } ?: return p.subtitle
+        if (item.text.isBlank()) return p.subtitle
+        return item.appLabel.takeIf { it != p.title }
+    }
+
+    private fun headerKey(): String =
+        "${headerRow.visibility}|${headerTitle.text}|${headerSubtitle.text}|${headerSubtitle.maxLines}|" +
+            "${bodyContainer.visibility}"
 
     fun animateToMode(target: IslandMode, force: Boolean = false) {
         if (target == mode && !force) return
@@ -442,7 +496,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         val accent = resolveAccent(presentation)
         val opened = target == IslandMode.EXPANDED || target == IslandMode.MEDIUM
         if (opened) buildBody(presentation, accent)
-        bodyContainer.visible(target == IslandMode.EXPANDED)
+        applyHeaderFor(target)
         togglesRow.visible(target == IslandMode.EXPANDED && showsToggles(presentation))
         if (target == IslandMode.EXPANDED) refreshToggleStates()
 
@@ -525,6 +579,13 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
         when (target) {
             IslandMode.HIDDEN, IslandMode.PILL, IslandMode.COMPACT -> {
                 val rowHeight = (if (target == IslandMode.COMPACT) settings.collapsedHeight + 4 else settings.collapsedHeight).toFloat()
+                // Text beyond the camera gets only the room there is beyond it, and trails off
+                // rather than being pushed to the other side of the lens and cut short there.
+                val room = local?.let { widthDp - ROW_PADDING - (it.right + HOLE_MARGIN) }
+                trailingText.maxWidth = if (
+                    settings.avoidHole && local != null && room != null && room >= MIN_TRAILING_ROOM &&
+                    HoleGeometry.intersects(local, widthDp, rowHeight)
+                ) dpPx(room) else Int.MAX_VALUE
                 val clearance = if (settings.avoidHole && local != null) {
                     HoleGeometry.rowClearance(
                         local, widthDp, rowHeight,
@@ -617,7 +678,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             togglesRow.visible(target == IslandMode.EXPANDED && showsToggles(presentation))
             if (target == IslandMode.EXPANDED) refreshToggleStates()
         }
-        bodyContainer.visible(target == IslandMode.EXPANDED)
+        applyHeaderFor(target)
         applyHoleLayout(target)
         val w = widthFor(target)
         val h = heightFor(target, w)
@@ -689,7 +750,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     }
 
     private fun measureExpandedHeight(width: Int, target: IslandMode): Int {
-        val key = "$width|$target|$bodySignature|${togglesRow.visibility}|${expandedRoot.paddingTop}"
+        val key = "$width|$target|$bodySignature|${togglesRow.visibility}|${expandedRoot.paddingTop}|${headerKey()}"
         if (key == cachedExpandedKey && cachedExpandedHeight > 0) return cachedExpandedHeight
         // The medium card is the header alone, so measure it with the body folded away.
         val bodyWas = bodyContainer.visibility
@@ -724,8 +785,11 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             .coerceAtMost(settings.collapsedHeight.dp / 2f)
     }
 
-    /** The accent in force right now, given the chosen source. */
-    private fun resolveAccent(p: Presentation): Int = readableAccent(
+    /**
+     * The accent in force right now, given the chosen source — unless the activity's colour is
+     * the point of it, as a charging green or a low-battery red is.
+     */
+    private fun resolveAccent(p: Presentation): Int = p.fixedAccent ?: readableAccent(
         when (settings.accentSource) {
             ColorSource.ARTWORK -> p.accent
             ColorSource.MATERIAL_YOU -> systemAccent
@@ -754,7 +818,7 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
     // ------------------------------------------------------------------ body builders
 
     private fun showsToggles(p: Presentation): Boolean = when (p.body) {
-        is ExpandedBody.QuickPanel, is ExpandedBody.Media, is ExpandedBody.Charging -> true
+        is ExpandedBody.QuickPanel, is ExpandedBody.Media -> true
         else -> false
     }
 
@@ -778,16 +842,19 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             "media|$packageName|$title|$artist|$playing|$durationMs|$canSeek|$upNext|${lyrics?.size}|$accent"
         }
         is ExpandedBody.Notification -> with(body.item) {
-            "notification|$key|${actions.size}|${settings.quickReplyEnabled && reply != null}|" +
+            // The text is in it too: a chat updates one notification as each message arrives.
+            "notification|$key|$title|$text|${actions.size}|${settings.quickReplyEnabled && reply != null}|" +
                 "${settings.otpDetection && otp != null}|$accent"
         }
-        is ExpandedBody.Charging -> "charging|${body.level}|${body.plugged}|${body.fast}|$accent"
+        is ExpandedBody.Charging ->
+            "charging|${body.level}|${body.plugged}|${body.fast}|${body.warning}|" +
+                "${body.fullInMs?.let { it / 60_000 }}|$accent"
         is ExpandedBody.Timer -> "timer|${body.running}|$accent"
         is ExpandedBody.Message -> "message|${body.title}|${body.subtitle}|${body.actionLabel}"
         is ExpandedBody.Ongoing -> with(body.item) {
             "ongoing|$key|$title|$text|$progress|$progressMax|$progressIndeterminate|$accent"
         }
-        is ExpandedBody.Call -> "call|${body.item.key}|${body.item.actions.size}|$accent"
+        is ExpandedBody.Call -> with(body.item) { "call|$key|$title|$text|${actions.size}|$accent" }
         is ExpandedBody.Stopwatch -> "stopwatch|${body.running}|${body.laps.size}|$accent"
         is ExpandedBody.History ->
             "history|${body.items.joinToString(",") { it.key }}|$accent"
@@ -797,31 +864,73 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
                 listener.currentWeather()?.let { "${it.degrees}${it.sky}" } + "|" + listener.nextAlarm()
     }
 
-    private fun bindMediaHeader(media: MediaSnapshot, accent: Int) {
-        if (media.artwork != null) {
-            headerArt.setImageBitmap(media.artwork)
-            headerArt.clearColorFilter()
-        } else {
-            headerArt.setImageDrawable(media.appIcon ?: widgets.icon(R.drawable.ic_music))
-            headerArt.clearColorFilter()
-        }
-        headerArt.visible(true)
-        headerWave.barColor = accent
-        headerWave.playing = media.playing
-        headerWave.visible(true)
-    }
-
-    private fun bindNotificationHeader(item: NotificationItem) {
-        if (item.largeIcon != null) {
-            headerArt.setImageBitmap(item.largeIcon)
-            headerArt.clearColorFilter()
-        } else {
-            headerArt.setImageDrawable(item.appIcon ?: item.smallIcon)
-            headerArt.clearColorFilter()
-        }
-        headerArt.visible(true)
+    private fun bindHeaderArt(p: Presentation, accent: Int) {
         headerWave.playing = false
         headerWave.visible(false)
+        when (val body = p.body) {
+            is ExpandedBody.Media -> {
+                val media = body.media
+                if (media.artwork != null) headerArt.setImageBitmap(media.artwork)
+                else headerArt.setImageDrawable(media.appIcon ?: widgets.icon(R.drawable.ic_music))
+                styleArt(ArtStyle.PICTURE)
+                headerWave.barColor = accent
+                headerWave.playing = media.playing
+                headerWave.visible(true)
+            }
+            is ExpandedBody.Notification, is ExpandedBody.Call, is ExpandedBody.Ongoing -> {
+                val item = when (body) {
+                    is ExpandedBody.Notification -> body.item
+                    is ExpandedBody.Call -> body.item
+                    else -> (body as ExpandedBody.Ongoing).item
+                }
+                when {
+                    // A sender's or caller's picture is a person, and people are round.
+                    item.largeIcon != null -> {
+                        headerArt.setImageBitmap(item.largeIcon)
+                        styleArt(if (body is ExpandedBody.Ongoing) ArtStyle.PICTURE else ArtStyle.AVATAR)
+                    }
+                    item.appIcon != null -> {
+                        headerArt.setImageDrawable(item.appIcon)
+                        styleArt(ArtStyle.PICTURE)
+                    }
+                    else -> {
+                        headerArt.setImageDrawable(item.smallIcon)
+                        styleArt(ArtStyle.GLYPH, accent)
+                    }
+                }
+            }
+            else -> if (p.leadingBitmap != null) {
+                headerArt.setImageBitmap(p.leadingBitmap)
+                styleArt(ArtStyle.PICTURE)
+            } else {
+                headerArt.setImageDrawable(p.leadingIcon)
+                // Each kind in its own colour on a soft disc of it, rather than all in the accent.
+                styleArt(ArtStyle.GLYPH, p.leadingTint ?: accent)
+            }
+        }
+        headerArt.visible(headerArt.drawable != null)
+    }
+
+    private fun styleArt(style: ArtStyle, tint: Int = Color.WHITE) {
+        val size = ART_SIZE.dp
+        if (style == ArtStyle.GLYPH) {
+            val pad = (size - GLYPH_SIZE.dp) / 2
+            headerArt.scaleType = ImageView.ScaleType.FIT_CENTER
+            headerArt.setPadding(pad, pad, pad, pad)
+            headerArt.setColorFilter(tint)
+            headerArtBackground.shape = GradientDrawable.OVAL
+            headerArtBackground.setColor(tint.withAlpha(0.2f))
+            headerArtRadius = size / 2f
+        } else {
+            headerArt.scaleType = ImageView.ScaleType.CENTER_CROP
+            headerArt.setPadding(0, 0, 0, 0)
+            headerArt.clearColorFilter()
+            headerArtRadius = if (style == ArtStyle.AVATAR) size / 2f else 12f.dp
+            headerArtBackground.shape = if (style == ArtStyle.AVATAR) GradientDrawable.OVAL else GradientDrawable.RECTANGLE
+            headerArtBackground.cornerRadius = headerArtRadius
+            headerArtBackground.setColor(IslandColors.FILL)
+        }
+        headerArt.invalidateOutline()
     }
 
     private fun buildToggles() {
@@ -1146,7 +1255,12 @@ class IslandView(context: Context, private val listener: Listener) : FrameLayout
             val x = t.coerceIn(0f, 1f)
             return if (x < 0.2f) x / 0.2f else 1f - (x - 0.2f) / 0.8f
         }
+        /** The header picture, and a glyph drawn inside its disc. */
+        private const val ART_SIZE = 44
+        private const val GLYPH_SIZE = 22
         private const val ROW_PADDING = 12f
+        /** Less room than this beside the camera, and the text moves to the other side instead. */
+        private const val MIN_TRAILING_ROOM = 36f
         private const val LEADING_WIDTH = 18f
         private const val PANEL_PADDING_TOP = 14f
         private const val HOLE_MARGIN = 6f

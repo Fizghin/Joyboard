@@ -41,7 +41,9 @@ class RingProgressView(context: Context) : View(context) {
     var labelSizePx: Float = 9f.dp
         set(value) { field = value; textPaint.textSize = value; invalidate() }
 
-    var ringColor: Int = 0xFF34C759.toInt()
+    // Starts unset rather than at the default green: the setter skips a colour it already has,
+    // so starting at green would leave the paints black for any ring asked to be that green.
+    var ringColor: Int = 0
         set(value) {
             if (field == value) return
             field = value

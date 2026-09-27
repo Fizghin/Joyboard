@@ -1,14 +1,14 @@
 {
-  "versionCode": 12,
-  "versionName": "2.6",
+  "versionCode": 13,
+  "versionName": "2.7",
   "mandatory": false,
   "notes": [
-    "A redesigned app: icon tiles on every setting, clearer cards in light and dark, a status card on Home",
-    "Setup checklist with progress, quick-action tiles, a sliding size selector in the preview",
-    "From 2.5: ripples, arrival glow, headphones, flashlight, Do Not Disturb and alarm in the island"
+    "A redesigned island: every activity in its own colour, and nothing said twice",
+    "New timer, stopwatch, battery and call layouts; Battery Saver on low battery; time to full charge",
+    "Fixed invisible charging and download rings in the compact island"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 2102833,
-  "debugSizeBytes": 20791483
+  "sizeBytes": 2109301,
+  "debugSizeBytes": 20814810
 }

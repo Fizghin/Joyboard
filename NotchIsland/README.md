@@ -13,6 +13,14 @@ then settles back down.
 These are real renders of `IslandView`, drawn by Robolectric with native graphics — not mockups.
 The dark circle with a red rim is where the phone's camera sits.
 
+Every kind of activity has its own layout and its own colour — the ones below, and music,
+volume, the ringer, unlock, privacy, headphones, Do Not Disturb, rain, calendar, the flashlight,
+recent notifications and automation messages:
+
+<img src="docs/screenshots/island_gallery.png" width="620" alt="Open island for a message, an incoming call with red and green buttons, a timer, a stopwatch with laps, fast charging with a drawn battery, low battery with a Battery Saver button, the resting panel with clock, weather and sliders, and a calendar event" />
+
+<img src="docs/screenshots/island_compact.png" width="620" alt="Compact island: orange timer, green charging percentage, orange microphone dot, red calendar countdown, green headphones connected, and a download progress ring" />
+
 ## What it does
 
 **Four sizes, one tap apart.** The island rests as a bare pill, opens to a compact preview, then
@@ -61,7 +69,9 @@ it to catch the taps the status bar would otherwise eat — see
 
 **Material You.** The accent and the island body can each follow your wallpaper, and the colour
 pickers lead with wallpaper swatches before the fixed presets. The accent can instead follow the
-album art of whatever is playing, or just be a colour you pick.
+album art of whatever is playing, or just be a colour you pick. Activities whose colour is the
+message — charging green, low battery red, a timer's orange, the camera's green dot — keep it
+whatever the accent.
 
 **Live activities, by priority.** Several things can be live at once, so the island runs a
 priority queue and shows the winner:
@@ -149,13 +159,14 @@ the body, the notification's own action buttons, Open and Dismiss. On top of tha
 - **Per-app rules.** Block an app entirely, mark it to expand the island on arrival, or (with the
   helper) keep the island hidden while that app is open.
 
-**Quick panel.** Expanding the idle island gives you a clock, date, brightness and volume
-sliders, and round toggles for flashlight, Wi-Fi, Bluetooth, Do Not Disturb, ringer mode,
+**Quick panel.** Expanding the idle island gives you a clock and date beside the weather and next
+alarm (when those are switched on), brightness and volume sliders, and round toggles for flashlight, Wi-Fi, Bluetooth, Do Not Disturb, ringer mode,
 auto-rotate and app settings. Toggles that Android reserves for the system open the matching
 settings panel instead of failing silently.
 
-**Timers and a stopwatch.** A countdown with a progress ring and pause / +1 min / cancel, and a
-stopwatch with laps. Both live in the island until they are done.
+**Timers and a stopwatch.** A countdown with round pause, cancel and +1 minute buttons beside the
+time in large orange figures, and a stopwatch whose left button takes a lap while running and
+resets once stopped, with the last three laps listed. Both live in the island until they are done.
 
 **Quiet hours and rest.** The island can step aside for a stretch of the day (the window wraps
 over midnight correctly — also unit tested), and stops watching media and sensors while the
@@ -391,7 +402,7 @@ every push to `notch`.
 
 ### Tests
 
-184 tests in two layers.
+197 tests in two layers.
 
 **Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
 policy, when the island hides, tap stepping, camera clearance geometry, which screen a camera
@@ -405,8 +416,10 @@ stopwatch; the whole `IslandController`, overlay window and all, including regre
 the island refusing to go back to its resting size (verified to fail against the old code),
 hiding in a chosen app with a call breaking through, and automation broadcasts arriving only while
 switched on; the calendar reader against a stand-in provider; the weather fetcher with the network swapped out; every string resource resolving;
-the island's accessibility actions; the ripple, glow and their off switch; the torch and headphone activities; and screenshot tests that render `IslandView` in every size
-with native graphics. CI uploads those renders on every push.
+the island's accessibility actions; the ripple, glow and their off switch; the torch and headphone activities;
+the open panels saying each thing once, with their own layouts and colours (including a progress
+ring that drew black on black, which a test caught); and screenshot tests that render `IslandView`
+in every size, plus every kind of activity, with native graphics. CI uploads those renders on every push.
 
 What still needs a phone: real window layering against the system status bar, touch delivery,
 and anything that depends on another app's notifications.
@@ -436,7 +449,10 @@ NotchIsland/app/src/main/java/com/joyboard/notchisland/
 │   ├── OtpExtractor.kt       passcode detection (tested)
 │   ├── AutomationRequest.kt  cleaning up what other apps send (tested)
 │   ├── WaveformView.kt       the dancing bars
-│   └── RingProgressView.kt   charging and timer rings
+│   ├── RingProgressView.kt   the compact island's progress and volume rings
+│   ├── BatteryView.kt        the drawn battery in the charging panel
+│   ├── BarProgressView.kt    a download's progress bar
+│   └── IslandColors.kt       the colours that mean something
 ├── service/
 │   ├── NotchOverlayService.kt     foreground service that hosts the overlay
 │   ├── NotchNotificationListener.kt

@@ -339,12 +339,10 @@
     <string name="unplugged">Unplugged</string>
     <string name="fully_charged">Fully charged</string>
     <string name="fast_charging">Fast charging</string>
-    <string name="battery_at">Battery at %1$d%%</string>
     <string name="running_battery">Running on battery</string>
     <string name="resume">Resume</string>
     <string name="n_1_min">+1 min</string>
     <string name="open_call_2">Open call</string>
-    <string name="lap">"Lap %1$d   %2$s"</string>
     <string name="start">Start</string>
     <string name="lap_2">Lap</string>
     <string name="reset">Reset</string>
@@ -356,9 +354,7 @@
     <string name="battery">Battery %1$d%%</string>
     <string name="media_volume">Media volume</string>
     <string name="ring_volume">Ring volume</string>
-    <string name="ringer_mode_changed">Ringer mode changed</string>
     <string name="unlocked">Unlocked</string>
-    <string name="privacy_indicator">Privacy indicator</string>
     <string name="app_using_sensor_right_now">An app is using a sensor right now</string>
     <string name="timer">Timer</string>
     <string name="done">Done</string>
@@ -423,7 +419,6 @@
     <string name="calendar_short_minutes">%1$dm</string>
     <string name="calendar_span">%1$s – %2$s</string>
     <string name="calendar_span_location">%1$s · %2$s</string>
-    <string name="calendar_detail">%1$s · %2$s</string>
     <string name="calendar_untitled">Event</string>
     <string name="next_calendar_event">Next calendar event</string>
     <string name="next_calendar_event_desc">Counts down to your next meeting and opens it with a tap</string>
@@ -491,6 +486,16 @@
         <item quantity="one">%1$d of %2$d ready</item>
         <item quantity="other">%1$d of %2$d ready</item>
     </plurals>
+    <string name="torch_state_on">On</string>
+    <string name="percent">%1$d%%</string>
+    <string name="plugged_in">Plugged in</string>
+    <string name="full_in">Full in %1$s</string>
+    <string name="duration_hours_minutes">%1$d h %2$d min</string>
+    <string name="duration_minutes">%1$d min</string>
+    <string name="battery_saver">Battery Saver</string>
+    <string name="lap_n">Lap %1$d</string>
+    <string name="plus_one" translatable="false">+1</string>
+    <string name="brightness">Brightness</string>
     <plurals name="blocked_apps">
         <item quantity="one">%1$d app blocked</item>
         <item quantity="other">%1$d apps blocked</item>
