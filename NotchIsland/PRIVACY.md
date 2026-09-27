@@ -1,9 +1,10 @@
 # Privacy policy — Notch Island
 
-Last updated: 27 September 2026
+Last updated: 27 September 2026 (2.4)
 
-Notch Island does not collect, transmit or sell any personal data. There is no analytics SDK, no
-advertising SDK, no crash reporting service and no account.
+Notch Island has no servers and collects nothing: no analytics SDK, no advertising SDK, no crash
+reporting service and no account. Two optional features, both off unless you turn them on, ask
+public services for data straight from your phone; they are described under *Network use*.
 
 ## What the app reads, and why
 
@@ -37,6 +38,11 @@ shade is down — and for its overlay window, which lets the island be drawn abo
 It does not read what is on screen — no text, no views — and nothing it learns is stored or sent.
 The Play build does not include it.
 
+**Approximate location** (only if you switch on *Weather*). Read once when you switch weather on,
+and again when you open the app, while it is on screen — never in the background. It is rounded
+to one decimal place (about 10 km) before it is stored, and only that rounded area is used.
+Turning weather off deletes it.
+
 **Messages from other apps** (only if you switch on *Automation*). Text another app asks the
 island to show, held in memory until it times out.
 
@@ -55,7 +61,17 @@ never uploaded. You can read, share or delete it from About → Diagnostics.
 The sideloaded build checks a single URL for a newer version, and downloads an APK when you ask
 it to. That request carries nothing but the request itself — no identifiers, no settings, no
 usage data. You can switch the check off, point it somewhere else, or use the Play build, which
-has no updater and no network permission use at all.
+has no updater.
+
+**Synced lyrics** (off unless you turn it on) sends the playing song's title, artist, album and
+length to [LRCLIB](https://lrclib.net) to find its lyrics. Each song is looked up once per session
+of the island.
+
+**Weather** (off unless you turn it on) sends your rounded area and temperature unit to
+[Open-Meteo](https://open-meteo.com) about every half hour while the screen is on.
+
+Those services see the request as any website would, including your IP address; their own
+privacy policies apply to it. Nothing about you beyond what is listed here is included.
 
 ## Permissions
 
@@ -67,6 +83,7 @@ has no updater and no network permission use at all.
 | Modify system settings | The brightness and auto-rotate toggles, if you use them |
 | Do Not Disturb access | The DND toggle, if you use it |
 | Read calendar | The next-event countdown, if you switch it on |
+| Approximate location | The weather's area, if you switch weather on; only while the app is open |
 | Accessibility service | Sideloaded build only: drawing above the status bar, and hiding in chosen apps and while typing, if you turn it on |
 | Vibrate | Haptics |
 | Receive boot completed | Bring the island back after a restart, if you asked it to |

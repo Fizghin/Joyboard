@@ -1,5 +1,16 @@
 # Changelog
 
+## 2.4
+
+- **Synced lyrics** in the open media panel — the line being sung and the next one — from LRCLIB.
+  Off by default; only the song's title, artist, album and length are sent.
+- **Weather** in the quick panel, with a *Rain soon* heads-up when rain is due within the hour,
+  from Open-Meteo. Off by default; your area is rounded to about 10 km and only taken while the
+  app is open.
+- The settings preview no longer recomposes while offset sliders are dragged.
+- Privacy policy, store listing and in-app wording say exactly what the two online features send.
+- 163 tests.
+
 ## 2.3
 
 New

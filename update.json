@@ -1,19 +1,16 @@
 {
-  "versionCode": 8,
-  "versionName": "2.3",
+  "versionCode": 9,
+  "versionName": "2.4",
   "mandatory": false,
   "notes": [
-    "Status bar icons no longer draw across the island: with the helper on, it sits above them (sideload build)",
-    "Device presets now set the island's whole shape — every size, corner and offset",
-    "Hides for full-screen videos and games; with the helper, also in apps you choose and while typing",
-    "Next calendar event: a countdown in the island (opt-in)",
-    "Media: Up next, and an output button for where the sound plays",
-    "Automation: Tasker and friends can post messages to the island (opt-in)",
-    "Fixed notification buttons doing nothing on Android 14+, the tile below Android 14, and silent notifications taking over",
-    "Targets Android 16, ready for translation, better screen reader support"
+    "Synced lyrics in the music panel (opt-in, from LRCLIB)",
+    "Weather in the quick panel, with a heads-up before rain (opt-in, from Open-Meteo)",
+    "From 2.3: status bar icons no longer draw across the island — with the helper on it sits above them",
+    "From 2.3: device presets set the island's whole shape",
+    "Smoother settings preview"
   ],
   "releaseApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-release.apk",
   "debugApkUrl": "https://github.com/Fizghin/Joyboard/raw/notch/apks/NotchIsland-debug.apk",
-  "sizeBytes": 1999885,
-  "debugSizeBytes": 21354534
+  "sizeBytes": 2011353,
+  "debugSizeBytes": 20732640
 }

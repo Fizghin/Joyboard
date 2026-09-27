@@ -192,7 +192,8 @@ fun FeaturesScreen(viewModel: MainViewModel, onOpenBlockedApps: () -> Unit) {
                 checked = settings.featureWeather,
                 onCheckedChange = { value ->
                     when {
-                        !value -> viewModel.update { it.copy(featureWeather = false) }
+                        // Off means forgotten: the stored area goes with it.
+                        !value -> viewModel.update { it.copy(featureWeather = false, weatherArea = "") }
                         !permissions.location && settings.weatherArea.isBlank() ->
                             locationPermission.launch(Manifest.permission.ACCESS_COARSE_LOCATION)
                         else -> {

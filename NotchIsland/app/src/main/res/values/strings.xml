@@ -41,7 +41,7 @@
     <string name="clear_crash_log">Clear the crash log</string>
     <string name="crashes_are_written_app_own">Crashes are written to the app\'s own storage and stay there. Nothing is sent anywhere unless you share it yourself.</string>
     <string name="privacy">Privacy</string>
-    <string name="everything_stays_device_notification_content">Everything stays on the device. Notification content is rendered straight into the overlay and never stored, logged or uploaded.</string>
+    <string name="everything_stays_device_notification_content">Notification content is rendered straight into the overlay and never stored, logged or uploaded. Nothing leaves the phone unless you switch on lyrics or weather, which send only the song’s details or your area rounded to about 10 km — and the update check, which sends nothing at all.</string>
     <string name="shape">Shape</string>
     <string name="start_from_iphone_island_then">Start from an iPhone\'s island, then adjust anything below.</string>
     <string name="style">Style</string>

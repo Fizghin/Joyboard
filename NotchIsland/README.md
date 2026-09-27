@@ -96,6 +96,17 @@ media volume slider, and an output button beside it — like AirPlay's — that 
 picker for where the sound goes. With the accent set to *Match what's playing*, the colour is
 pulled out of the album art with Palette.
 
+**Lyrics, if you want them.** Switch on *Synced lyrics* and the open media panel shows the line
+being sung and the next one, in time with the playhead. They come from
+[LRCLIB](https://lrclib.net), a free public lyrics database; only the song's title, artist, album
+and length are sent, each song is looked up once, and it is off until you turn it on.
+
+**Weather.** Switch on *Weather* and the quick panel shows the conditions beside the date, with
+a short *Rain soon* heads-up when a dry spell is due to turn wet within the hour. Forecasts come
+from [Open-Meteo](https://open-meteo.com), which needs no account. The app asks for approximate
+location once, rounds it to about 10 km before storing it, and only updates it while the app
+itself is open — the island never uses location in the background. Off until you turn it on.
+
 **Your next meeting.** Switch on *Next calendar event* and the island counts down to it — "12m" in
 the pill, the time and place when opened, the event itself on a tap. It comes up once when the
 event enters its window (5–60 minutes ahead, your choice) and again when it starts. All-day,
@@ -215,11 +226,14 @@ between them, turn on the helper, or use the default anchor and give up the cuto
 | Modify system settings | brightness and auto-rotate toggles | optional |
 | Do Not Disturb access | the DND toggle | optional |
 | Read calendar | the next-event countdown | only if you switch it on |
+| Approximate location | the weather's area, taken while the app is open | only if you switch it on |
 | Helper accessibility service | drawing above the status bar; hiding in chosen apps and while typing | sideload build, optional |
 | Post notifications | the ongoing service notification | Android 13+ |
 
-Nothing leaves the device. Notification content is rendered straight into the overlay and is
-never stored, logged or uploaded.
+Notification content is rendered straight into the overlay and is never stored, logged or
+uploaded. Nothing leaves the device unless you switch on lyrics (the song's title, artist, album
+and length go to LRCLIB) or weather (your area, rounded to about 10 km, goes to Open-Meteo) —
+plus the sideload build's update check, which sends nothing but the request.
 
 **About the helper.** Two things need an accessibility service: drawing the island *above* the
 status bar (see [Where the island sits](#where-the-island-sits)), and knowing which app is in front
@@ -359,20 +373,20 @@ every push to `notch`.
 
 ### Tests
 
-143 tests in two layers.
+163 tests in two layers.
 
 **Pure JVM** — the rules, with no Android in the way: the live-activity priority queue, the rest
 policy, when the island hides, tap stepping, camera clearance geometry, which screen a camera
 belongs to on a foldable, device presets and model matching, the notification filter, the spring
 curve's overshoot and settling, passcode detection, the calendar countdown, the media queue,
-automation request cleaning, formatting, quiet hours, and the settings backup round trip — which
+automation request cleaning, lyrics parsing and lookup, the weather forecast and rain timing, formatting, quiet hours, and the settings backup round trip — which
 fails if any setting is ever added without its line in the backup.
 
 **Robolectric** — the real code on an Android 16 runtime under a controlled clock: the timer and
 stopwatch; the whole `IslandController`, overlay window and all, including regression tests for
 the island refusing to go back to its resting size (verified to fail against the old code),
 hiding in a chosen app with a call breaking through, and automation broadcasts arriving only while
-switched on; the calendar reader against a stand-in provider; every string resource resolving;
+switched on; the calendar reader against a stand-in provider; the weather fetcher with the network swapped out; every string resource resolving;
 the island's accessibility actions; and screenshot tests that render `IslandView` in every size
 with native graphics. CI uploads those renders on every push.
 
@@ -449,6 +463,8 @@ progress rings skip no-op updates instead of starting an animator each time.
   locale-aware clocks, so a translation is a `values-xx` folder away.
 - The audio output button opens the system volume panel rather than a device list: Android only
   lets an app switch outputs for its own audio, not another player's.
+- A second, external display gets no island of its own; the overlay lives on the phone's screen.
+- Lyrics exist only for songs LRCLIB knows, and only synced ones are shown.
 - Everything here is verified by compilation, the JVM and Robolectric suites and rendered
   screenshots. There is no instrumented or on-device test coverage.
 - Brightness and auto-rotate need *Modify system settings*, which Android grants per app.

@@ -30,6 +30,10 @@ from your wallpaper with Material You, or picked by hand.
 **Your next meeting, counting down**
 Optional: the island counts down to your next calendar event and opens it with a tap.
 
+**Lyrics and weather, if you want them**
+Synced lyrics in the music panel, and the weather in the quick panel with a heads-up before
+rain. Both optional, both off until you turn them on.
+
 **Out of the way when it should be**
 The island steps aside for full-screen videos and games, for quiet hours and in landscape — and a
 call still comes through.
@@ -53,14 +57,18 @@ Android layers app overlays below the status bar, and the status bar swallows to
 band. Notch Island can draw over it for the look, and hangs a small transparent strip below to
 catch the taps. No app without system privileges can do better.
 
-Everything stays on your phone. No account, no analytics, no ads.
+No account, no analytics, no ads. Lyrics and weather are optional and off until you turn them on;
+everything else stays on your phone.
 
 ## Data safety declaration
 
-- Data collected: none.
-- Data shared: none.
-- Data encrypted in transit: not applicable — nothing is transmitted.
-- Users can request deletion: not applicable — nothing is held.
+- Data collected by the developer: none — there are no servers.
+- Shared with third parties, only when the user turns the feature on: approximate location
+  (rounded to about 10 km) with Open-Meteo for weather; the playing song's title, artist, album
+  and length with LRCLIB for lyrics. Declare these as shared, optional, for app functionality.
+- Data encrypted in transit: yes — both services are reached over HTTPS.
+- Users can request deletion: turning weather off deletes the stored area; turning lyrics off
+  stops lookups. Nothing is held anywhere but the phone.
 
 Declare notification access under the Play policy for notification listeners: the app reads
 notifications to display them in its overlay and to power its media controls, and the data is
