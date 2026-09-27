@@ -20,6 +20,7 @@ import com.joyboard.notchisland.data.PositionMode
 import com.joyboard.notchisland.data.hole
 import com.joyboard.notchisland.util.dp
 import androidx.annotation.VisibleForTesting
+import com.joyboard.notchisland.util.CutoutDetector
 
 /**
  * The overlay window the island lives in: attaching it, where it sits, the touch strip that
@@ -257,7 +258,11 @@ internal class OverlayWindow(
      */
     private fun pushHoleToIsland() {
         val view = island ?: return
-        val hole = settings.hole
+        val hole = HoleResolver.resolve(
+            stored = settings.hole,
+            storedScreenDp = settings.holeScreenWidthDp,
+            currentScreenDp = CutoutDetector.shortSideDp(context),
+        ) { CutoutDetector.detectHole(context).getOrNull() }
         if (hole == null) {
             view.setHole(null, 0f, 0f)
             return

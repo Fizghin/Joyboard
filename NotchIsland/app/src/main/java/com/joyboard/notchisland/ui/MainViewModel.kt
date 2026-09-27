@@ -46,6 +46,7 @@ import com.joyboard.notchisland.util.helperServiceEnabled
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
+import com.joyboard.notchisland.data.stampedFor
 
 data class PermissionState(
     val overlay: Boolean = false,
@@ -281,8 +282,9 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
 
     fun applyDevicePreset(preset: DevicePreset) {
         val width = CutoutDetector.screenWidthDp(getApplication())
+        val screen = CutoutDetector.shortSideDp(getApplication())
         viewModelScope.launch {
-            repository.update { preset.applyTo(it, width) }
+            repository.update { preset.applyTo(it, width).stampedFor(screen) }
             _status.value = text(R.string.set_up_detect_from_phone, preset.name)
         }
     }
@@ -291,7 +293,10 @@ class MainViewModel(app: Application) : AndroidViewModel(app) {
     fun detectHole() {
         CutoutDetector.detectHole(getApplication())
             .onSuccess { hole ->
-                viewModelScope.launch { repository.update { it.withHole(hole, CameraSource.DETECTED) } }
+                val screen = CutoutDetector.shortSideDp(getApplication())
+                viewModelScope.launch {
+                    repository.update { it.withHole(hole, CameraSource.DETECTED).stampedFor(screen) }
+                }
                 _status.value = text(R.string.found_dp_camera_cutout, hole.width.roundToInt(), hole.height.roundToInt())
             }
             .onFailure { _status.value = it.describe(getApplication()) }

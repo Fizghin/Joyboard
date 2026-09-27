@@ -179,6 +179,10 @@ val IslandSettings.hole: com.joyboard.notchisland.island.Hole?
         null
     }
 
+/** Notes which screen the hole was placed on, so a foldable's other screen can tell. */
+fun IslandSettings.stampedFor(screenDp: Float) =
+    copy(holeScreenWidthDp = if (hole != null) screenDp else 0f)
+
 fun IslandSettings.withHole(
     hole: com.joyboard.notchisland.island.Hole?,
     source: CameraSource,

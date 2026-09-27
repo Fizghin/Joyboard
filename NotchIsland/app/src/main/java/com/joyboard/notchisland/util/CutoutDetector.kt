@@ -67,6 +67,20 @@ object CutoutDetector {
     }
 
     /**
+     * The screen's shorter side in dp: its width in portrait, whichever way it is held. On a
+     * foldable this is what tells the cover screen from the inner one.
+     */
+    fun shortSideDp(context: Context): Float {
+        val windowManager = context.getSystemService(WindowManager::class.java)
+        val (w, h) = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R && windowManager != null) {
+            windowManager.currentWindowMetrics.bounds.let { it.width() to it.height() }
+        } else {
+            context.resources.displayMetrics.let { it.widthPixels to it.heightPixels }
+        }
+        return minOf(w, h) / context.resources.displayMetrics.density
+    }
+
+    /**
      * The hole's outline. Android 12 exposes the real shape; before that there are only bounding
      * rectangles, which some makers stretch up to the screen edge — so for those the hole is
      * taken to hug the rectangle's bottom, which is where the lens actually is.

@@ -1,0 +1,23 @@
+# Startup profile for Notch Island, hand-written rather than recorded: the island's own code is
+# small, and all of it sits on a hot path — the overlay starts at boot and every tap morphs the
+# island — so it is compiled ahead of time wholesale. Libraries ship their own profiles, which
+# AGP merges with this one; profileinstaller applies the result to sideloaded installs too.
+#
+# H = hot, S = runs during startup, P = runs after startup. ** matches across packages.
+
+# The overlay: service, controller, window, the island view and its panels and engines.
+HSPLcom/joyboard/notchisland/NotchApp;->**(**)**
+HSPLcom/joyboard/notchisland/service/**->**(**)**
+HSPLcom/joyboard/notchisland/island/**->**(**)**
+HSPLcom/joyboard/notchisland/data/**->**(**)**
+HSPLcom/joyboard/notchisland/util/**->**(**)**
+Lcom/joyboard/notchisland/service/**;
+Lcom/joyboard/notchisland/island/**;
+Lcom/joyboard/notchisland/data/**;
+Lcom/joyboard/notchisland/util/**;
+
+# The settings app, opened from the launcher.
+SPLcom/joyboard/notchisland/MainActivity;->**(**)**
+SPLcom/joyboard/notchisland/ui/**->**(**)**
+Lcom/joyboard/notchisland/MainActivity;
+Lcom/joyboard/notchisland/ui/**;

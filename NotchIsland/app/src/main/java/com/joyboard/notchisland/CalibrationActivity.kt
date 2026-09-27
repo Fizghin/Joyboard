@@ -73,6 +73,7 @@ import kotlin.math.roundToInt
 import androidx.compose.ui.res.stringResource
 import androidx.annotation.StringRes
 import com.joyboard.notchisland.util.describe
+import com.joyboard.notchisland.data.stampedFor
 
 /**
  * Lines the island up with the phone's real camera. The activity draws right into the cutout
@@ -109,7 +110,8 @@ class CalibrationActivity : ComponentActivity() {
                 CalibrationScreen(
                     settings = settings,
                     onSave = { draft ->
-                        viewModel.update { draft }
+                        val screen = CutoutDetector.shortSideDp(this)
+                        viewModel.update { draft.stampedFor(screen) }
                         finish()
                     },
                     onCancel = { finish() },
