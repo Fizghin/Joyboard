@@ -202,14 +202,14 @@ private fun CalibrationScreen(
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterStart)
-                    .offset(x = (12f + clearance.start).dp)
+                    .offset { IntOffset((12f + clearance.start).dp.roundToPx(), 0) }
                     .size(18.dp)
                     .background(Color(0xFF3B82F6), RoundedCornerShape(5.dp))
             )
             Box(
                 modifier = Modifier
                     .align(Alignment.CenterEnd)
-                    .offset(x = -(12f + clearance.end).dp)
+                    .offset { IntOffset(-(12f + clearance.end).dp.roundToPx(), 0) }
                     .size(22.dp, 10.dp)
                     .background(Color(0xFF34C759), RoundedCornerShape(3.dp))
             )

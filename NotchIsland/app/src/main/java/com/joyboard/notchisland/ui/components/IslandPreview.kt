@@ -47,6 +47,7 @@ import com.joyboard.notchisland.island.IslandMode
 import com.joyboard.notchisland.util.DynamicColors
 import com.joyboard.notchisland.R
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.IntOffset
 
 private val STATUS_BAR_BAND = 26.dp
 
@@ -174,10 +175,12 @@ fun IslandPreview(
             ) {
                 Box(
                     modifier = Modifier
-                        .offset(
-                            x = settings.offsetX.dp,
-                            y = STATUS_BAR_BAND + settings.touchStripHeight.dp / 2
-                        )
+                        .offset {
+                            IntOffset(
+                                settings.offsetX.dp.roundToPx(),
+                                (STATUS_BAR_BAND + settings.touchStripHeight.dp / 2).roundToPx(),
+                            )
+                        }
                         .width(26.dp)
                         .height(3.dp)
                         .background(Color.White.copy(alpha = 0.35f), CircleShape)
@@ -186,7 +189,8 @@ fun IslandPreview(
 
             Box(
                 modifier = Modifier
-                    .offset(x = settings.offsetX.dp, y = islandTop)
+                    // Placed at layout time, so dragging an offset slider skips recomposition.
+                    .offset { IntOffset(settings.offsetX.dp.roundToPx(), islandTop.roundToPx()) }
                     .width(width)
                     .height(height)
                     .clip(RoundedCornerShape(radius))
@@ -222,7 +226,9 @@ fun IslandPreview(
             settings.hole?.let { hole ->
                 Box(
                     modifier = Modifier
-                        .offset(x = hole.centerX.dp, y = (hole.centerY - hole.height / 2f).dp)
+                        .offset {
+                            IntOffset(hole.centerX.dp.roundToPx(), (hole.centerY - hole.height / 2f).dp.roundToPx())
+                        }
                         .size(hole.width.dp, hole.height.dp)
                         .background(Color(0xFF050507), CircleShape)
                 )
